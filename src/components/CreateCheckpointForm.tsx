@@ -13,6 +13,8 @@ interface PickedImage {
   url: string;
 }
 
+const MAX_IMAGES = 3;
+
 /** The check-in form (presentation-agnostic). Rendered inside a Sheet on the
  *  Map, or full-page on the Create tab. */
 export function CreateCheckpointForm({
@@ -38,8 +40,16 @@ export function CreateCheckpointForm({
 
   function addFiles(list: FileList | null) {
     if (!list) return;
-    const next = Array.from(list).map((file) => ({ file, url: URL.createObjectURL(file) }));
-    setPicked((prev) => [...prev, ...next]);
+    setPicked((prev) => {
+      const remainingSlots = MAX_IMAGES - prev.length;
+      if (remainingSlots <= 0) return prev;
+
+      const next = Array.from(list)
+        .slice(0, remainingSlots)
+        .map((file) => ({ file, url: URL.createObjectURL(file) }));
+
+      return [...prev, ...next];
+    });
   }
 
   function removeAt(index: number) {
@@ -73,7 +83,7 @@ export function CreateCheckpointForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3">
+    <form onSubmit={submit} className="flex flex-col gap-5">
       <input
         required
         value={name}
@@ -139,19 +149,21 @@ export function CreateCheckpointForm({
             </div>
           ))}
         </PhotoProvider>
-        <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground">
-          <Plus size={24} />
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              addFiles(e.target.files);
-              e.target.value = ""; // allow re-picking the same file
-            }}
-          />
-        </label>
+        {picked.length < MAX_IMAGES && (
+          <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground">
+            <Plus size={24} />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = ""; // allow re-picking the same file
+              }}
+            />
+          </label>
+        )}
       </div>
 
       {err && <p className="text-sm text-accent-600">{err}</p>}
@@ -159,9 +171,6 @@ export function CreateCheckpointForm({
       <Button type="submit" variant="accent" disabled={busy} icon={<Flag size={20} />}>
         {busy ? "Đang lưu..." : "CẮM CỜ"}
       </Button>
-      <p className="text-center text-xs text-subtle-foreground">
-        📍 {at.lat.toFixed(5)}, {at.lng.toFixed(5)}
-      </p>
     </form>
   );
 }

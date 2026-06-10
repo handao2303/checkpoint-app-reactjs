@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import Map, { Marker, GeolocateControl, NavigationControl } from "react-map-gl/maplibre";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { MapPin } from "lucide-react";
 import { getCheckpointsInBounds, type Bounds } from "../lib/api";
 import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
@@ -19,6 +19,7 @@ export function MapPage() {
     queryKey: ["checkpoints", "bbox", bounds],
     queryFn: () => getCheckpointsInBounds(bounds!),
     enabled: !!bounds,
+    placeholderData: keepPreviousData,
   });
 
   const syncBounds = useCallback((map: MapLibreMap) => {
