@@ -2,6 +2,7 @@ import { Share2, Mountain, Utensils, Bike, Lock, Camera, LogOut } from "lucide-r
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../auth/AuthContext";
+import { UpgradeBanner } from "../components/UpgradeBanner";
 
 const badges = [
   { name: "Chinh phục Fansipan", Icon: Mountain, locked: false },
@@ -23,11 +24,7 @@ export function ProfilePage() {
 
   return (
     <div className="flex flex-col gap-5 pb-24">
-      {user.is_anonymous && (
-        <div className="rounded-xl border border-primary-200 bg-primary-50 p-3 text-sm text-clay-700">
-          Bạn đang dùng <b>tài khoản khách</b> — dữ liệu có thể mất. Đăng ký để lưu hành trình của bạn.
-        </div>
-      )}
+      {user.is_anonymous && <UpgradeBanner />}
 
       {/* Passport card */}
       <div className="rounded-2xl bg-[image:var(--gradient-passport)] p-5 text-white shadow-card">

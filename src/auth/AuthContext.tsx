@@ -9,6 +9,7 @@ interface AuthState {
   signupEmail: (email: string, password: string) => Promise<void>;
   loginGoogle: () => Promise<void>;
   loginAnonymous: () => Promise<void>;
+  upgradeAccount: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -41,10 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  // Catch sign-ins that complete asynchronously (OAuth redirect).
+  // Catch sign-ins (OAuth redirect) and account upgrades (USER_UPDATED, e.g.
+  // after an anonymous user confirms their email) — re-exchange to sync the BE.
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session && !tokens.access) {
+      if (!session) return;
+      const isNewSignIn = event === "SIGNED_IN" && !tokens.access;
+      if (isNewSignIn || event === "USER_UPDATED") {
         try {
           setUser(await exchange(session.access_token));
         } catch {
@@ -83,6 +87,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(await exchange(data.session.access_token));
   };
 
+  // Convert the current anonymous user into a permanent account. Supabase keeps
+  // the same user id (sub), so all their data is preserved. If email
+  // confirmation is on, is_anonymous only flips to false after the user
+  // confirms — the USER_UPDATED listener re-syncs the backend at that point.
+  const upgradeAccount = async (email: string, password: string) => {
+    const { error } = await supabase.auth.updateUser({ email, password });
+    if (error) throw error;
+    const { data } = await supabase.auth.getSession();
+    if (data.session) setUser(await exchange(data.session.access_token));
+  };
+
   const signOut = async () => {
     await logout();
     await supabase.auth.signOut();
@@ -91,7 +106,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, loginEmail, signupEmail, loginGoogle, loginAnonymous, signOut }}
+      value={{
+        user,
+        loading,
+        loginEmail,
+        signupEmail,
+        loginGoogle,
+        loginAnonymous,
+        upgradeAccount,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>
