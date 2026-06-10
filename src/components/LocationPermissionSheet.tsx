@@ -1,0 +1,162 @@
+import { useCallback, useEffect, useState } from "react";
+import { MapPin } from "lucide-react";
+import { Sheet } from "./ui/Sheet";
+import { Button } from "./ui/Button";
+
+type Platform = "ios" | "android" | "desktop";
+
+function getPlatform(): Platform {
+  const ua = navigator.userAgent;
+  if (/iphone|ipad|ipod/i.test(ua)) return "ios";
+  if (/android/i.test(ua)) return "android";
+  return "desktop";
+}
+
+function isStandalone(): boolean {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  );
+}
+
+/** Platform- and install-mode-specific steps to re-enable a blocked location
+ *  permission (there is no web API to open these settings programmatically). */
+function reenableSteps(): string[] {
+  const platform = getPlatform();
+  const pwa = isStandalone();
+
+  if (platform === "android") {
+    return pwa
+      ? [
+          "Nhấn giữ biểu tượng app Checkpoint ở màn hình chính",
+          "Chọn “Thông tin ứng dụng” (ⓘ)",
+          "Quyền → Vị trí → Cho phép",
+          "Mở lại app rồi thử check-in",
+        ]
+      : [
+          "Nhấn biểu tượng 🔒 / ⓘ bên trái thanh địa chỉ",
+          "Quyền (Permissions) → Vị trí (Location) → Cho phép",
+          "Tải lại trang",
+        ];
+  }
+  if (platform === "ios") {
+    return pwa
+      ? [
+          "Mở Cài đặt iPhone",
+          "Vuốt xuống tìm “Checkpoint” (hoặc Safari)",
+          "Vị trí → chọn “Khi dùng ứng dụng”",
+          "Mở lại app",
+        ]
+      : [
+          "Bấm “あ/AA” cạnh thanh địa chỉ → Cài đặt trang web",
+          "Vị trí → Cho phép (hoặc Cài đặt → Safari → Vị trí)",
+          "Tải lại trang",
+        ];
+  }
+  return pwa
+    ? [
+        "Bấm biểu tượng ⚙ / 🔒 trên thanh tiêu đề cửa sổ app",
+        "Site settings → Vị trí (Location) → Cho phép",
+        "Tải lại",
+      ]
+    : [
+        "Bấm biểu tượng 🔒 bên trái địa chỉ web",
+        "Vị trí (Location) → Cho phép (Allow)",
+        "Tải lại trang",
+      ];
+}
+
+export function LocationPermissionSheet({
+  onGranted,
+  onClose,
+}: {
+  onGranted: (coords: { lat: number; lng: number }) => void;
+  onClose: () => void;
+}) {
+  const [state, setState] = useState<PermissionState | "unknown">("unknown");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const fetchPosition = useCallback(() => {
+    setBusy(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setBusy(false);
+        onGranted({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      (err) => {
+        setBusy(false);
+        if (err.code === err.PERMISSION_DENIED) setState("denied");
+        else setError("Không lấy được vị trí. Vui lòng thử lại.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }, [onGranted]);
+
+  // Track the live permission state so we can auto-continue the moment the user
+  // flips it back to "granted" in settings — without them re-tapping.
+  useEffect(() => {
+    let status: PermissionStatus | null = null;
+    let active = true;
+    navigator.permissions
+      ?.query({ name: "geolocation" as PermissionName })
+      .then((s) => {
+        if (!active) return;
+        status = s;
+        setState(s.state);
+        s.onchange = () => {
+          setState(s.state);
+          if (s.state === "granted") fetchPosition();
+        };
+      })
+      .catch(() => setState("prompt"));
+    return () => {
+      active = false;
+      if (status) status.onchange = null;
+    };
+  }, [fetchPosition]);
+
+  const denied = state === "denied";
+
+  return (
+    <Sheet title={denied ? "Vị trí đang bị chặn" : "Cho phép định vị"} onClose={onClose}>
+      <div className="flex flex-col items-center gap-3 text-center">
+        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-50 text-primary">
+          <MapPin size={32} />
+        </span>
+
+        {denied ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Bạn đã chặn quyền vị trí. Bật lại theo các bước:
+            </p>
+            <ol className="w-full list-decimal space-y-1 rounded-xl bg-surface-muted p-3 pl-7 text-left text-sm">
+              {reenableSteps().map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ol>
+            <Button className="w-full" disabled={busy} onClick={fetchPosition}>
+              {busy ? "Đang kiểm tra..." : "Tôi đã bật, thử lại"}
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Checkpoint cần vị trí của bạn để cắm cờ đúng nơi bạn đang đứng. Vị trí chỉ dùng cho
+              lần check-in này.
+            </p>
+            {error && <p className="text-sm text-accent-600">{error}</p>}
+            <Button className="w-full" disabled={busy} icon={<MapPin size={20} />} onClick={fetchPosition}>
+              {busy ? "Đang lấy vị trí..." : "Cho phép định vị"}
+            </Button>
+          </>
+        )}
+
+        <button onClick={onClose} className="text-sm text-muted-foreground">
+          Để sau
+        </button>
+      </div>
+    </Sheet>
+  );
+}

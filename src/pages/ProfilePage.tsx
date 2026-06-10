@@ -1,8 +1,11 @@
 import { Share2, Mountain, Utensils, Bike, Lock, Camera, LogOut } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../auth/AuthContext";
 import { UpgradeBanner } from "../components/UpgradeBanner";
+import { getMyCheckpoints } from "../lib/api";
+import { categoryIcon } from "../lib/maps";
 
 const badges = [
   { name: "Chinh phục Fansipan", Icon: Mountain, locked: false },
@@ -13,6 +16,10 @@ const badges = [
 
 export function ProfilePage() {
   const { user, signOut } = useAuth();
+  const { data: myCheckpoints = [] } = useQuery({
+    queryKey: ["checkpoints", "me"],
+    queryFn: () => getMyCheckpoints(12),
+  });
   if (!user) return null;
 
   const stats = [
@@ -100,11 +107,21 @@ export function ProfilePage() {
             <Camera size={18} />
           </span>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <ImagePlaceholder className="h-28" label="Hạ Long" />
-          <ImagePlaceholder className="h-28" label="Phố cổ Hà Nội" />
-          <ImagePlaceholder className="col-span-2 h-44" label="Mù Cang Chải" />
-        </div>
+        {myCheckpoints.length === 0 ? (
+          <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
+            Chưa có check-in nào. Mở tab Map và cắm cờ địa điểm đầu tiên!
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {myCheckpoints.map((cp) => (
+              <ImagePlaceholder
+                key={cp.id}
+                className="h-28"
+                label={`${categoryIcon(cp.category)} ${cp.name}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <Button size="lg" variant="green" icon={<Share2 size={20} />}>

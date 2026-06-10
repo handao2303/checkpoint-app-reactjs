@@ -98,3 +98,94 @@ export async function logout(): Promise<void> {
   }
   tokens.clear();
 }
+
+// ---- Checkpoints (Phase 2) ----
+
+export interface Checkpoint {
+  id: string;
+  user_id: string;
+  name: string;
+  category: string;
+  note?: string;
+  rating?: number;
+  lat: number;
+  lng: number;
+  address?: string;
+  xp_awarded: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CheckpointImage {
+  id: string;
+  url: string;
+  sort_order: number;
+}
+
+export interface CheckpointDetail {
+  checkpoint: Checkpoint;
+  images: CheckpointImage[];
+  author: { username: string; display_name?: string; avatar_url?: string };
+}
+
+export interface CheckinResult {
+  checkpoint: Checkpoint;
+  xp_awarded: number;
+  total_xp: number;
+  level: number;
+}
+
+export interface Bounds {
+  minLng: number;
+  minLat: number;
+  maxLng: number;
+  maxLat: number;
+}
+
+export interface CheckinInput {
+  name: string;
+  category: string;
+  note?: string;
+  rating?: number;
+  lat: number;
+  lng: number;
+  address?: string;
+}
+
+export async function getCheckpointsInBounds(b: Bounds): Promise<Checkpoint[]> {
+  const bbox = `${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`;
+  const res = await apiFetch(`/checkpoints?bbox=${bbox}&limit=300`);
+  if (!res.ok) throw new Error("load checkpoints failed");
+  return (await res.json()).checkpoints ?? [];
+}
+
+export async function createCheckpoint(input: CheckinInput): Promise<CheckinResult> {
+  const res = await apiFetch("/checkpoints", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error("create checkpoint failed");
+  return res.json();
+}
+
+export async function getCheckpointDetail(id: string): Promise<CheckpointDetail> {
+  const res = await apiFetch(`/checkpoints/${id}`);
+  if (!res.ok) throw new Error("load checkpoint failed");
+  return res.json();
+}
+
+export async function getMyCheckpoints(limit = 30): Promise<Checkpoint[]> {
+  const res = await apiFetch(`/checkpoints/me?limit=${limit}`);
+  if (!res.ok) throw new Error("load my checkpoints failed");
+  return (await res.json()).checkpoints ?? [];
+}
+
+export async function uploadCheckpointImages(id: string, files: File[]): Promise<CheckpointImage[]> {
+  const form = new FormData();
+  files.forEach((f) => form.append("images", f));
+  // No Content-Type header — the browser sets the multipart boundary.
+  const res = await apiFetch(`/checkpoints/${id}/images`, { method: "POST", body: form });
+  if (!res.ok) throw new Error("upload images failed");
+  return (await res.json()).images ?? [];
+}
