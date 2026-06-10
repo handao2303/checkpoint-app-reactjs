@@ -29,8 +29,7 @@ npm run deploy       # builds + wrangler deploy (Workers static assets, SPA fall
 
 ## TODO
 
-- Add real PWA icons at `public/icon-192.png` and `public/icon-512.png` (referenced in `vite.config.ts`).
-- Wire pages to the backend API (auth exchange, checkpoints, profile).
+- Wire the remaining pages (Map/Discover/Create/AIPlan) to the backend API — auth + Profile already done.
 - Replace `ImagePlaceholder` with real images / a map library (Mapbox GL).
 
 ## Structure

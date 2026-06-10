@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { authErrorMessage } from "../lib/authErrors";
 import { Button } from "./ui/Button";
 
 /** Shown to anonymous users: convert the guest session into a real account
@@ -20,7 +21,7 @@ export function UpgradeBanner() {
       await upgradeAccount(email, password);
       setMsg("Đã lưu. Nếu bật xác nhận email, kiểm tra hộp thư để hoàn tất.");
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "Không nâng cấp được tài khoản");
+      setMsg(authErrorMessage(err));
     } finally {
       setBusy(false);
     }

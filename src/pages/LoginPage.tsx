@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Mail } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
+import { authErrorMessage } from "../lib/authErrors";
 import { Button } from "../components/ui/Button";
 
 export function LoginPage() {
@@ -19,7 +20,7 @@ export function LoginPage() {
       if (mode === "signin") await loginEmail(email, password);
       else await signupEmail(email, password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
+      setError(authErrorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -79,7 +80,7 @@ export function LoginPage() {
           try {
             await loginAnonymous();
           } catch (err) {
-            setError(err instanceof Error ? err.message : "Không vào được chế độ khách");
+            setError(authErrorMessage(err));
           } finally {
             setBusy(false);
           }
