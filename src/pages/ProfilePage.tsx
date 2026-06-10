@@ -1,13 +1,7 @@
-import { Share2, Mountain, Utensils, Bike, Lock, Camera } from "lucide-react";
+import { Share2, Mountain, Utensils, Bike, Lock, Camera, LogOut } from "lucide-react";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
-
-const stats = [
-  { label: "TỔNG XP", value: "24.5k" },
-  { label: "SỐ CỜ", value: "86" },
-  { label: "KM", value: "1.2k" },
-  { label: "REVIEW", value: "42" },
-];
+import { useAuth } from "../auth/AuthContext";
 
 const badges = [
   { name: "Chinh phục Fansipan", Icon: Mountain, locked: false },
@@ -17,14 +11,40 @@ const badges = [
 ];
 
 export function ProfilePage() {
+  const { user, signOut } = useAuth();
+  if (!user) return null;
+
+  const stats = [
+    { label: "TỔNG XP", value: user.total_xp.toLocaleString() },
+    { label: "SỐ CỜ", value: user.checkpoint_count.toString() },
+    { label: "HÀNH TRÌNH", value: user.journey_count.toString() },
+    { label: "CẤP", value: user.level.toString() },
+  ];
+
   return (
     <div className="flex flex-col gap-5 pb-24">
+      {user.is_anonymous && (
+        <div className="rounded-xl border border-primary-200 bg-primary-50 p-3 text-sm text-clay-700">
+          Bạn đang dùng <b>tài khoản khách</b> — dữ liệu có thể mất. Đăng ký để lưu hành trình của bạn.
+        </div>
+      )}
+
       {/* Passport card */}
       <div className="rounded-2xl bg-[image:var(--gradient-passport)] p-5 text-white shadow-card">
         <div className="flex flex-col items-center gap-2">
-          <span className="h-20 w-20 rounded-full border-4 border-white/30 bg-white/20" />
-          <h2 className="font-display text-2xl font-bold text-white">Nguyễn Minh Huy</h2>
-          <span className="rounded-full bg-white/15 px-3 py-1 text-sm">✦ Kẻ lữ hành Xuyên Việt</span>
+          {user.avatar_url ? (
+            <img
+              src={user.avatar_url}
+              alt=""
+              className="h-20 w-20 rounded-full border-4 border-white/30 object-cover"
+            />
+          ) : (
+            <span className="h-20 w-20 rounded-full border-4 border-white/30 bg-white/20" />
+          )}
+          <h2 className="font-display text-2xl font-bold text-white">
+            {user.display_name || user.username}
+          </h2>
+          <span className="rounded-full bg-white/15 px-3 py-1 text-sm">@{user.username}</span>
         </div>
         <div className="mt-4 grid grid-cols-4 gap-2">
           {stats.map((s) => (
@@ -39,8 +59,8 @@ export function ProfilePage() {
       {/* Level progress */}
       <Card>
         <div className="flex items-center justify-between text-sm">
-          <span className="font-semibold text-clay-600">CẤP ĐỘ HIỆN TẠI: 42</span>
-          <span className="text-muted-foreground">850 / 1000 XP</span>
+          <span className="font-semibold text-clay-600">CẤP ĐỘ HIỆN TẠI: {user.level}</span>
+          <span className="text-muted-foreground">{user.total_xp.toLocaleString()} XP</span>
         </div>
         <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-green-100">
           <div className="h-full w-[85%] rounded-full bg-[image:var(--gradient-xp)]" />
@@ -92,6 +112,9 @@ export function ProfilePage() {
 
       <Button size="lg" variant="green" icon={<Share2 size={20} />}>
         Chia sẻ Hộ chiếu Điện tử
+      </Button>
+      <Button size="lg" variant="outline" icon={<LogOut size={20} />} onClick={signOut}>
+        Đăng xuất
       </Button>
     </div>
   );
