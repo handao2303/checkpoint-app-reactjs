@@ -7,17 +7,13 @@ import { MapPin } from "lucide-react";
 import { getCheckpointsInBounds, type Bounds } from "../lib/api";
 import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { Button } from "../components/ui/Button";
-import { Toast } from "../components/ui/Toast";
-import { CreateCheckpointSheet } from "../components/CreateCheckpointSheet";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
-import { LocationPermissionSheet } from "../components/LocationPermissionSheet";
+import { useCheckin } from "../hooks/useCheckin";
 
 export function MapPage() {
   const [bounds, setBounds] = useState<Bounds | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [creatingAt, setCreatingAt] = useState<{ lat: number; lng: number } | null>(null);
-  const [askLocation, setAskLocation] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { start, sheets } = useCheckin();
 
   const { data: checkpoints = [] } = useQuery({
     queryKey: ["checkpoints", "bbox", bounds],
@@ -46,28 +42,6 @@ export function MapPage() {
     },
     [syncBounds],
   );
-
-  const startCheckin = useCallback(async () => {
-    if (!navigator.geolocation) {
-      setToast("Trình duyệt không hỗ trợ định vị");
-      return;
-    }
-    // If permission isn't already granted, show our own explainer popup first.
-    let state: PermissionState = "prompt";
-    try {
-      state = (await navigator.permissions.query({ name: "geolocation" as PermissionName })).state;
-    } catch {
-      // Permissions API not available (e.g. Safari) — fall back to the popup.
-    }
-    if (state === "granted") {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setCreatingAt({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => setAskLocation(true),
-      );
-    } else {
-      setAskLocation(true);
-    }
-  }, []);
 
   return (
     <div className="relative -mx-4 -my-4 h-[calc(100dvh-8.5rem)]">
@@ -103,35 +77,13 @@ export function MapPage() {
         size="lg"
         className="absolute inset-x-4 bottom-4 mx-auto max-w-md"
         icon={<MapPin size={22} />}
-        onClick={startCheckin}
+        onClick={start}
       >
         CHECK-IN
       </Button>
 
-      {askLocation && (
-        <LocationPermissionSheet
-          onClose={() => setAskLocation(false)}
-          onGranted={(coords) => {
-            setAskLocation(false);
-            setCreatingAt(coords);
-          }}
-        />
-      )}
-
-      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
-      {creatingAt && (
-        <CreateCheckpointSheet
-          at={creatingAt}
-          onClose={() => setCreatingAt(null)}
-          onCreated={(xp) => {
-            setCreatingAt(null);
-            setToast(`+${xp} XP 🎉`);
-          }}
-        />
-      )}
-      {selectedId && (
-        <CheckpointDetailSheet id={selectedId} onClose={() => setSelectedId(null)} />
-      )}
+      {sheets}
+      {selectedId && <CheckpointDetailSheet id={selectedId} onClose={() => setSelectedId(null)} />}
     </div>
   );
 }
