@@ -13,7 +13,6 @@ export function CreateCheckpointSheet({
 }) {
   return (
     <Sheet title="Cắm cờ tại đây" onClose={onClose}>
-      <div className="h-4" />
       <CreateCheckpointForm at={at} onCreated={onCreated} />
     </Sheet>
   );

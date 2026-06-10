@@ -1,11 +1,25 @@
 import { Share2, Mountain, Utensils, Bike, Lock, Camera, LogOut } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { PhotoProvider, PhotoView } from "react-photo-view";
+import "react-photo-view/dist/react-photo-view.css";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../auth/AuthContext";
 import { UpgradeBanner } from "../components/UpgradeBanner";
-import { getMyCheckpoints } from "../lib/api";
+import { JourneysSection } from "../components/JourneysSection";
+import { getMyCheckpoints, type Checkpoint } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
+
+function MomentCaption({ cp }: { cp?: Checkpoint }) {
+  if (!cp) return null;
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] bg-gradient-to-t from-black/80 to-transparent p-4 pb-8 text-center text-white">
+      <p className="font-display text-lg font-bold">{cp.name}</p>
+      {cp.note && <p className="text-sm">{cp.note}</p>}
+      {cp.address && <p className="mt-0.5 text-xs opacity-80">📍 {cp.address}</p>}
+    </div>
+  );
+}
 
 const badges = [
   { name: "Chinh phục Fansipan", Icon: Mountain, locked: false },
@@ -21,6 +35,9 @@ export function ProfilePage() {
     queryFn: () => getMyCheckpoints(12),
   });
   if (!user) return null;
+
+  // Gallery order = checkpoints that have an image (matches PhotoView render order).
+  const withImages = myCheckpoints.filter((cp) => cp.image_url);
 
   const stats = [
     { label: "TỔNG XP", value: user.total_xp.toLocaleString() },
@@ -99,6 +116,9 @@ export function ProfilePage() {
         </div>
       </div>
 
+      {/* Journeys */}
+      <JourneysSection />
+
       {/* Moments */}
       <div>
         <div className="mb-2 flex items-center justify-between">
@@ -112,15 +132,27 @@ export function ProfilePage() {
             Chưa có check-in nào. Mở tab Map và cắm cờ địa điểm đầu tiên!
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {myCheckpoints.map((cp) => (
-              <ImagePlaceholder
-                key={cp.id}
-                className="h-28"
-                label={`${categoryIcon(cp.category)} ${cp.name}`}
-              />
-            ))}
-          </div>
+          <PhotoProvider overlayRender={({ index }) => <MomentCaption cp={withImages[index]} />}>
+            <div className="grid grid-cols-2 gap-3">
+              {myCheckpoints.map((cp) =>
+                cp.image_url ? (
+                  <PhotoView key={cp.id} src={cp.image_url}>
+                    <img
+                      src={cp.image_url}
+                      alt={cp.name}
+                      className="h-28 w-full cursor-zoom-in rounded-lg object-cover"
+                    />
+                  </PhotoView>
+                ) : (
+                  <ImagePlaceholder
+                    key={cp.id}
+                    className="h-28"
+                    label={`${categoryIcon(cp.category)} ${cp.name}`}
+                  />
+                ),
+              )}
+            </div>
+          </PhotoProvider>
         )}
       </div>
 

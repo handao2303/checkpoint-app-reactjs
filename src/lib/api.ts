@@ -154,6 +154,7 @@ export interface Checkpoint {
   lat: number;
   lng: number;
   address?: string;
+  image_url?: string;
   xp_awarded: number;
   created_at: string;
   updated_at: string;
@@ -318,5 +319,73 @@ export async function getPopularPlaces(near?: LatLng): Promise<Place[]> {
 export async function getPlace(id: string): Promise<PlaceDetail> {
   const res = await apiFetch(`/places/${id}`);
   if (!res.ok) throw new Error("load place failed");
+  return res.json();
+}
+
+// ---- Journeys (Phase 3) ----
+
+export interface Journey {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  is_active: boolean;
+  started_at?: string;
+  ended_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JourneyStop {
+  id: string;
+  name: string;
+  category: string;
+  note?: string;
+  address?: string;
+  lat: number;
+  lng: number;
+  place_id?: string;
+  images: string[];
+  created_at: string;
+}
+
+export interface JourneyDetail {
+  journey: Journey;
+  stats: { checkpoint_count: number; total_xp: number; distance_km: number };
+  checkpoints: JourneyStop[];
+}
+
+export async function getMyJourneys(): Promise<Journey[]> {
+  const res = await apiFetch("/journeys/me");
+  if (!res.ok) throw new Error("load journeys failed");
+  return (await res.json()).journeys ?? [];
+}
+
+export async function getJourney(id: string): Promise<JourneyDetail> {
+  const res = await apiFetch(`/journeys/${id}`);
+  if (!res.ok) throw new Error("load journey failed");
+  return res.json();
+}
+
+export async function createJourney(title: string, description?: string): Promise<Journey> {
+  const res = await apiFetch("/journeys", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, description }),
+  });
+  if (!res.ok) throw new Error("create journey failed");
+  return res.json();
+}
+
+export async function updateJourney(
+  id: string,
+  patch: { title?: string; description?: string; is_active?: boolean },
+): Promise<Journey> {
+  const res = await apiFetch(`/journeys/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error("update journey failed");
   return res.json();
 }

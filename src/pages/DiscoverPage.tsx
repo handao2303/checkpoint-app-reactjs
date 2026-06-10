@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { MapPin, Star, Search } from "lucide-react";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
@@ -52,16 +52,21 @@ export function DiscoverPage() {
   const items = data?.pages.flatMap((p) => p.items) ?? [];
 
   // Infinite scroll sentinel.
-  const sentinel = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = sentinel.current;
-    if (!el) return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
-    });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const observer = useRef<IntersectionObserver | null>(null);
+  const sentinelRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      observer.current?.disconnect();
+      if (!node) return;
+      observer.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
+        },
+        { rootMargin: "300px" },
+      );
+      observer.current.observe(node);
+    },
+    [hasNextPage, isFetchingNextPage, fetchNextPage],
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -137,7 +142,7 @@ export function DiscoverPage() {
           {items.map((it) => (
             <FeedCard key={it.id} item={it} onOpen={() => setSelectedId(it.id)} />
           ))}
-          <div ref={sentinel} className="h-8" />
+          <div ref={sentinelRef} className="h-8" />
           {isFetchingNextPage && (
             <p className="pb-4 text-center text-sm text-muted-foreground">Đang tải thêm...</p>
           )}
