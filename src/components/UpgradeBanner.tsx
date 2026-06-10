@@ -6,7 +6,7 @@ import { Button } from "./ui/Button";
 /** Shown to anonymous users: convert the guest session into a real account
  *  without losing data (Supabase keeps the same user id). */
 export function UpgradeBanner() {
-  const { upgradeAccount } = useAuth();
+  const { upgradeAccount, loginGoogle } = useAuth();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -59,6 +59,15 @@ export function UpgradeBanner() {
           <Button type="submit" size="sm" disabled={busy}>
             {busy ? "Đang lưu..." : "Lưu tài khoản"}
           </Button>
+          <button
+            type="button"
+            onClick={() => {
+              loginGoogle().catch((err) => setMsg(authErrorMessage(err)));
+            }}
+            className="text-center text-sm font-medium text-primary"
+          >
+            Hoặc liên kết Google
+          </button>
           {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
         </form>
       )}

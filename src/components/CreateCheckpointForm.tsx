@@ -17,16 +17,25 @@ const MAX_IMAGES = 3;
 
 /** The check-in form (presentation-agnostic). Rendered inside a Sheet on the
  *  Map, or full-page on the Create tab. */
+export interface CheckinPlace {
+  id: string;
+  name: string;
+  category: string;
+}
+
 export function CreateCheckpointForm({
   at,
+  place,
   onCreated,
 }: {
   at: { lat: number; lng: number };
+  /** When set, check-in is to an existing place: name is fixed and place_id sent. */
+  place?: CheckinPlace;
   onCreated: (xp: number) => void;
 }) {
   const qc = useQueryClient();
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("cafe");
+  const [name, setName] = useState(place?.name ?? "");
+  const [category, setCategory] = useState(place?.category ?? "cafe");
   const [note, setNote] = useState("");
   const [rating, setRating] = useState<number | undefined>(undefined);
   const [picked, setPicked] = useState<PickedImage[]>([]);
@@ -71,9 +80,14 @@ export function CreateCheckpointForm({
         rating,
         lat: at.lat,
         lng: at.lng,
+        place_id: place?.id,
       });
       if (picked.length) await uploadCheckpointImages(res.checkpoint.id, picked.map((p) => p.file));
-      await qc.invalidateQueries({ queryKey: ["checkpoints"] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["checkpoints"] }),
+        qc.invalidateQueries({ queryKey: ["feed"] }),
+        qc.invalidateQueries({ queryKey: ["place"] }),
+      ]);
       onCreated(res.xp_awarded);
     } catch {
       setErr("Không tạo được check-in. Vui lòng thử lại.");
@@ -88,8 +102,9 @@ export function CreateCheckpointForm({
         required
         value={name}
         onChange={(e) => setName(e.target.value)}
+        readOnly={!!place}
         placeholder="Tên địa điểm"
-        className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+        className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring read-only:opacity-70"
       />
 
       <div className="flex flex-wrap gap-2">

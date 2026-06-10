@@ -21,6 +21,8 @@ const BY_CODE: Record<string, string> = {
   user_banned: "Tài khoản đã bị khoá.",
   captcha_failed: "Xác thực captcha thất bại. Vui lòng thử lại.",
   email_address_not_authorized: "Email này không được phép đăng nhập.",
+  identity_already_exists: "Tài khoản Google này đã được dùng cho tài khoản khác. Hãy đăng nhập trực tiếp.",
+  manual_linking_disabled: "Liên kết tài khoản đang bị tắt trong cấu hình Supabase.",
 };
 
 const BY_MESSAGE: [RegExp, string][] = [

@@ -193,6 +193,7 @@ export interface CheckinInput {
   lat: number;
   lng: number;
   address?: string;
+  place_id?: string;
 }
 
 export async function getCheckpointsInBounds(b: Bounds): Promise<Checkpoint[]> {
@@ -231,4 +232,91 @@ export async function uploadCheckpointImages(id: string, files: File[]): Promise
   const res = await apiFetch(`/checkpoints/${id}/images`, { method: "POST", body: form });
   if (!res.ok) throw new Error("upload images failed");
   return (await res.json()).images ?? [];
+}
+
+// ---- Places / Discovery (Phase 4) ----
+
+export interface Place {
+  id: string;
+  name: string;
+  category: string;
+  lat: number;
+  lng: number;
+  address?: string;
+  checkin_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlaceReview {
+  note: string;
+  rating?: number;
+  created_at: string;
+  author: { username: string; display_name?: string; avatar_url?: string };
+}
+
+export interface PlaceDetail {
+  place: Place;
+  avg_rating?: number;
+  images: { id: string; url: string }[];
+  reviews: PlaceReview[];
+}
+
+export interface FeedItem {
+  id: string;
+  name: string;
+  category: string;
+  note?: string;
+  rating?: number;
+  lat: number;
+  lng: number;
+  address?: string;
+  place_id?: string;
+  xp_awarded: number;
+  created_at: string;
+  author: { username: string; display_name?: string; avatar_url?: string };
+  image_url?: string;
+}
+
+export interface FeedPage {
+  items: FeedItem[];
+  next_cursor?: string;
+}
+
+export type LatLng = { lat: number; lng: number };
+
+export async function getFeed(at: LatLng, cursor?: string): Promise<FeedPage> {
+  const p = new URLSearchParams({ lat: String(at.lat), lng: String(at.lng), limit: "15" });
+  if (cursor) p.set("cursor", cursor);
+  const res = await apiFetch(`/discover/feed?${p}`);
+  if (!res.ok) throw new Error("load feed failed");
+  return res.json();
+}
+
+export async function searchPlaces(q: string, near?: LatLng): Promise<Place[]> {
+  const p = new URLSearchParams({ q });
+  if (near) {
+    p.set("lat", String(near.lat));
+    p.set("lng", String(near.lng));
+  }
+  const res = await apiFetch(`/places/search?${p}`);
+  if (!res.ok) throw new Error("search failed");
+  return (await res.json()).places ?? [];
+}
+
+export async function getPopularPlaces(near?: LatLng): Promise<Place[]> {
+  const p = new URLSearchParams({ limit: "10" });
+  if (near) {
+    p.set("lat", String(near.lat));
+    p.set("lng", String(near.lng));
+  }
+  const res = await apiFetch(`/places/popular?${p}`);
+  if (!res.ok) throw new Error("popular failed");
+  return (await res.json()).places ?? [];
+}
+
+export async function getPlace(id: string): Promise<PlaceDetail> {
+  const res = await apiFetch(`/places/${id}`);
+  if (!res.ok) throw new Error("load place failed");
+  return res.json();
 }

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { exchange, getMe, logout, setAuthExpiredHandler, tokens, type User } from "../lib/api";
+import { authErrorMessage } from "../lib/authErrors";
 
 interface AuthState {
   user: User | null;
@@ -66,6 +67,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setAuthExpiredHandler(null);
   }, []);
 
+  // Surface an OAuth redirect error (e.g. linking a Google identity already used
+  // by another account) and clean it from the URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error")) {
+      alert(authErrorMessage({ code: params.get("error_code"), message: params.get("error_description") }));
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   const loginEmail = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
@@ -81,10 +92,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loginGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
-    });
+    const redirectTo = window.location.origin;
+    // If signed in anonymously, LINK Google to the same Supabase user so the
+    // guest's data (same `sub`) is preserved; otherwise a normal sign-in.
+    if (user?.is_anonymous) {
+      const { error } = await supabase.auth.linkIdentity({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) throw error;
+    } else {
+      await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
+    }
   };
 
   const loginAnonymous = async () => {
