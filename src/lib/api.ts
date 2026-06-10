@@ -277,6 +277,7 @@ export interface FeedItem {
   created_at: string;
   author: { username: string; display_name?: string; avatar_url?: string };
   image_url?: string;
+  distance_m: number;
 }
 
 export interface FeedPage {

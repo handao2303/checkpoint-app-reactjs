@@ -10,6 +10,10 @@ import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
 
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
 
+function formatDistance(m: number): string {
+  return m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)}km`;
+}
+
 export function DiscoverPage() {
   const [tab, setTab] = useState<"for-you" | "following">("for-you");
   const [at, setAt] = useState<LatLng>(FALLBACK);
@@ -195,6 +199,9 @@ function FeedCard({ item, onOpen }: { item: FeedItem; onOpen: () => void }) {
             <Star size={16} className="fill-gold text-gold" /> {item.rating}/5
           </span>
         )}
+        <span className="flex items-center gap-1">
+          <MapPin size={14} /> cách {formatDistance(item.distance_m)}
+        </span>
         <span className="ml-auto text-xs">{new Date(item.created_at).toLocaleDateString("vi-VN")}</span>
       </div>
 
