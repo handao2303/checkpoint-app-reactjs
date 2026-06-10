@@ -10,7 +10,8 @@ import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
 
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
 
-function formatDistance(m: number): string {
+function formatDistance(m: number | null | undefined): string | null {
+  if (m == null || !Number.isFinite(m) || m < 0) return null;
   return m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)}km`;
 }
 
@@ -165,6 +166,7 @@ export function DiscoverPage() {
 
 function FeedCard({ item, onOpen }: { item: FeedItem; onOpen: () => void }) {
   const author = item.author.display_name || item.author.username;
+  const distance = formatDistance(item.distance_m);
   return (
     <Card className="flex flex-col gap-3 p-0">
       <div className="flex items-center gap-3 px-4 pt-4">
@@ -199,9 +201,11 @@ function FeedCard({ item, onOpen }: { item: FeedItem; onOpen: () => void }) {
             <Star size={16} className="fill-gold text-gold" /> {item.rating}/5
           </span>
         )}
-        <span className="flex items-center gap-1">
-          <MapPin size={14} /> cách {formatDistance(item.distance_m)}
-        </span>
+        {distance && (
+          <span className="flex items-center gap-1">
+            <MapPin size={14} /> cách {distance}
+          </span>
+        )}
         <span className="ml-auto text-xs">{new Date(item.created_at).toLocaleDateString("vi-VN")}</span>
       </div>
 
