@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "../lib/supabase";
-import { exchange, getMe, logout, tokens, type User } from "../lib/api";
+import { exchange, getMe, logout, setAuthExpiredHandler, tokens, type User } from "../lib/api";
 
 interface AuthState {
   user: User | null;
@@ -57,6 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
     return () => data.subscription.unsubscribe();
+  }, []);
+
+  // When apiFetch can't re-auth (refresh token AND Supabase session both gone),
+  // drop the user → the app renders LoginPage.
+  useEffect(() => {
+    setAuthExpiredHandler(() => setUser(null));
+    return () => setAuthExpiredHandler(null);
   }, []);
 
   const loginEmail = async (email: string, password: string) => {

@@ -1,5 +1,7 @@
 // Thin client for the Checkpoint backend. Stores our backend-issued tokens,
-// attaches the access token, and transparently refreshes on 401.
+// attaches the access token, and transparently re-auths on 401.
+
+import { supabase } from "./supabase";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -49,26 +51,67 @@ async function postJSON(path: string, body: unknown): Promise<Response> {
   });
 }
 
-async function tryRefresh(): Promise<boolean> {
-  const refresh = tokens.refresh;
-  if (!refresh) return false;
-  const res = await postJSON("/auth/refresh", { refresh_token: refresh });
-  if (!res.ok) {
-    tokens.clear();
-    return false;
-  }
-  const data = await res.json();
-  tokens.set(data.access_token, data.refresh_token);
-  return true;
+// Called when re-auth is impossible (both the refresh token and the Supabase
+// session are gone). AuthContext registers this to drop the user → LoginPage.
+let onAuthExpired: (() => void) | null = null;
+export function setAuthExpiredHandler(fn: (() => void) | null) {
+  onAuthExpired = fn;
 }
 
-/** Authenticated fetch: adds Bearer token, refreshes once on 401. */
+// Single-flighted so concurrent 401s share ONE re-auth — critical because the
+// backend rotates the refresh token, so a second concurrent refresh with the
+// now-revoked token would fail and log the user out spuriously.
+let reauthInFlight: Promise<boolean> | null = null;
+
+function ensureFreshToken(): Promise<boolean> {
+  reauthInFlight ??= reauth().finally(() => {
+    reauthInFlight = null;
+  });
+  return reauthInFlight;
+}
+
+/**
+ * Try to obtain a fresh access token, in order:
+ *   1. our rotating refresh token,
+ *   2. re-exchanging the durable Supabase session.
+ * Returns false only when both fail (→ real logout).
+ */
+async function reauth(): Promise<boolean> {
+  const refresh = tokens.refresh;
+  if (refresh) {
+    try {
+      const res = await postJSON("/auth/refresh", { refresh_token: refresh });
+      if (res.ok) {
+        const data = await res.json();
+        tokens.set(data.access_token, data.refresh_token);
+        return true;
+      }
+    } catch {
+      // network error — fall through to the Supabase session
+    }
+  }
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) {
+      await exchange(data.session.access_token); // stores fresh tokens
+      return true;
+    }
+  } catch {
+    // give up
+  }
+  tokens.clear();
+  return false;
+}
+
+/** Authenticated fetch: adds the Bearer token; on 401 re-auths once then retries.
+ *  If re-auth fails, fires onAuthExpired (logout). */
 export async function apiFetch(path: string, init: RequestInit = {}, retry = true): Promise<Response> {
   const headers = new Headers(init.headers);
   if (tokens.access) headers.set("Authorization", `Bearer ${tokens.access}`);
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
-  if (res.status === 401 && retry && (await tryRefresh())) {
-    return apiFetch(path, init, false);
+  if (res.status === 401 && retry) {
+    if (await ensureFreshToken()) return apiFetch(path, init, false);
+    onAuthExpired?.();
   }
   return res;
 }
