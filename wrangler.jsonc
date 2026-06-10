@@ -1,0 +1,12 @@
+{
+  // Cloudflare Workers static-assets deploy for the SPA.
+  // Deploy with: npm run deploy  (builds, then `wrangler deploy`)
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "checkpoint-web",
+  "compatibility_date": "2025-01-01",
+  "assets": {
+    "directory": "./dist",
+    // SPA: serve index.html for client-side routes (React Router).
+    "not_found_handling": "single-page-application"
+  }
+}
