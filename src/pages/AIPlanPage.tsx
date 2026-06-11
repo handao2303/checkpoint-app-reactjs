@@ -12,7 +12,7 @@ const itinerary = [
 
 export function AIPlanPage() {
   return (
-    <div className="flex flex-col gap-4 pb-24">
+    <div className="flex flex-col gap-4 pb-4">
       <div className="flex items-center gap-2">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-700 text-white">
           <Bot size={20} />

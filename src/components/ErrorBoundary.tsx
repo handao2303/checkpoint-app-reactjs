@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!this.state.error) return this.props.children;
 
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background p-6 text-center">
+      <div className="flex min-h-full flex-col items-center justify-center gap-4 bg-background p-6 text-center">
         <img src="/pin.svg" alt="" className="h-12 w-12 opacity-60" />
         <div>
           <h1 className="font-display text-xl font-bold text-foreground">Có lỗi xảy ra</h1>

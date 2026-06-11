@@ -49,7 +49,7 @@ export function ProfilePage() {
   ];
 
   return (
-    <div className="flex flex-col gap-5 pb-24">
+    <div className="flex flex-col gap-5 pb-4">
       {user.is_anonymous && <UpgradeBanner />}
 
       {/* Passport card */}

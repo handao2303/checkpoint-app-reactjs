@@ -19,7 +19,7 @@ export function LeaderboardPage() {
   const meInTop = me != null && entries.some((e) => e.user_id === me.user_id);
 
   return (
-    <div className="flex flex-col gap-4 pb-8">
+    <div className="flex flex-col gap-4 pb-4">
       <div className="flex items-center gap-2">
         <button
           onClick={() => navigate(-1)}

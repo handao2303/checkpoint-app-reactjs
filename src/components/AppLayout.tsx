@@ -6,7 +6,7 @@ import { LocationProvider } from "../location/LocationProvider";
 export function AppLayout() {
   return (
     <LocationProvider>
-      <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-background">
+      <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden bg-background">
         <header className="shrink-0 sticky top-0 z-20 flex items-center justify-between border-b border-border bg-surface/95 px-4 py-3 backdrop-blur pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
           <div className="flex items-center gap-2">
             <img src="/pin.svg" alt="" className="h-7 w-7" />
