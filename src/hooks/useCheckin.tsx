@@ -2,6 +2,7 @@ import { useCallback, useState, type ReactNode } from "react";
 import { CreateCheckpointSheet } from "../components/CreateCheckpointSheet";
 import { LocationPermissionSheet } from "../components/LocationPermissionSheet";
 import { Toast } from "../components/ui/Toast";
+import { canLocateSilently, getCurrentCoords } from "../lib/geo";
 
 /**
  * Shared GPS check-in flow used by both the Map page's CHECK-IN button and the
@@ -18,20 +19,19 @@ export function useCheckin() {
       setToast("Trình duyệt không hỗ trợ định vị");
       return;
     }
-    let state: PermissionState = "prompt";
-    try {
-      state = (await navigator.permissions.query({ name: "geolocation" as PermissionName })).state;
-    } catch {
-      // Permissions API not available (e.g. Safari) — fall back to the popup.
+    // Already granted (or granted before — Permissions API is unreliable on iOS
+    // PWAs)? Try to locate silently; getCurrentPosition won't prompt if the
+    // permission is still live. Only fall back to the explainer/re-enable sheet
+    // when there's no signal yet, or the silent attempt fails (denied/revoked).
+    if (await canLocateSilently()) {
+      try {
+        setCreatingAt(await getCurrentCoords());
+        return;
+      } catch {
+        // revoked or transient failure — let the sheet guide re-enabling.
+      }
     }
-    if (state === "granted") {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setCreatingAt({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => setAskLocation(true),
-      );
-    } else {
-      setAskLocation(true);
-    }
+    setAskLocation(true);
   }, []);
 
   const sheets: ReactNode = (

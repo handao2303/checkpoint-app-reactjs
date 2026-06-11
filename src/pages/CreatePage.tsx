@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CreateCheckpointForm } from "../components/CreateCheckpointForm";
 import { LocationPermissionContent } from "../components/LocationPermissionContent";
-
-type Coords = { lat: number; lng: number };
+import { canLocateSilently, getCurrentCoords, type Coords } from "../lib/geo";
 
 // Full-page check-in flow (the Create tab). Resolves the user's GPS, shows the
 // permission UI inline if needed, then the form; on success → back to the Map.
@@ -19,23 +18,17 @@ export function CreatePage() {
       setLocating(false);
       return;
     }
-    let state: PermissionState = "prompt";
-    try {
-      state = (await navigator.permissions.query({ name: "geolocation" as PermissionName })).state;
-    } catch {
-      // Permissions API unavailable (Safari) — fall through to the inline prompt.
+    // Granted (or granted before — iOS PWAs lose the Permissions API state on
+    // relaunch)? Locate silently; getCurrentPosition won't prompt if still live.
+    // Otherwise fall through to the inline LocationPermissionContent.
+    if (await canLocateSilently()) {
+      try {
+        setCoords(await getCurrentCoords());
+      } catch {
+        // revoked/failed → inline prompt lets the user retry or re-enable.
+      }
     }
-    if (state === "granted") {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          setLocating(false);
-        },
-        () => setLocating(false), // granted but failed → show inline prompt to retry
-      );
-    } else {
-      setLocating(false);
-    }
+    setLocating(false);
   }, []);
 
   useEffect(() => {

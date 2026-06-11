@@ -4,6 +4,7 @@ import { MapPin, Star, Search } from "lucide-react";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { XPBadge } from "../components/ui/Chip";
 import { getFeed, searchPlaces, type FeedItem, type LatLng } from "../lib/api";
+import { useUserLocation } from "../location/LocationProvider";
 import { DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
@@ -17,11 +18,15 @@ function formatDistance(m: number | null | undefined): string | null {
 
 export function DiscoverPage() {
   const [tab, setTab] = useState<"for-you" | "following">("for-you");
-  const [at, setAt] = useState<LatLng>(FALLBACK);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placeId, setPlaceId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
+
+  // Shared ambient location from the layout provider; fall back to the default
+  // view ("near you" sorting still works, just centred on HCMC) until known.
+  const { coords } = useUserLocation();
+  const at: LatLng = coords ?? FALLBACK;
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 300);
@@ -33,20 +38,6 @@ export function DiscoverPage() {
     queryFn: () => searchPlaces(debounced, at),
     enabled: debounced.length > 0,
   });
-
-  // Use the user's location for "near you" only if already granted (no prompt).
-  useEffect(() => {
-    navigator.permissions
-      ?.query({ name: "geolocation" as PermissionName })
-      .then((s) => {
-        if (s.state === "granted") {
-          navigator.geolocation.getCurrentPosition((p) =>
-            setAt({ lat: p.coords.latitude, lng: p.coords.longitude }),
-          );
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
     queryKey: ["feed", at],

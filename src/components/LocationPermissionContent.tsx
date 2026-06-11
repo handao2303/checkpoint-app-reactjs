@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
 import { Button } from "./ui/Button";
+import { getCurrentCoords } from "../lib/geo";
 
 type Platform = "ios" | "android" | "desktop";
 
@@ -81,17 +82,19 @@ export function LocationPermissionContent({
   const fetchPosition = useCallback(() => {
     setBusy(true);
     setError(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
+    // getCurrentCoords records a durable "located before" flag on success, so the
+    // app can locate silently on the next launch instead of re-asking (iOS PWAs
+    // lose the Permissions API state across relaunches).
+    getCurrentCoords().then(
+      (coords) => {
         setBusy(false);
-        onGranted({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        onGranted(coords);
       },
-      (err) => {
+      (err: GeolocationPositionError) => {
         setBusy(false);
         if (err.code === err.PERMISSION_DENIED) setState("denied");
         else setError("Không lấy được vị trí. Vui lòng thử lại.");
       },
-      { enableHighAccuracy: true, timeout: 10000 },
     );
   }, [onGranted]);
 

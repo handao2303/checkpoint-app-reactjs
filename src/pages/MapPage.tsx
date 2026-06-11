@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Map, { Marker, GeolocateControl, NavigationControl } from "react-map-gl/maplibre";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -9,11 +9,31 @@ import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { Button } from "../components/ui/Button";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { useCheckin } from "../hooks/useCheckin";
+import { useUserLocation } from "../location/LocationProvider";
+import type { Coords } from "../lib/geo";
 
 export function MapPage() {
   const [bounds, setBounds] = useState<Bounds | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const { start, sheets } = useCheckin();
+  const { coords } = useUserLocation();
+
+  // Centre the map on the user once, the first time we learn their location —
+  // whether that's before the map loads or shortly after.
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const coordsRef = useRef<Coords | null>(null);
+  coordsRef.current = coords;
+  const centeredRef = useRef(false);
+
+  const centerOnUser = useCallback((map: MapLibreMap, c: Coords) => {
+    if (centeredRef.current) return;
+    centeredRef.current = true;
+    map.flyTo({ center: [c.lng, c.lat], zoom: 14, duration: 800 });
+  }, []);
+
+  useEffect(() => {
+    if (coords && mapRef.current) centerOnUser(mapRef.current, coords);
+  }, [coords, centerOnUser]);
 
   const { data: checkpoints = [] } = useQuery({
     queryKey: ["checkpoints", "bbox", bounds],
@@ -34,14 +54,17 @@ export function MapPage() {
 
   const handleLoad = useCallback(
     (map: MapLibreMap) => {
+      mapRef.current = map;
       syncBounds(map);
+      // If we already know where the user is, centre on them right away.
+      if (coordsRef.current) centerOnUser(map, coordsRef.current);
       // Collapse the attribution to just the ⓘ button (kept for OSM/OpenFreeMap
       // license compliance, but out of the way until tapped).
       const attrib = map.getContainer().querySelector(".maplibregl-ctrl-attrib");
       attrib?.classList.remove("maplibregl-compact-show");
       attrib?.removeAttribute("open");
     },
-    [syncBounds],
+    [syncBounds, centerOnUser],
   );
 
   return (
