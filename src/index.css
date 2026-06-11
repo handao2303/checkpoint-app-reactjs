@@ -158,6 +158,10 @@
 
 /* ---- Base element defaults ---- */
 @layer base {
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+  }
   * {
     border-color: var(--border);
   }
