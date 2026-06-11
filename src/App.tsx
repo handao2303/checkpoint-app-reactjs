@@ -7,6 +7,7 @@ import { DiscoverPage } from "./pages/DiscoverPage";
 import { CreatePage } from "./pages/CreatePage";
 import { AIPlanPage } from "./pages/AIPlanPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { LeaderboardPage } from "./pages/LeaderboardPage";
 
 // MapPage pulls in MapLibre (~280KB) — load it only when the map route is opened.
 const MapPage = lazy(() => import("./pages/MapPage").then((m) => ({ default: m.MapPage })));
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="create" element={<CreatePage />} />
         <Route path="ai-plan" element={<AIPlanPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="leaderboard" element={<LeaderboardPage />} />
       </Route>
     </Routes>
   );

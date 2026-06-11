@@ -41,6 +41,10 @@ export interface User {
   journey_count: number;
   created_at: string;
   updated_at: string;
+  /** Derived: XP remaining to the next level (0 at max). */
+  xp_to_next: number;
+  /** Derived: progress within the current level band, 0..1. */
+  level_progress: number;
 }
 
 async function postJSON(path: string, body: unknown): Promise<Response> {
@@ -128,6 +132,92 @@ export async function exchange(supabaseToken: string): Promise<User> {
 export async function getMe(): Promise<User> {
   const res = await apiFetch("/users/me");
   if (!res.ok) throw new Error(`getMe failed: ${res.status}`);
+  return (await res.json()) as User;
+}
+
+/** Update the caller's display name and/or bio. Returns the updated user. */
+export async function updateProfile(patch: {
+  display_name?: string;
+  bio?: string;
+}): Promise<User> {
+  const res = await apiFetch("/users/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`updateProfile failed: ${res.status}`);
+  return (await res.json()) as User;
+}
+
+// ---- Gamification (Phase 5) ----
+
+/** One province the user has visited — a passport "stamp". */
+export interface PassportStamp {
+  province: string;
+  checkin_count: number;
+  first_at: string;
+  last_at: string;
+  cover_url?: string;
+}
+
+export interface Passport {
+  province_count: number;
+  stamps: PassportStamp[];
+}
+
+/** The caller's digital passport (provinces visited). */
+export async function getPassport(): Promise<Passport> {
+  const res = await apiFetch("/me/passport");
+  if (!res.ok) throw new Error(`getPassport failed: ${res.status}`);
+  return (await res.json()) as Passport;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  user_id: string;
+  username: string;
+  display_name?: string;
+  avatar_url?: string;
+  total_xp: number;
+  level: number;
+}
+
+export interface Leaderboard {
+  entries: LeaderboardEntry[];
+  me?: LeaderboardEntry;
+}
+
+/** Global top users by XP + the caller's own rank. */
+export async function getLeaderboard(): Promise<Leaderboard> {
+  const res = await apiFetch("/leaderboard");
+  if (!res.ok) throw new Error(`getLeaderboard failed: ${res.status}`);
+  return (await res.json()) as Leaderboard;
+}
+
+export interface UserBadge {
+  key: string;
+  name: string;
+  icon: string;
+  description: string;
+  awarded: boolean;
+  awarded_at?: string;
+}
+
+/** The badge catalog annotated with the caller's unlock state. */
+export async function getBadges(): Promise<UserBadge[]> {
+  const res = await apiFetch("/me/badges");
+  if (!res.ok) throw new Error(`getBadges failed: ${res.status}`);
+  return (await res.json()) as UserBadge[];
+}
+
+/** Upload a new avatar (multipart). Returns the updated user. */
+export async function uploadAvatar(file: File): Promise<User> {
+  const form = new FormData();
+  form.append("avatar", file);
+  // No Content-Type header — the browser sets the multipart boundary.
+  const res = await apiFetch("/users/me/avatar", { method: "POST", body: form });
+  if (res.status === 415) throw new Error("Ảnh phải là jpeg, png, webp hoặc gif.");
+  if (!res.ok) throw new Error(`uploadAvatar failed: ${res.status}`);
   return (await res.json()) as User;
 }
 

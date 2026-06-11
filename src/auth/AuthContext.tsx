@@ -12,6 +12,8 @@ interface AuthState {
   loginAnonymous: () => Promise<void>;
   upgradeAccount: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Replace the cached user (e.g. after editing profile / avatar). */
+  applyUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -141,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginAnonymous,
         upgradeAccount,
         signOut,
+        applyUser: setUser,
       }}
     >
       {children}
