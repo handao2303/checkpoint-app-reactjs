@@ -37,7 +37,7 @@ export function DiscoverPage() {
   const { data: results = [] } = useQuery({
     queryKey: ["place-search", debounced, at],
     queryFn: () => searchPlaces(debounced, at),
-    enabled: debounced.length > 0,
+    enabled: debounced?.length > 0,
   });
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({

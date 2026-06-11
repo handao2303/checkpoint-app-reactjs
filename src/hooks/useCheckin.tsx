@@ -60,7 +60,7 @@ export function useCheckin() {
         />
       )}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
-      {newBadges.length > 0 && (
+      {newBadges?.length > 0 && (
         <BadgeUnlockToast badges={newBadges} onDone={() => setNewBadges([])} />
       )}
     </>

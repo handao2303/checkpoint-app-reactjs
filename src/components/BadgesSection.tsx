@@ -12,7 +12,7 @@ export function BadgesSection() {
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h3 className="font-display text-lg font-bold">🏅 Huy hiệu</h3>
-        {badges.length > 0 && (
+        {badges?.length > 0 && (
           <span className="text-sm text-muted-foreground">
             {unlocked}/{badges.length}
           </span>

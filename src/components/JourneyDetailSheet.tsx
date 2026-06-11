@@ -24,7 +24,7 @@ export function JourneyDetailSheet({
   const stops = data?.checkpoints ?? [];
 
   const handleLoad = (map: MapLibreMap) => {
-    if (stops.length > 0) {
+    if (stops?.length > 0) {
       const lngs = stops.map((s) => s.lng);
       const lats = stops.map((s) => s.lat);
       map.fitBounds(
@@ -72,7 +72,7 @@ export function JourneyDetailSheet({
             <Stat label="XP" value={String(data.stats.total_xp)} />
           </div>
 
-          {stops.length > 0 && (
+          {stops?.length > 0 && (
             <div className="min-h-40 flex-1 overflow-hidden rounded-xl">
               <Map
                 initialViewState={DEFAULT_VIEW}
@@ -96,7 +96,7 @@ export function JourneyDetailSheet({
                 )}
                 {stops.map((s, i) => (
                   <Marker key={s.id} longitude={s.lng} latitude={s.lat} anchor="center">
-                    {s.images.length > 0 ? (
+                    {s.images?.length > 0 ? (
                       <StopPhotoStack stop={s} />
                     ) : (
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground ring-2 ring-white">

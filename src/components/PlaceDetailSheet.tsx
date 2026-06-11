@@ -25,7 +25,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <span className="text-4xl">🎉</span>
             <p className="font-display text-lg font-bold">Đã cắm cờ! +{done} XP</p>
-            {doneBadges.length > 0 && (
+            {doneBadges?.length > 0 && (
               <div className="w-full rounded-xl bg-surface-muted p-3">
                 <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gold">
                   🏅 Mở khóa huy hiệu
@@ -57,7 +57,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
         )
       ) : (
         <div className="flex flex-col gap-3">
-          {data.images.length > 0 && (
+          {data.images?.length > 0 && (
             <PhotoProvider>
               <div className="flex gap-2 overflow-x-auto">
                 {data.images.map((im) => (
@@ -92,7 +92,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
             Cắm cờ tại đây
           </Button>
 
-          {data.reviews.length > 0 && (
+          {data.reviews?.length > 0 && (
             <div className="mt-2 flex flex-col gap-3">
               <h3 className="font-display font-bold">Đánh giá gần đây</h3>
               {data.reviews.map((r, i) => (
