@@ -68,7 +68,7 @@ export function MapPage() {
   );
 
   return (
-    <div className="relative -mx-4 -my-4 h-full">
+    <div className="relative -mx-4 -my-4 h-[stretch]">
       <Map
         initialViewState={DEFAULT_VIEW}
         mapStyle={MAP_STYLE}

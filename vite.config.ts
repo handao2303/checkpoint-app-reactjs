@@ -10,6 +10,16 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["pin.svg", "apple-touch-icon.png"],
+      workbox: {
+        // After a deploy, drop the previous precache and take control immediately
+        // so clients stop requesting old (now-missing) chunk hashes.
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        // Never answer asset requests with the SPA fallback HTML — a missing
+        // chunk must fail as a real network error so lazyWithRetry can recover.
+        navigateFallbackDenylist: [/^\/assets\//],
+      },
       manifest: {
         name: "Checkpoint",
         short_name: "Checkpoint",

@@ -16,7 +16,7 @@ const MapPage = lazyWithRetry(() => import("./pages/MapPage").then((m) => ({ def
 
 function Splash() {
   return (
-    <div className="flex min-h-full items-center justify-center bg-background">
+    <div className="flex min-h-[stretch] items-center justify-center bg-background">
       <img src="/pin.svg" alt="" className="h-12 w-12 animate-pulse" />
     </div>
   );
