@@ -20,9 +20,6 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     } catch (err) {
       if (!sessionStorage.getItem(flag)) {
         sessionStorage.setItem(flag, "1");
-        // Purge stale precache + SW first, so the reload fetches the fresh
-        // index (otherwise a stale service worker just serves the old one again).
-        await purgeStaleApp();
         window.location.reload();
         // Return a never-resolving promise so nothing renders before reload.
         return new Promise<{ default: T }>(() => {});
@@ -30,21 +27,4 @@ export function lazyWithRetry<T extends ComponentType<any>>(
       throw err;
     }
   });
-}
-
-/** Best-effort: clear caches and unregister service workers before a recovery
- *  reload, to escape a stale precache after a deploy. */
-async function purgeStaleApp(): Promise<void> {
-  try {
-    if ("caches" in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
-    }
-    if ("serviceWorker" in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map((r) => r.unregister()));
-    }
-  } catch {
-    // ignore — we'll reload regardless.
-  }
 }
