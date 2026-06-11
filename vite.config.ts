@@ -4,6 +4,21 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // Force all maplibre code into ONE stably-named chunk. Otherwise Rollup
+        // splits it into two "maplibre-gl" chunks and one ends up referenced as
+        // "gl-<hash>.js" while the file is emitted as "maplibre-gl-<hash>.js" —
+        // a dangling reference that 404s in production and kills the map.
+        manualChunks(id) {
+          if (id.includes("maplibre-gl") || id.includes("react-map-gl")) {
+            return "maplibre";
+          }
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
