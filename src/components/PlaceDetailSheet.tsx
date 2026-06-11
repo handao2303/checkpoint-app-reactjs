@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { Star, MapPin, Flag } from "lucide-react";
-import { getPlace } from "../lib/api";
+import { getPlace, type Badge } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { Sheet } from "./ui/Sheet";
 import { Button } from "./ui/Button";
@@ -14,6 +14,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
   const { data, isLoading } = useQuery({ queryKey: ["place", id], queryFn: () => getPlace(id) });
   const [checkingIn, setCheckingIn] = useState(false);
   const [done, setDone] = useState<number | null>(null);
+  const [doneBadges, setDoneBadges] = useState<Badge[]>([]);
 
   return (
     <Sheet onClose={onClose}>
@@ -24,6 +25,21 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <span className="text-4xl">🎉</span>
             <p className="font-display text-lg font-bold">Đã cắm cờ! +{done} XP</p>
+            {doneBadges.length > 0 && (
+              <div className="w-full rounded-xl bg-surface-muted p-3">
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gold">
+                  🏅 Mở khóa huy hiệu
+                </p>
+                <div className="flex flex-col gap-2">
+                  {doneBadges.map((b) => (
+                    <div key={b.key} className="flex items-center gap-2">
+                      <span className="text-xl">{b.icon}</span>
+                      <span className="text-sm font-medium">{b.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <Button onClick={onClose}>Xong</Button>
           </div>
         ) : (
@@ -32,7 +48,10 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
             <CreateCheckpointForm
               at={{ lat: data.place.lat, lng: data.place.lng }}
               place={{ id: data.place.id, name: data.place.name, category: data.place.category }}
-              onCreated={(xp) => setDone(xp)}
+              onCreated={(xp, badges) => {
+                setDone(xp);
+                setDoneBadges(badges);
+              }}
             />
           </>
         )

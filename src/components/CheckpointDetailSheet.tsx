@@ -6,6 +6,8 @@ import { categoryIcon } from "../lib/maps";
 import { Sheet } from "./ui/Sheet";
 import { XPBadge } from "./ui/Chip";
 import { DetailSheetSkeleton } from "./ui/Skeleton";
+import { ShareButton } from "./share/ShareButton";
+import { CheckpointShareCard } from "./share/cards";
 
 export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const { data, isLoading } = useQuery({
@@ -56,6 +58,22 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
           <p className="text-xs text-subtle-foreground">
             {new Date(data.checkpoint.created_at).toLocaleString("vi-VN")}
           </p>
+
+          <ShareButton
+            filename={`checkpoint-${data.checkpoint.id}.png`}
+            title={data.checkpoint.name}
+            text={`Mình vừa check-in tại ${data.checkpoint.name} trên Checkpoint!`}
+          >
+            <CheckpointShareCard
+              name={data.checkpoint.name}
+              category={data.checkpoint.category}
+              note={data.checkpoint.note}
+              address={data.checkpoint.address}
+              xp={data.checkpoint.xp_awarded}
+              author={data.author.display_name || data.author.username}
+              date={new Date(data.checkpoint.created_at).toLocaleDateString("vi-VN")}
+            />
+          </ShareButton>
         </div>
       )}
     </Sheet>

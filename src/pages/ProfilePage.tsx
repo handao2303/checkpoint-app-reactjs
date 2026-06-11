@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Share2, Camera, LogOut, Pencil, Trophy } from "lucide-react";
+import { Camera, LogOut, Pencil, Trophy } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
@@ -13,6 +13,8 @@ import { PassportSection } from "../components/PassportSection";
 import { BadgesSection } from "../components/BadgesSection";
 import { EditProfileSheet } from "../components/EditProfileSheet";
 import { Skeleton } from "../components/ui/Skeleton";
+import { ShareButton } from "../components/share/ShareButton";
+import { ProfileShareCard } from "../components/share/cards";
 import { getMyCheckpoints, type Checkpoint } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 
@@ -171,9 +173,21 @@ export function ProfilePage() {
         )}
       </div>
 
-      <Button size="lg" variant="green" icon={<Share2 size={20} />}>
-        Chia sẻ Hộ chiếu Điện tử
-      </Button>
+      <ShareButton
+        filename={`checkpoint-${user.username}.png`}
+        title={`Hộ chiếu Checkpoint của ${user.display_name || user.username}`}
+        text={`Mình đã cắm ${user.checkpoint_count} cờ trên Checkpoint!`}
+        label="Chia sẻ Hộ chiếu Điện tử"
+      >
+        <ProfileShareCard
+          name={user.display_name || user.username}
+          username={user.username}
+          level={user.level}
+          totalXp={user.total_xp}
+          checkpointCount={user.checkpoint_count}
+          journeyCount={user.journey_count}
+        />
+      </ShareButton>
       <Button size="lg" variant="outline" icon={<LogOut size={20} />} onClick={signOut}>
         Đăng xuất
       </Button>

@@ -1,8 +1,10 @@
 import { useCallback, useState, type ReactNode } from "react";
 import { CreateCheckpointSheet } from "../components/CreateCheckpointSheet";
 import { LocationPermissionSheet } from "../components/LocationPermissionSheet";
+import { BadgeUnlockToast } from "../components/BadgeUnlockToast";
 import { Toast } from "../components/ui/Toast";
 import { canLocateSilently, getCurrentCoords } from "../lib/geo";
+import type { Badge } from "../lib/api";
 
 /**
  * Shared GPS check-in flow used by both the Map page's CHECK-IN button and the
@@ -13,6 +15,7 @@ export function useCheckin() {
   const [creatingAt, setCreatingAt] = useState<{ lat: number; lng: number } | null>(null);
   const [askLocation, setAskLocation] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [newBadges, setNewBadges] = useState<Badge[]>([]);
 
   const start = useCallback(async () => {
     if (!navigator.geolocation) {
@@ -49,13 +52,17 @@ export function useCheckin() {
         <CreateCheckpointSheet
           at={creatingAt}
           onClose={() => setCreatingAt(null)}
-          onCreated={(xp) => {
+          onCreated={(xp, badges) => {
             setCreatingAt(null);
             setToast(`+${xp} XP 🎉`);
+            if (badges.length) setNewBadges(badges);
           }}
         />
       )}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+      {newBadges.length > 0 && (
+        <BadgeUnlockToast badges={newBadges} onDone={() => setNewBadges([])} />
+      )}
     </>
   );
 

@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Flag, Plus, X } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { createCheckpoint, uploadCheckpointImages } from "../lib/api";
+import { createCheckpoint, uploadCheckpointImages, type Badge } from "../lib/api";
 import { prepareImage } from "../lib/image";
 import { CATEGORIES } from "../lib/maps";
 import { Button } from "./ui/Button";
@@ -32,7 +32,7 @@ export function CreateCheckpointForm({
   at: { lat: number; lng: number };
   /** When set, check-in is to an existing place: name is fixed and place_id sent. */
   place?: CheckinPlace;
-  onCreated: (xp: number) => void;
+  onCreated: (xp: number, newBadges: Badge[]) => void;
 }) {
   const qc = useQueryClient();
   const [name, setName] = useState(place?.name ?? "");
@@ -117,8 +117,10 @@ export function CreateCheckpointForm({
       qc.invalidateQueries({ queryKey: ["checkpoints"] }),
       qc.invalidateQueries({ queryKey: ["feed"] }),
       qc.invalidateQueries({ queryKey: ["place"] }),
+      qc.invalidateQueries({ queryKey: ["passport"] }),
+      qc.invalidateQueries({ queryKey: ["badges"] }),
     ]);
-    onCreated(res.xp_awarded);
+    onCreated(res.xp_awarded, res.new_badges ?? []);
   }
 
   return (

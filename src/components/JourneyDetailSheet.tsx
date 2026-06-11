@@ -8,6 +8,8 @@ import { getJourney, type JourneyStop } from "../lib/api";
 import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
+import { ShareButton } from "./share/ShareButton";
+import { JourneyShareCard } from "./share/cards";
 
 export function JourneyDetailSheet({
   id,
@@ -127,6 +129,25 @@ export function JourneyDetailSheet({
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="shrink-0">
+            <ShareButton
+              filename={`journey-${data.journey.id}.png`}
+              title={data.journey.title}
+              text={`Hành trình "${data.journey.title}" của mình trên Checkpoint!`}
+              label="Chia sẻ hành trình"
+            >
+              <JourneyShareCard
+                title={data.journey.title}
+                count={data.stats.checkpoint_count}
+                xp={data.stats.total_xp}
+                distanceKm={data.stats.distance_km}
+                date={new Date(
+                  data.journey.started_at ?? data.journey.created_at,
+                ).toLocaleDateString("vi-VN")}
+              />
+            </ShareButton>
           </div>
         </div>
       )}

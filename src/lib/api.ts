@@ -194,11 +194,7 @@ export async function getLeaderboard(): Promise<Leaderboard> {
   return (await res.json()) as Leaderboard;
 }
 
-export interface UserBadge {
-  key: string;
-  name: string;
-  icon: string;
-  description: string;
+export interface UserBadge extends Badge {
   awarded: boolean;
   awarded_at?: string;
 }
@@ -262,11 +258,21 @@ export interface CheckpointDetail {
   author: { username: string; display_name?: string; avatar_url?: string };
 }
 
+/** An achievement badge (catalog metadata). */
+export interface Badge {
+  key: string;
+  name: string;
+  icon: string;
+  description: string;
+}
+
 export interface CheckinResult {
   checkpoint: Checkpoint;
   xp_awarded: number;
   total_xp: number;
   level: number;
+  /** Badges unlocked by this check-in (for a celebratory toast). */
+  new_badges?: Badge[];
 }
 
 export interface Bounds {
