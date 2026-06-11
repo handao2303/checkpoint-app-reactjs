@@ -4,12 +4,39 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // Force all maplibre code into ONE stably-named chunk. Otherwise Rollup
+        // splits it into two "maplibre-gl" chunks and one ends up referenced as
+        // "gl-<hash>.js" while the file is emitted as "maplibre-gl-<hash>.js" —
+        // a dangling reference that 404s in production and kills the map.
+        manualChunks(id) {
+          if (id.includes("maplibre-gl") || id.includes("react-map-gl")) {
+            return "maplibre";
+          }
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["pin.svg", "apple-touch-icon.png"],
+      workbox: {
+        // Drop the previous precache and take control immediately after a deploy
+        // so clients stop requesting old (now-missing) chunk hashes. This only
+        // touches THIS app's precache — it does NOT interfere with a separate
+        // Firebase Cloud Messaging service worker added later.
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        // Never answer asset requests with the SPA fallback HTML — a missing
+        // chunk must fail as a real network error, not a text/html response.
+        navigateFallbackDenylist: [/^\/assets\//],
+      },
       manifest: {
         name: "Checkpoint",
         short_name: "Checkpoint",
