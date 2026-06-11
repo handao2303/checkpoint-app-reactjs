@@ -68,7 +68,7 @@ export function MapPage() {
   );
 
   return (
-    <div className="relative -mx-4 -my-4 h-full">
+    <div className="absolute inset-0">
       <Map
         initialViewState={DEFAULT_VIEW}
         mapStyle={MAP_STYLE}
