@@ -1,70 +1,81 @@
 @import "tailwindcss";
 
-/* Checkpoint design tokens (see /design/tokens). Tailwind CSS v4. */
+/* Checkpoint design tokens.
+ *
+ * ⚠️ Synced manually from the design repo (design/tokens/theme.css). The design
+ * system lives in a SEPARATE repo, so update there first, then copy here.
+ * Web-only additions (not part of the design system) are marked below.
+ */
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ---- Raw palette + scales ---- */
+/* ---- Raw palette + scales (generate Tailwind utilities) ---- */
 @theme {
   --font-display: "Montserrat", system-ui, sans-serif;
   --font-body: "Montserrat", system-ui, -apple-system, sans-serif;
+  --font-mono: "Be Vietnam Pro", ui-monospace, monospace;
 
-  --color-primary-50: #fff4ee;
-  --color-primary-100: #ffe6d5;
-  --color-primary-200: #ffc9a8;
-  --color-primary-300: #ffa877;
-  --color-primary-400: #fb8246;
-  --color-primary-500: #f4511e;
-  --color-primary-600: #d8400f;
-  --color-primary-700: #b3340d;
-  --color-primary-800: #8f2a0c;
-  --color-primary-900: #74240d;
+  --color-primary-50:  #FFF4EE;
+  --color-primary-100: #FFE6D5;
+  --color-primary-200: #FFC9A8;
+  --color-primary-300: #FFA877;
+  --color-primary-400: #FB8246;
+  --color-primary-500: #F4511E;
+  --color-primary-600: #D8400F;
+  --color-primary-700: #B3340D;
+  --color-primary-800: #8F2A0C;
+  --color-primary-900: #74240D;
 
-  --color-clay-50: #fbeee9;
-  --color-clay-100: #f4d3c7;
-  --color-clay-200: #e3a892;
-  --color-clay-300: #cf7b5f;
-  --color-clay-400: #be5538;
-  --color-clay-500: #b23a1f;
-  --color-clay-600: #9a311a;
-  --color-clay-700: #7e2814;
-  --color-clay-800: #641f10;
-  --color-clay-900: #4e190d;
+  --color-clay-50:  #FBEEE9;
+  --color-clay-100: #F4D3C7;
+  --color-clay-200: #E3A892;
+  --color-clay-300: #CF7B5F;
+  --color-clay-400: #BE5538;
+  --color-clay-500: #B23A1F;
+  --color-clay-600: #9A311A;
+  --color-clay-700: #7E2814;
+  --color-clay-800: #641F10;
+  --color-clay-900: #4E190D;
 
-  --color-green-50: #eaf5ec;
-  --color-green-100: #cde8d2;
-  --color-green-200: #a6d4ae;
-  --color-green-300: #6fb97c;
-  --color-green-400: #3e9a50;
-  --color-green-500: #2e7d32;
+  --color-green-50:  #EAF5EC;
+  --color-green-100: #CDE8D2;
+  --color-green-200: #A6D4AE;
+  --color-green-300: #6FB97C;
+  --color-green-400: #3E9A50;
+  --color-green-500: #2E7D32;
   --color-green-600: #246428;
-  --color-green-700: #1b5e20;
-  --color-green-800: #14501a;
-  --color-green-900: #0e3d13;
+  --color-green-700: #1B5E20;
+  --color-green-800: #14501A;
+  --color-green-900: #0E3D13;
 
-  --color-accent-50: #feefec;
-  --color-accent-100: #fcd3cb;
-  --color-accent-200: #f8a697;
-  --color-accent-300: #f47a63;
-  --color-accent-400: #f25c42;
-  --color-accent-500: #ef4329;
-  --color-accent-600: #d6361e;
-  --color-accent-700: #b22a17;
+  --color-accent-50:  #FEEFEC;
+  --color-accent-100: #FCD3CB;
+  --color-accent-200: #F8A697;
+  --color-accent-300: #F47A63;
+  --color-accent-400: #F25C42;
+  --color-accent-500: #EF4329;
+  --color-accent-600: #D6361E;
+  --color-accent-700: #B22A17;
 
-  --color-neutral-0: #ffffff;
-  --color-neutral-50: #faf7f2;
-  --color-neutral-100: #f3eee6;
-  --color-neutral-200: #e7e0d5;
-  --color-neutral-300: #d5ccbe;
-  --color-neutral-400: #a89e8e;
-  --color-neutral-500: #7c7567;
-  --color-neutral-600: #5c564b;
-  --color-neutral-700: #403b33;
-  --color-neutral-800: #2a2620;
-  --color-neutral-900: #1a1714;
+  --color-neutral-0:   #FFFFFF;
+  --color-neutral-50:  #FAF7F2;
+  --color-neutral-100: #F3EEE6;
+  --color-neutral-200: #E7E0D5;
+  --color-neutral-300: #D5CCBE;
+  --color-neutral-400: #A89E8E;
+  --color-neutral-500: #7C7567;
+  --color-neutral-600: #5C564B;
+  --color-neutral-700: #403B33;
+  --color-neutral-800: #2A2620;
+  --color-neutral-900: #1A1714;
 
-  --color-facebook: #1877f2;
-  --color-gold: #e8a317;
+  --color-facebook: #1877F2;
+  --color-apple:    #111111;
+  --color-success:  #2E7D32;
+  --color-warning:  #F59E0B;
+  --color-danger:   #DC2626;
+  --color-info:     #2563EB;
+  --color-gold:     #E8A317;
 
   --radius-xs: 6px;
   --radius-sm: 8px;
@@ -73,47 +84,57 @@
   --radius-xl: 20px;
   --radius-2xl: 28px;
 
-  --shadow-sm: 0 1px 2px rgba(31, 25, 20, 0.06);
-  --shadow-md: 0 4px 12px rgba(31, 25, 20, 0.08);
-  --shadow-lg: 0 12px 28px rgba(31, 25, 20, 0.12);
-  --shadow-card: 0 6px 20px rgba(120, 70, 40, 0.1);
-  --shadow-cta: 0 8px 20px rgba(244, 81, 30, 0.35);
+  --shadow-sm:   0 1px 2px rgba(31, 25, 20, 0.06);
+  --shadow-md:   0 4px 12px rgba(31, 25, 20, 0.08);
+  --shadow-lg:   0 12px 28px rgba(31, 25, 20, 0.12);
+  --shadow-card: 0 6px 20px rgba(120, 70, 40, 0.10);
+  --shadow-cta:  0 8px 20px rgba(244, 81, 30, 0.35);
 
   --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0.9, 0.1, 1);
 }
 
 /* ---- Semantic tokens (light) ---- */
 :root {
   --background: var(--color-neutral-50);
-  --foreground: #211c17;
+  --foreground: #211C17;
   --surface: var(--color-neutral-0);
-  --surface-muted: #f5f1ea;
-  --border: #ece5da;
+  --surface-muted: #F5F1EA;
+  --border: #ECE5DA;
+  --input: #ECE5DA;
+
   --primary: var(--color-primary-500);
-  --primary-foreground: #ffffff;
+  --primary-foreground: #FFFFFF;
   --secondary: var(--color-green-700);
+  --secondary-foreground: #FFFFFF;
+
   --muted: var(--color-neutral-100);
-  --muted-foreground: #6b6357;
-  --subtle-foreground: #a89e8e;
+  --muted-foreground: #6B6357;
+  --subtle-foreground: #A89E8E;
   --ring: var(--color-primary-500);
-  --gradient-primary: linear-gradient(135deg, #ff8a3d 0%, #f4511e 100%);
-  --gradient-passport: linear-gradient(150deg, #c2410c 0%, #9a3412 100%);
-  --gradient-xp: linear-gradient(90deg, #1b5e20 0%, #4caf50 100%);
+
+  --gradient-primary: linear-gradient(135deg, #FF8A3D 0%, #F4511E 100%);
+  --gradient-passport: linear-gradient(150deg, #C2410C 0%, #9A3412 100%);
+  --gradient-xp: linear-gradient(90deg, #1B5E20 0%, #4CAF50 100%);
 }
 
 /* ---- Semantic tokens (dark) ---- */
 .dark {
-  --background: #16130f;
-  --foreground: #f5f0e8;
-  --surface: #211c17;
-  --surface-muted: #2a241e;
-  --border: #36302a;
+  --background: #16130F;
+  --foreground: #F5F0E8;
+  --surface: #211C17;
+  --surface-muted: #2A241E;
+  --border: #36302A;
+  --input: #36302A;
+
   --primary: var(--color-primary-400);
-  --primary-foreground: #1a1206;
+  --primary-foreground: #1A1206;
   --secondary: var(--color-green-400);
-  --muted: #2a241e;
-  --muted-foreground: #b6ac9d;
-  --subtle-foreground: #7c7567;
+  --secondary-foreground: #0E3D13;
+
+  --muted: #2A241E;
+  --muted-foreground: #B6AC9D;
+  --subtle-foreground: #7C7567;
   --ring: var(--color-primary-400);
 }
 
@@ -124,31 +145,37 @@
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
   --color-border: var(--border);
+  --color-input: var(--input);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-subtle-foreground: var(--subtle-foreground);
   --color-ring: var(--ring);
 }
 
+/* ---- Base element defaults ---- */
 @layer base {
   * {
     border-color: var(--border);
   }
   body {
-    margin: 0;
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
-    -webkit-text-size-adjust: 100%; /* no auto text zoom */
-    touch-action: manipulation; /* disable double-tap zoom (map keeps its own gestures) */
+
+    /* web-only (PWA): no auto text zoom + disable double-tap zoom (map keeps its own gestures) */
+    margin: 0;
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
   }
   h1,
   h2,
-  h3 {
+  h3,
+  .font-display {
     font-family: var(--font-display);
     letter-spacing: -0.01em;
   }
