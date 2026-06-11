@@ -322,6 +322,13 @@ export async function getMyCheckpoints(limit = 30): Promise<Checkpoint[]> {
   return (await res.json()).checkpoints ?? [];
 }
 
+/** Hard-delete the caller's checkpoint (server reverses XP/stats and cleans up
+ *  the place + images). Only the owner can delete — others get a 404. */
+export async function deleteCheckpoint(id: string): Promise<void> {
+  const res = await apiFetch(`/checkpoints/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`delete checkpoint failed: ${res.status}`);
+}
+
 export async function uploadCheckpointImages(id: string, files: File[]): Promise<CheckpointImage[]> {
   const form = new FormData();
   files.forEach((f) => form.append("images", f));
