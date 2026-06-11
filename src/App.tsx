@@ -8,6 +8,7 @@ import { CreatePage } from "./pages/CreatePage";
 import { AIPlanPage } from "./pages/AIPlanPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
+import { MapSkeleton } from "./components/MapSkeleton";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
 
 // MapPage pulls in MapLibre (~280KB) — load it only when the map route is opened.
@@ -32,7 +33,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route index element={<Suspense fallback={<Splash />}><MapPage /></Suspense>} />
+        <Route index element={<Suspense fallback={<MapSkeleton />}><MapPage /></Suspense>} />
         <Route path="discover" element={<DiscoverPage />} />
         <Route path="create" element={<CreatePage />} />
         <Route path="ai-plan" element={<AIPlanPage />} />

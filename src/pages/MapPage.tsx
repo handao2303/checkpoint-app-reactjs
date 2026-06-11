@@ -10,11 +10,13 @@ import { Button } from "../components/ui/Button";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { useCheckin } from "../hooks/useCheckin";
 import { useUserLocation } from "../location/LocationProvider";
+import { MapSkeleton } from "../components/MapSkeleton";
 import type { Coords } from "../lib/geo";
 
 export function MapPage() {
   const [bounds, setBounds] = useState<Bounds | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const { start, sheets } = useCheckin();
   const { coords } = useUserLocation();
 
@@ -55,6 +57,7 @@ export function MapPage() {
   const handleLoad = useCallback(
     (map: MapLibreMap) => {
       mapRef.current = map;
+      setMapReady(true);
       syncBounds(map);
       // If we already know where the user is, centre on them right away.
       if (coordsRef.current) centerOnUser(map, coordsRef.current);
@@ -109,6 +112,8 @@ export function MapPage() {
 
       {sheets}
       {selectedId && <CheckpointDetailSheet id={selectedId} onClose={() => setSelectedId(null)} />}
+
+      <MapSkeleton hidden={mapReady} />
     </div>
   );
 }
