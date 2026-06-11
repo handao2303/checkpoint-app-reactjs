@@ -36,8 +36,8 @@ export function BottomNav() {
                     "flex min-w-16 flex-col items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition",
                     isActive
                       ? tone === "green"
-                        ? "bg-green-700 text-white"
-                        : "bg-primary text-primary-foreground"
+                        ? "text-secondary"
+                        : "text-primary"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
