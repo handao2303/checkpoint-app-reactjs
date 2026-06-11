@@ -75,6 +75,7 @@ export function MapPage() {
         attributionControl={{ compact: true }}
         onLoad={(e) => handleLoad(e.target)}
         onMoveEnd={(e) => syncBounds(e.target)}
+        onError={(e) => console.error("Map error:", e.error)}
       >
         <GeolocateControl position="top-right" trackUserLocation />
         <NavigationControl position="top-right" showCompass={false} />

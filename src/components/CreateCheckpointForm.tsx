@@ -4,6 +4,7 @@ import { Flag, Plus, X } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { createCheckpoint, uploadCheckpointImages } from "../lib/api";
+import { prepareImage } from "../lib/image";
 import { CATEGORIES } from "../lib/maps";
 import { Button } from "./ui/Button";
 import { cn } from "../lib/cn";
@@ -40,6 +41,7 @@ export function CreateCheckpointForm({
   const [rating, setRating] = useState<number | undefined>(undefined);
   const [picked, setPicked] = useState<PickedImage[]>([]);
   const [busy, setBusy] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   // Revoke object URLs on unmount (read latest via ref to avoid stale closure).
@@ -47,18 +49,28 @@ export function CreateCheckpointForm({
   pickedRef.current = picked;
   useEffect(() => () => pickedRef.current.forEach((p) => URL.revokeObjectURL(p.url)), []);
 
-  function addFiles(list: FileList | null) {
+  async function addFiles(list: FileList | null) {
     if (!list) return;
-    setPicked((prev) => {
-      const remainingSlots = MAX_IMAGES - prev.length;
-      if (remainingSlots <= 0) return prev;
+    const remainingSlots = MAX_IMAGES - pickedRef.current.length;
+    if (remainingSlots <= 0) return;
 
-      const next = Array.from(list)
-        .slice(0, remainingSlots)
-        .map((file) => ({ file, url: URL.createObjectURL(file) }));
-
-      return [...prev, ...next];
-    });
+    setProcessing(true);
+    setErr(null);
+    try {
+      // Convert HEIC + downscale so uploads are always a modest JPEG.
+      const prepared = await Promise.all(
+        Array.from(list).slice(0, remainingSlots).map(prepareImage),
+      );
+      setPicked((prev) => [
+        ...prev,
+        ...prepared.map((file) => ({ file, url: URL.createObjectURL(file) })),
+      ]);
+    } catch (e) {
+      console.error("image prepare failed:", e);
+      setErr("Không xử lý được ảnh. Vui lòng thử ảnh khác.");
+    } finally {
+      setProcessing(false);
+    }
   }
 
   function removeAt(index: number) {
@@ -72,8 +84,11 @@ export function CreateCheckpointForm({
     e.preventDefault();
     setBusy(true);
     setErr(null);
+
+    // Step 1 — create the check-in. Only THIS failing means "try again".
+    let res;
     try {
-      const res = await createCheckpoint({
+      res = await createCheckpoint({
         name,
         category,
         note: note || undefined,
@@ -82,18 +97,28 @@ export function CreateCheckpointForm({
         lng: at.lng,
         place_id: place?.id,
       });
-      if (picked.length) await uploadCheckpointImages(res.checkpoint.id, picked.map((p) => p.file));
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["checkpoints"] }),
-        qc.invalidateQueries({ queryKey: ["feed"] }),
-        qc.invalidateQueries({ queryKey: ["place"] }),
-      ]);
-      onCreated(res.xp_awarded);
     } catch {
       setErr("Không tạo được check-in. Vui lòng thử lại.");
-    } finally {
       setBusy(false);
+      return;
     }
+
+    // Step 2 — attach photos (best-effort). The check-in is already saved, so a
+    // failure here must NOT report total failure or invite a duplicate retry.
+    if (picked.length) {
+      try {
+        await uploadCheckpointImages(res.checkpoint.id, picked.map((p) => p.file));
+      } catch (uploadErr) {
+        console.error("image upload failed (check-in still saved):", uploadErr);
+      }
+    }
+
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["checkpoints"] }),
+      qc.invalidateQueries({ queryKey: ["feed"] }),
+      qc.invalidateQueries({ queryKey: ["place"] }),
+    ]);
+    onCreated(res.xp_awarded);
   }
 
   return (
@@ -165,15 +190,21 @@ export function CreateCheckpointForm({
           ))}
         </PhotoProvider>
         {picked.length < MAX_IMAGES && (
-          <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground">
-            <Plus size={24} />
+          <label
+            className={cn(
+              "flex h-20 w-20 items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground",
+              processing ? "cursor-wait opacity-60" : "cursor-pointer",
+            )}
+          >
+            {processing ? <span className="text-xs">Đang xử lý…</span> : <Plus size={24} />}
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,.heic,.heif"
               multiple
+              disabled={processing}
               className="hidden"
               onChange={(e) => {
-                addFiles(e.target.files);
+                void addFiles(e.target.files);
                 e.target.value = ""; // allow re-picking the same file
               }}
             />
@@ -183,7 +214,7 @@ export function CreateCheckpointForm({
 
       {err && <p className="text-sm text-accent-600">{err}</p>}
 
-      <Button type="submit" variant="accent" disabled={busy} icon={<Flag size={20} />}>
+      <Button type="submit" variant="accent" disabled={busy || processing} icon={<Flag size={20} />}>
         {busy ? "Đang lưu..." : "CẮM CỜ"}
       </Button>
     </form>

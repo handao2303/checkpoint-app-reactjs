@@ -321,7 +321,11 @@ export async function uploadCheckpointImages(id: string, files: File[]): Promise
   files.forEach((f) => form.append("images", f));
   // No Content-Type header — the browser sets the multipart boundary.
   const res = await apiFetch(`/checkpoints/${id}/images`, { method: "POST", body: form });
-  if (!res.ok) throw new Error("upload images failed");
+  if (!res.ok) {
+    if (res.status === 415) throw new Error("Định dạng ảnh không hỗ trợ (chỉ jpeg/png/webp/gif).");
+    if (res.status === 413 || res.status === 400) throw new Error("Ảnh quá lớn, vui lòng thử ảnh nhỏ hơn.");
+    throw new Error(`upload images failed: ${res.status}`);
+  }
   return (await res.json()).images ?? [];
 }
 
