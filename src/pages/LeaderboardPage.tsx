@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { getLeaderboard, type LeaderboardEntry } from "../lib/api";
 import { XPBadge } from "../components/ui/Chip";
+import { Skeleton } from "../components/ui/Skeleton";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
@@ -31,7 +32,19 @@ export function LeaderboardPage() {
       </div>
 
       {isLoading ? (
-        <p className="py-8 text-center text-muted-foreground">Đang tải...</p>
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 rounded-xl bg-surface p-3 shadow-card">
+              <Skeleton className="h-6 w-6 rounded" />
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+              <Skeleton className="h-6 w-14 rounded-full" />
+            </div>
+          ))}
+        </div>
       ) : entries.length === 0 ? (
         <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
           Chưa có ai trên bảng xếp hạng. Hãy check-in để ghi điểm!

@@ -3,6 +3,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { MapPin, Star, Search } from "lucide-react";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { XPBadge } from "../components/ui/Chip";
+import { Skeleton } from "../components/ui/Skeleton";
 import { getFeed, searchPlaces, type FeedItem, type LatLng } from "../lib/api";
 import { useUserLocation } from "../location/LocationProvider";
 import { DEFAULT_VIEW, categoryIcon } from "../lib/maps";
@@ -128,7 +129,11 @@ export function DiscoverPage() {
           Tính năng theo dõi sẽ có ở bản sau.
         </p>
       ) : isLoading ? (
-        <p className="py-8 text-center text-muted-foreground">Đang tải...</p>
+        <>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <FeedCardSkeleton key={i} />
+          ))}
+        </>
       ) : items.length === 0 ? (
         <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
           Chưa có check-in nào quanh đây. Hãy là người cắm cờ đầu tiên!
@@ -139,9 +144,7 @@ export function DiscoverPage() {
             <FeedCard key={it.id} item={it} onOpen={() => setSelectedId(it.id)} />
           ))}
           <div ref={sentinelRef} className="h-8" />
-          {isFetchingNextPage && (
-            <p className="pb-4 text-center text-sm text-muted-foreground">Đang tải thêm...</p>
-          )}
+          {isFetchingNextPage && <FeedCardSkeleton />}
         </>
       )}
         </>
@@ -152,6 +155,25 @@ export function DiscoverPage() {
       )}
       {placeId && <PlaceDetailSheet id={placeId} onClose={() => setPlaceId(null)} />}
     </div>
+  );
+}
+
+function FeedCardSkeleton() {
+  return (
+    <Card className="flex flex-col gap-3 p-0">
+      <div className="flex items-center gap-3 px-4 pt-4">
+        <Skeleton className="h-10 w-10 rounded-full" />
+        <div className="flex flex-1 flex-col gap-1.5">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-3 w-40" />
+        </div>
+      </div>
+      <Skeleton className="h-56 w-full rounded-none" />
+      <div className="flex items-center gap-3 px-4 pb-4">
+        <Skeleton className="h-4 w-16" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+    </Card>
   );
 }
 

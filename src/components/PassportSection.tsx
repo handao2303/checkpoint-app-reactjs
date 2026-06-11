@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { MapPin } from "lucide-react";
 import { getPassport } from "../lib/api";
+import { Skeleton } from "./ui/Skeleton";
 
 /** Digital passport: one "stamp" per province the user has checked in to. */
 export function PassportSection() {
@@ -17,7 +18,17 @@ export function PassportSection() {
       </div>
 
       {isLoading ? (
-        <p className="py-4 text-center text-sm text-muted-foreground">Đang tải...</p>
+        <div className="grid grid-cols-2 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="overflow-hidden rounded-xl border border-border bg-surface">
+              <Skeleton className="h-24 w-full rounded-none" />
+              <div className="flex flex-col gap-1.5 p-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : stamps.length === 0 ? (
         <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
           Chưa có con dấu nào. Check-in ở một tỉnh thành để đóng dấu hộ chiếu!

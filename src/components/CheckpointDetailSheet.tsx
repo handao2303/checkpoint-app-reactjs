@@ -5,6 +5,7 @@ import { getCheckpointDetail } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { Sheet } from "./ui/Sheet";
 import { XPBadge } from "./ui/Chip";
+import { DetailSheetSkeleton } from "./ui/Skeleton";
 
 export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const { data, isLoading } = useQuery({
@@ -15,7 +16,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
   return (
     <Sheet onClose={onClose}>
       {isLoading || !data ? (
-        <p className="py-8 text-center text-muted-foreground">Đang tải...</p>
+        <DetailSheetSkeleton />
       ) : (
         <div className="flex flex-col gap-3">
           {data.images?.length > 0 && (

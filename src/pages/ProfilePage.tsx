@@ -12,6 +12,7 @@ import { JourneysSection } from "../components/JourneysSection";
 import { PassportSection } from "../components/PassportSection";
 import { BadgesSection } from "../components/BadgesSection";
 import { EditProfileSheet } from "../components/EditProfileSheet";
+import { Skeleton } from "../components/ui/Skeleton";
 import { getMyCheckpoints, type Checkpoint } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 
@@ -29,7 +30,7 @@ function MomentCaption({ cp }: { cp?: Checkpoint }) {
 export function ProfilePage() {
   const { user, signOut } = useAuth();
   const [editing, setEditing] = useState(false);
-  const { data: myCheckpoints = [] } = useQuery({
+  const { data: myCheckpoints = [], isLoading: momentsLoading } = useQuery({
     queryKey: ["checkpoints", "me"],
     queryFn: () => getMyCheckpoints(12),
   });
@@ -135,7 +136,13 @@ export function ProfilePage() {
             <Camera size={18} />
           </span>
         </div>
-        {myCheckpoints.length === 0 ? (
+        {momentsLoading ? (
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
+          </div>
+        ) : myCheckpoints.length === 0 ? (
           <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
             Chưa có check-in nào. Mở tab Map và cắm cờ địa điểm đầu tiên!
           </p>

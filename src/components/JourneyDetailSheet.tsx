@@ -7,6 +7,7 @@ import "react-photo-view/dist/react-photo-view.css";
 import { getJourney, type JourneyStop } from "../lib/api";
 import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { Sheet } from "./ui/Sheet";
+import { Skeleton } from "./ui/Skeleton";
 
 export function JourneyDetailSheet({
   id,
@@ -46,7 +47,19 @@ export function JourneyDetailSheet({
   return (
     <Sheet grow onClose={onClose}>
       {isLoading || !data ? (
-        <p className="py-8 text-center text-muted-foreground">Đang tải...</p>
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <Skeleton className="h-6 w-48" />
+          <div className="grid shrink-0 grid-cols-3 gap-2">
+            <Skeleton className="h-16 rounded-xl" />
+            <Skeleton className="h-16 rounded-xl" />
+            <Skeleton className="h-16 rounded-xl" />
+          </div>
+          <Skeleton className="h-48 w-full rounded-xl" />
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-12 w-full rounded-xl" />
+            <Skeleton className="h-12 w-full rounded-xl" />
+          </div>
+        </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-3">
           <h2 className="shrink-0 font-display text-xl font-bold">{data.journey.title}</h2>

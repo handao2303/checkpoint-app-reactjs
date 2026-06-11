@@ -7,6 +7,7 @@ import { getPlace } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { Sheet } from "./ui/Sheet";
 import { Button } from "./ui/Button";
+import { DetailSheetSkeleton } from "./ui/Skeleton";
 import { CreateCheckpointForm } from "./CreateCheckpointForm";
 
 export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => void }) {
@@ -17,7 +18,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
   return (
     <Sheet onClose={onClose}>
       {isLoading || !data ? (
-        <p className="py-8 text-center text-muted-foreground">Đang tải...</p>
+        <DetailSheetSkeleton />
       ) : checkingIn ? (
         done != null ? (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
