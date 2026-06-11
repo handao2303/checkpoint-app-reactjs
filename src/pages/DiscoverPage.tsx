@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { MapPin, Star, Search } from "lucide-react";
+import { MapPin, Star, Search, Trash2 } from "lucide-react";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { XPBadge } from "../components/ui/Chip";
 import { Skeleton } from "../components/ui/Skeleton";
 import { getFeed, searchPlaces, type FeedItem, type LatLng } from "../lib/api";
+import { useAuth } from "../auth/AuthContext";
+import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
 import { useUserLocation } from "../location/LocationProvider";
 import { DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
@@ -23,6 +25,7 @@ export function DiscoverPage() {
   const [placeId, setPlaceId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
+  const { user } = useAuth();
 
   // Shared ambient location from the layout provider; fall back to the default
   // view ("near you" sorting still works, just centred on HCMC) until known.
@@ -141,7 +144,12 @@ export function DiscoverPage() {
       ) : (
         <>
           {items.map((it) => (
-            <FeedCard key={it.id} item={it} onOpen={() => setSelectedId(it.id)} />
+            <FeedCard
+              key={it.id}
+              item={it}
+              mine={user != null && it.author.username === user.username}
+              onOpen={() => setSelectedId(it.id)}
+            />
           ))}
           <div ref={sentinelRef} className="h-8" />
           {isFetchingNextPage && <FeedCardSkeleton />}
@@ -177,9 +185,21 @@ function FeedCardSkeleton() {
   );
 }
 
-function FeedCard({ item, onOpen }: { item: FeedItem; onOpen: () => void }) {
+function FeedCard({
+  item,
+  mine,
+  onOpen,
+}: {
+  item: FeedItem;
+  /** The feed item belongs to the signed-in user (delete allowed). */
+  mine: boolean;
+  onOpen: () => void;
+}) {
   const author = item.author.display_name || item.author.username;
   const distance = formatDistance(item.distance_m);
+  // Card disappears via the feed invalidation the hook performs.
+  const { requestDelete, confirming, confirmBox } = useDeleteCheckpoint(item.id);
+
   return (
     <Card className="flex flex-col gap-3 p-0">
       <div className="flex items-center gap-3 px-4 pt-4">
@@ -192,7 +212,18 @@ function FeedCard({ item, onOpen }: { item: FeedItem; onOpen: () => void }) {
           <p className="font-semibold text-foreground">{author}</p>
           {item.address && <p className="text-xs text-muted-foreground">{item.address}</p>}
         </div>
+        {mine && !confirming && (
+          <button
+            onClick={requestDelete}
+            className="rounded-full p-2 text-muted-foreground hover:bg-accent-50 hover:text-accent-600"
+            aria-label="Xóa check-in"
+          >
+            <Trash2 size={18} />
+          </button>
+        )}
       </div>
+
+      {confirming && <div className="mx-4">{confirmBox}</div>}
 
       <button onClick={onOpen} className="relative block w-full text-left">
         {item.image_url ? (
