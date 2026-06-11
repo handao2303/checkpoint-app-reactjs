@@ -12,6 +12,7 @@ import { JourneysSection } from "../components/JourneysSection";
 import { PassportSection } from "../components/PassportSection";
 import { BadgesSection } from "../components/BadgesSection";
 import { EditProfileSheet } from "../components/EditProfileSheet";
+import { useCheckin } from "../hooks/useCheckin";
 import { Skeleton } from "../components/ui/Skeleton";
 import { ShareButton } from "../components/share/ShareButton";
 import { ProfileShareCard } from "../components/share/cards";
@@ -32,6 +33,7 @@ function MomentCaption({ cp }: { cp?: Checkpoint }) {
 export function ProfilePage() {
   const { user, signOut } = useAuth();
   const [editing, setEditing] = useState(false);
+  const { start, sheets } = useCheckin();
   const { data: myCheckpoints = [], isLoading: momentsLoading } = useQuery({
     queryKey: ["checkpoints", "me"],
     queryFn: () => getMyCheckpoints(12),
@@ -134,9 +136,13 @@ export function ProfilePage() {
       <div>
         <div className="mb-2 flex items-center justify-between">
           <h3 className="font-display text-lg font-bold">Khoảnh khắc hành trình</h3>
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <button
+            onClick={start}
+            aria-label="Cắm cờ khoảnh khắc mới"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition hover:brightness-105 active:scale-95"
+          >
             <Camera size={18} />
-          </span>
+          </button>
         </div>
         {momentsLoading ? (
           <div className="grid grid-cols-2 gap-3">
@@ -193,6 +199,7 @@ export function ProfilePage() {
       </Button>
 
       {editing && <EditProfileSheet onClose={() => setEditing(false)} />}
+      {sheets}
     </div>
   );
 }
