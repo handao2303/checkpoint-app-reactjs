@@ -135,8 +135,9 @@ export function JourneyDetailSheet({
             <ShareButton
               filename={`journey-${data.journey.id}.png`}
               title={data.journey.title}
-              text={`Hành trình "${data.journey.title}" của mình trên Checkpoint!`}
+              text={`Hành trình "${data.journey.title}" của mình trên Checkpoint! ${window.location.origin}/j/${data.journey.id}`}
               label="Chia sẻ hành trình"
+              photoUrls={stops.flatMap((s) => s.images).slice(0, 8)}
             >
               <JourneyShareCard
                 title={data.journey.title}

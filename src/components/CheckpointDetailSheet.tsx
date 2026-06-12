@@ -70,7 +70,8 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
           <ShareButton
             filename={`checkpoint-${data.checkpoint.id}.png`}
             title={data.checkpoint.name}
-            text={`Mình vừa check-in tại ${data.checkpoint.name} trên Checkpoint!`}
+            text={`Mình vừa check-in tại ${data.checkpoint.name} trên Checkpoint! ${window.location.origin}/c/${data.checkpoint.id}`}
+            photoUrls={data.images?.map((im) => im.url)}
           >
             <CheckpointShareCard
               name={data.checkpoint.name}

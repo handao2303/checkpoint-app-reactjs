@@ -8,6 +8,7 @@ import { CreatePage } from "./pages/CreatePage";
 import { AIPlanPage } from "./pages/AIPlanPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
+import { CheckpointLink, JourneyLink } from "./pages/LinkRoutes";
 import { MapSkeleton } from "./components/MapSkeleton";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
 
@@ -39,6 +40,10 @@ export default function App() {
         <Route path="ai-plan" element={<AIPlanPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="leaderboard" element={<LeaderboardPage />} />
+        {/* Deep links from share. URL survives login, so a recipient lands here
+            right after signing in. */}
+        <Route path="c/:id" element={<CheckpointLink />} />
+        <Route path="j/:id" element={<JourneyLink />} />
       </Route>
     </Routes>
   );

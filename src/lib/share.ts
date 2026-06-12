@@ -2,13 +2,36 @@ interface ShareOpts {
   filename: string;
   title: string;
   text: string;
+  /** Original photo URLs to attach alongside the card (best-effort — any that
+   *  fail to fetch, e.g. blocked by CORS, are simply skipped). */
+  photoUrls?: string[];
+}
+
+/** Fetch remote images as shareable File objects. Cross-origin fetches need the
+ *  bucket to send CORS headers; failures are swallowed so one bad image never
+ *  breaks the share. */
+async function fetchPhotoFiles(urls: string[]): Promise<File[]> {
+  const files = await Promise.all(
+    urls.map(async (url, i) => {
+      try {
+        const res = await fetch(url, { mode: "cors" });
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+        return new File([blob], `photo-${i + 1}.${ext}`, { type: blob.type || "image/jpeg" });
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return files.filter((f): f is File => f !== null);
 }
 
 /**
- * Snapshot a DOM node to a PNG and share it via the Web Share API (native sheet
- * on mobile/PWA), falling back to a download, then to a text share. Fonts are
- * skipped to avoid cross-origin embedding hangs; cards are designed to read fine
- * with a system fallback font.
+ * Snapshot a DOM node to a PNG and share it (+ optional original photos) via the
+ * Web Share API, falling back to a download, then to a text share. Fonts are
+ * skipped to avoid cross-origin embedding hangs; cards read fine with a system
+ * fallback font.
  */
 export async function shareCardNode(node: HTMLElement, opts: ShareOpts): Promise<void> {
   let blob: Blob | null = null;
@@ -21,19 +44,21 @@ export async function shareCardNode(node: HTMLElement, opts: ShareOpts): Promise
     console.error("share card render failed:", e);
   }
 
-  const file = blob ? new File([blob], opts.filename, { type: "image/png" }) : null;
+  const cardFile = blob ? new File([blob], opts.filename, { type: "image/png" }) : null;
+  const photoFiles = opts.photoUrls?.length ? await fetchPhotoFiles(opts.photoUrls) : [];
+  const files = [cardFile, ...photoFiles].filter((f): f is File => f !== null);
 
-  // Preferred: native share sheet with the image file.
-  if (file && navigator.canShare?.({ files: [file] })) {
+  // Preferred: native share sheet with the card + photos.
+  if (files.length && navigator.canShare?.({ files })) {
     try {
-      await navigator.share({ files: [file], title: opts.title, text: opts.text });
+      await navigator.share({ files, title: opts.title, text: opts.text });
       return;
     } catch (e) {
       if ((e as Error).name === "AbortError") return; // user dismissed the sheet
     }
   }
 
-  // Fallback: download the image.
+  // Fallback: download the card image.
   if (blob) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
