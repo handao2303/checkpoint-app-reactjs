@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/telegram-notify
         with:
-          message: "🚀 *[Web]* Deploy bắt đầu — \`${{ github.ref_name }}\` (${{ github.sha }})"
+          message: "🚀 *[Web]* Deploy bắt đầu — `${{ github.ref_name }}` (${{ github.sha }})"
 
   # ── Typecheck ─────────────────────────────────────────────────
   typecheck:
@@ -51,7 +51,7 @@ jobs:
   deploy:
     name: Deploy to Cloudflare Workers
     needs: [notify-start, typecheck]
-    if: always() && needs.typecheck.result == 'success'
+    if: ${{ always() && needs.typecheck.result == 'success' }}
     runs-on: ubuntu-latest
     environment: production
 
