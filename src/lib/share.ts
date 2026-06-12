@@ -2,56 +2,44 @@ interface ShareOpts {
   filename: string;
   title: string;
   text: string;
-  /** Original photo URLs to attach alongside the card (best-effort — any that
-   *  fail to fetch, e.g. blocked by CORS, are simply skipped). */
-  photoUrls?: string[];
+  /** Deep link back to the item. Passed as the Web Share `url` (many targets
+   *  keep the url even when they drop free text). */
+  url?: string;
 }
 
-/** Fetch remote images as shareable File objects. Cross-origin fetches need the
- *  bucket to send CORS headers; failures are swallowed so one bad image never
- *  breaks the share. */
-async function fetchPhotoFiles(urls: string[]): Promise<File[]> {
-  const files = await Promise.all(
-    urls.map(async (url, i) => {
-      try {
-        const res = await fetch(url, { mode: "cors" });
-        if (!res.ok) return null;
-        const blob = await res.blob();
-        const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
-        return new File([blob], `photo-${i + 1}.${ext}`, { type: blob.type || "image/jpeg" });
-      } catch {
-        return null;
-      }
-    }),
-  );
-  return files.filter((f): f is File => f !== null);
-}
+// 1×1 transparent PNG — html-to-image swaps this in for any image it can't
+// inline (e.g. a photo blocked by missing CORS), so the card still renders
+// instead of failing outright.
+const TRANSPARENT_PX =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
 /**
- * Snapshot a DOM node to a PNG and share it (+ optional original photos) via the
- * Web Share API, falling back to a download, then to a text share. Fonts are
- * skipped to avoid cross-origin embedding hangs; cards read fine with a system
- * fallback font.
+ * Snapshot a DOM node (the card, with photos baked in) to a single PNG and share
+ * it via the Web Share API, falling back to a download, then to a text+url
+ * share. Fonts are skipped to avoid cross-origin embedding hangs.
  */
 export async function shareCardNode(node: HTMLElement, opts: ShareOpts): Promise<void> {
   let blob: Blob | null = null;
   try {
     // Load the (sizeable) renderer on demand so it stays out of the main bundle.
     const { toPng } = await import("html-to-image");
-    const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true, skipFonts: true });
+    const dataUrl = await toPng(node, {
+      pixelRatio: 2,
+      cacheBust: true,
+      skipFonts: true,
+      imagePlaceholder: TRANSPARENT_PX,
+    });
     blob = await (await fetch(dataUrl)).blob();
   } catch (e) {
     console.error("share card render failed:", e);
   }
 
-  const cardFile = blob ? new File([blob], opts.filename, { type: "image/png" }) : null;
-  const photoFiles = opts.photoUrls?.length ? await fetchPhotoFiles(opts.photoUrls) : [];
-  const files = [cardFile, ...photoFiles].filter((f): f is File => f !== null);
+  const file = blob ? new File([blob], opts.filename, { type: "image/png" }) : null;
 
-  // Preferred: native share sheet with the card + photos.
-  if (files.length && navigator.canShare?.({ files })) {
+  // Preferred: native share sheet with the single card image.
+  if (file && navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files, title: opts.title, text: opts.text });
+      await navigator.share({ files: [file], title: opts.title, text: opts.text, url: opts.url });
       return;
     } catch (e) {
       if ((e as Error).name === "AbortError") return; // user dismissed the sheet
@@ -69,10 +57,10 @@ export async function shareCardNode(node: HTMLElement, opts: ShareOpts): Promise
     return;
   }
 
-  // Last resort: share text only.
+  // Last resort: share text + link only.
   if (navigator.share) {
     try {
-      await navigator.share({ title: opts.title, text: opts.text });
+      await navigator.share({ title: opts.title, text: opts.text, url: opts.url });
     } catch {
       /* cancelled */
     }

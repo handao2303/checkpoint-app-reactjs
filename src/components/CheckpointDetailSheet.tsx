@@ -70,8 +70,8 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
           <ShareButton
             filename={`checkpoint-${data.checkpoint.id}.png`}
             title={data.checkpoint.name}
-            text={`Mình vừa check-in tại ${data.checkpoint.name} trên Checkpoint! ${window.location.origin}/c/${data.checkpoint.id}`}
-            photoUrls={data.images?.map((im) => im.url)}
+            text={`Mình vừa check-in tại ${data.checkpoint.name} trên Checkpoint!`}
+            url={`${window.location.origin}/c/${data.checkpoint.id}`}
           >
             <CheckpointShareCard
               name={data.checkpoint.name}
@@ -81,6 +81,8 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               xp={data.checkpoint.xp_awarded}
               author={data.author.display_name || data.author.username}
               date={new Date(data.checkpoint.created_at).toLocaleDateString("vi-VN")}
+              imageUrls={data.images?.map((im) => im.url)}
+              link={`${window.location.origin}/c/${data.checkpoint.id}`}
             />
           </ShareButton>
 

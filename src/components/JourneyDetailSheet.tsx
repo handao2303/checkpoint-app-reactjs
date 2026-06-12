@@ -135,9 +135,9 @@ export function JourneyDetailSheet({
             <ShareButton
               filename={`journey-${data.journey.id}.png`}
               title={data.journey.title}
-              text={`Hành trình "${data.journey.title}" của mình trên Checkpoint! ${window.location.origin}/j/${data.journey.id}`}
+              text={`Hành trình "${data.journey.title}" của mình trên Checkpoint!`}
               label="Chia sẻ hành trình"
-              photoUrls={stops.flatMap((s) => s.images).slice(0, 8)}
+              url={`${window.location.origin}/j/${data.journey.id}`}
             >
               <JourneyShareCard
                 title={data.journey.title}
@@ -147,6 +147,8 @@ export function JourneyDetailSheet({
                 date={new Date(
                   data.journey.started_at ?? data.journey.created_at,
                 ).toLocaleDateString("vi-VN")}
+                imageUrls={stops.flatMap((s) => s.images)}
+                link={`${window.location.origin}/j/${data.journey.id}`}
               />
             </ShareButton>
           </div>

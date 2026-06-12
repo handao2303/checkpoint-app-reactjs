@@ -11,15 +11,15 @@ export function ShareButton({
   title,
   text,
   label = "Chia sẻ",
-  photoUrls,
+  url,
   children,
 }: {
   filename: string;
   title: string;
   text: string;
   label?: string;
-  /** Original photos to attach alongside the generated card. */
-  photoUrls?: string[];
+  /** Deep link back to the item (shared as the Web Share `url`). */
+  url?: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -29,7 +29,7 @@ export function ShareButton({
     if (!ref.current) return;
     setBusy(true);
     try {
-      await shareCardNode(ref.current, { filename, title, text, photoUrls });
+      await shareCardNode(ref.current, { filename, title, text, url });
     } finally {
       setBusy(false);
     }

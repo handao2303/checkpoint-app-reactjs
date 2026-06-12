@@ -182,7 +182,8 @@ export function ProfilePage() {
       <ShareButton
         filename={`checkpoint-${user.username}.png`}
         title={`Hộ chiếu Checkpoint của ${user.display_name || user.username}`}
-        text={`Mình đã cắm ${user.checkpoint_count} cờ trên Checkpoint! ${window.location.origin}`}
+        text={`Mình đã cắm ${user.checkpoint_count} cờ trên Checkpoint!`}
+        url={window.location.origin}
         label="Chia sẻ Hộ chiếu Điện tử"
       >
         <ProfileShareCard
