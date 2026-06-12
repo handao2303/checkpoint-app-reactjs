@@ -15,7 +15,7 @@ import { EditProfileSheet } from "../components/EditProfileSheet";
 import { useCheckin } from "../hooks/useCheckin";
 import { Skeleton } from "../components/ui/Skeleton";
 import { ShareButton } from "../components/share/ShareButton";
-import { ProfileShareCard } from "../components/share/cards";
+import { renderProfileCard } from "../lib/shareCard";
 import { getMyCheckpoints, type Checkpoint } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 
@@ -185,16 +185,17 @@ export function ProfilePage() {
         text={`Mình đã cắm ${user.checkpoint_count} cờ trên Checkpoint!`}
         url={window.location.origin}
         label="Chia sẻ Hộ chiếu Điện tử"
-      >
-        <ProfileShareCard
-          name={user.display_name || user.username}
-          username={user.username}
-          level={user.level}
-          totalXp={user.total_xp}
-          checkpointCount={user.checkpoint_count}
-          journeyCount={user.journey_count}
-        />
-      </ShareButton>
+        render={() =>
+          renderProfileCard({
+            name: user.display_name || user.username,
+            username: user.username,
+            level: user.level,
+            totalXp: user.total_xp,
+            checkpointCount: user.checkpoint_count,
+            journeyCount: user.journey_count,
+          })
+        }
+      />
       <Button size="lg" variant="outline" icon={<LogOut size={20} />} onClick={signOut}>
         Đăng xuất
       </Button>

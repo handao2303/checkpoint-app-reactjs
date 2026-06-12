@@ -9,7 +9,7 @@ import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 import { ShareButton } from "./share/ShareButton";
-import { JourneyShareCard } from "./share/cards";
+import { renderJourneyCard } from "../lib/shareCard";
 
 export function JourneyDetailSheet({
   id,
@@ -138,18 +138,19 @@ export function JourneyDetailSheet({
               text={`Hành trình "${data.journey.title}" của mình trên Checkpoint!`}
               label="Chia sẻ hành trình"
               url={`${window.location.origin}/j/${data.journey.id}`}
-            >
-              <JourneyShareCard
-                title={data.journey.title}
-                count={data.stats.checkpoint_count}
-                xp={data.stats.total_xp}
-                distanceKm={data.stats.distance_km}
-                date={new Date(
-                  data.journey.started_at ?? data.journey.created_at,
-                ).toLocaleDateString("vi-VN")}
-                imageUrls={stops.flatMap((s) => s.images)}
-              />
-            </ShareButton>
+              render={() =>
+                renderJourneyCard({
+                  title: data.journey.title,
+                  count: data.stats.checkpoint_count,
+                  xp: data.stats.total_xp,
+                  distanceKm: data.stats.distance_km,
+                  date: new Date(
+                    data.journey.started_at ?? data.journey.created_at,
+                  ).toLocaleDateString("vi-VN"),
+                  imageUrls: stops.flatMap((s) => s.images),
+                })
+              }
+            />
           </div>
         </div>
       )}

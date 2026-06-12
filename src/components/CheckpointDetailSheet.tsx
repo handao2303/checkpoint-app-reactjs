@@ -10,7 +10,7 @@ import { Sheet } from "./ui/Sheet";
 import { XPBadge } from "./ui/Chip";
 import { DetailSheetSkeleton } from "./ui/Skeleton";
 import { ShareButton } from "./share/ShareButton";
-import { CheckpointShareCard } from "./share/cards";
+import { renderCheckpointCard } from "../lib/shareCard";
 
 export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const { user } = useAuth();
@@ -72,18 +72,19 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
             title={data.checkpoint.name}
             text={`Mình vừa check-in tại ${data.checkpoint.name} trên Checkpoint!`}
             url={`${window.location.origin}/c/${data.checkpoint.id}`}
-          >
-            <CheckpointShareCard
-              name={data.checkpoint.name}
-              category={data.checkpoint.category}
-              note={data.checkpoint.note}
-              address={data.checkpoint.address}
-              xp={data.checkpoint.xp_awarded}
-              author={data.author.display_name || data.author.username}
-              date={new Date(data.checkpoint.created_at).toLocaleDateString("vi-VN")}
-              imageUrls={data.images?.map((im) => im.url)}
-            />
-          </ShareButton>
+            render={() =>
+              renderCheckpointCard({
+                name: data.checkpoint.name,
+                category: data.checkpoint.category,
+                note: data.checkpoint.note,
+                address: data.checkpoint.address,
+                xp: data.checkpoint.xp_awarded,
+                author: data.author.display_name || data.author.username,
+                date: new Date(data.checkpoint.created_at).toLocaleDateString("vi-VN"),
+                imageUrls: data.images?.map((im) => im.url),
+              })
+            }
+          />
 
           {/* Delete — owner only. Hard delete: XP is taken back, photos removed. */}
           {isMine &&
