@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Camera, LogOut, Pencil, Trophy } from "lucide-react";
+import { Camera, ChevronDown, LogOut, Pencil, Settings, Trophy } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
@@ -18,6 +18,45 @@ import { ShareButton } from "../components/share/ShareButton";
 import { renderProfileCard } from "../lib/shareCard";
 import { getMyCheckpoints, type Checkpoint } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
+import { quickCheckinSettings } from "../lib/settings";
+
+function SettingSwitch({
+  checked,
+  label,
+  description,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  description: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex w-full items-center gap-3 rounded-lg py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-foreground">{label}</span>
+        <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>
+      </span>
+      <span
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-primary" : "bg-surface-muted"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+            checked ? "translate-x-5" : "translate-x-0.5"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
 
 function MomentCaption({ cp }: { cp?: Checkpoint }) {
   if (!cp) return null;
@@ -33,6 +72,13 @@ function MomentCaption({ cp }: { cp?: Checkpoint }) {
 export function ProfilePage() {
   const { user, signOut } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [openCreateOnLaunch, setOpenCreateOnLaunch] = useState(
+    () => quickCheckinSettings.openCreateOnLaunch,
+  );
+  const [preferCameraOnCheckin, setPreferCameraOnCheckin] = useState(
+    () => quickCheckinSettings.preferCameraOnCheckin,
+  );
   const { start, sheets } = useCheckin();
   const { data: myCheckpoints = [], isLoading: momentsLoading } = useQuery({
     queryKey: ["checkpoints", "me"],
@@ -125,6 +171,45 @@ export function ProfilePage() {
         </div>
         <span className="text-muted-foreground">›</span>
       </Link>
+
+      <Card>
+        <button
+          type="button"
+          aria-expanded={settingsOpen}
+          aria-controls="profile-settings"
+          onClick={() => setSettingsOpen((open) => !open)}
+          className="flex w-full items-center gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Settings size={18} className="text-clay-600" />
+          <h3 className="flex-1 font-display text-lg font-bold">Cài đặt</h3>
+          <ChevronDown
+            size={18}
+            className={`text-muted-foreground transition-transform ${settingsOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+        {settingsOpen && (
+          <div id="profile-settings" className="mt-2 divide-y divide-border">
+            <SettingSwitch
+              checked={openCreateOnLaunch}
+              label="Check-in luôn khi mở app"
+              description="Đi thẳng đến màn hình cắm cờ mỗi khi tải lại hoặc mở app."
+              onChange={(checked) => {
+                quickCheckinSettings.openCreateOnLaunch = checked;
+                setOpenCreateOnLaunch(checked);
+              }}
+            />
+            <SettingSwitch
+              checked={preferCameraOnCheckin}
+              label="Ưu tiên chụp ảnh khi check-in"
+              description="Hiện nút chụp ảnh nhanh ở đầu form check-in."
+              onChange={(checked) => {
+                quickCheckinSettings.preferCameraOnCheckin = checked;
+                setPreferCameraOnCheckin(checked);
+              }}
+            />
+          </div>
+        )}
+      </Card>
 
       {/* Badges */}
       <BadgesSection />

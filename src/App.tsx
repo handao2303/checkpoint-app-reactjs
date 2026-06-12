@@ -1,5 +1,5 @@
-import { Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Suspense, useEffect, useRef } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import { AppLayout } from "./components/AppLayout";
 import { LoginPage } from "./pages/LoginPage";
@@ -11,6 +11,7 @@ import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { CheckpointLink, JourneyLink } from "./pages/LinkRoutes";
 import { MapSkeleton } from "./components/MapSkeleton";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
+import { quickCheckinSettings } from "./lib/settings";
 
 // MapPage pulls in MapLibre (~280KB) — load it only when the map route is opened.
 // lazyWithRetry reloads once on a stale-chunk failure instead of white-screening.
@@ -26,6 +27,15 @@ function Splash() {
 
 export default function App() {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const openCreateOnLaunch = useRef(quickCheckinSettings.openCreateOnLaunch);
+
+  useEffect(() => {
+    if (!loading && user && openCreateOnLaunch.current) {
+      openCreateOnLaunch.current = false;
+      navigate("/create", { replace: true });
+    }
+  }, [loading, navigate, user]);
 
   if (loading) return <Splash />;
 

@@ -8,6 +8,7 @@ import { prepareImage } from "../lib/image";
 import { CATEGORIES } from "../lib/maps";
 import { Button } from "./ui/Button";
 import { cn } from "../lib/cn";
+import { quickCheckinSettings } from "../lib/settings";
 
 interface PickedImage {
   file: File;
@@ -55,6 +56,8 @@ export function CreateCheckpointForm({
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const nativeCamera = canUseNativeCamera();
+  const showQuickCamera =
+    quickCheckinSettings.preferCameraOnCheckin && nativeCamera && picked.length === 0;
 
   // Revoke object URLs on unmount (read latest via ref to avoid stale closure).
   const pickedRef = useRef(picked);
@@ -144,6 +147,18 @@ export function CreateCheckpointForm({
         </div>
       )}
 
+      {showQuickCamera && (
+        <Button
+          type="button"
+          size="lg"
+          icon={<Camera size={22} />}
+          disabled={processing}
+          onClick={() => cameraRef.current?.click()}
+        >
+          {processing ? "Đang xử lý..." : "Chụp ảnh ngay"}
+        </Button>
+      )}
+
       <input
         required
         value={name}
@@ -212,7 +227,7 @@ export function CreateCheckpointForm({
         </PhotoProvider>
         {picked.length < MAX_IMAGES && (
           <>
-            {nativeCamera && (
+            {nativeCamera && !showQuickCamera && (
               <button
                 type="button"
                 onClick={() => cameraRef.current?.click()}

@@ -1,12 +1,19 @@
 // Thin client for the Checkpoint backend. Stores our backend-issued tokens,
 // attaches the access token, and transparently re-auths on 401.
 
+import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
+
 import { supabase } from "./supabase";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const ACCESS_KEY = "cp_access_token";
 const REFRESH_KEY = "cp_refresh_token";
+
+const http = axios.create({
+  baseURL: API_URL,
+  validateStatus: () => true,
+});
 
 export const tokens = {
   get access() {
@@ -47,12 +54,8 @@ export interface User {
   level_progress: number;
 }
 
-async function postJSON(path: string, body: unknown): Promise<Response> {
-  return fetch(`${API_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+async function postJSON(path: string, body: unknown): Promise<AxiosResponse> {
+  return http.post(path, body);
 }
 
 // Called when re-auth is impossible (both the refresh token and the Supabase
@@ -85,8 +88,8 @@ async function reauth(): Promise<boolean> {
   if (refresh) {
     try {
       const res = await postJSON("/auth/refresh", { refresh_token: refresh });
-      if (res.ok) {
-        const data = await res.json();
+      if (isSuccessful(res)) {
+        const data = res.data;
         tokens.set(data.access_token, data.refresh_token);
         return true;
       }
@@ -107,12 +110,30 @@ async function reauth(): Promise<boolean> {
   return false;
 }
 
-/** Authenticated fetch: adds the Bearer token; on 401 re-auths once then retries.
+function isSuccessful(res: AxiosResponse): boolean {
+  return res.status >= 200 && res.status < 300;
+}
+
+/** Authenticated request: adds the Bearer token; on 401 re-auths once then retries.
  *  If re-auth fails, fires onAuthExpired (logout). */
-export async function apiFetch(path: string, init: RequestInit = {}, retry = true): Promise<Response> {
+export async function apiFetch(
+  path: string,
+  init: RequestInit = {},
+  retry = true,
+): Promise<AxiosResponse> {
   const headers = new Headers(init.headers);
   if (tokens.access) headers.set("Authorization", `Bearer ${tokens.access}`);
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  const axiosHeaders: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    axiosHeaders[key] = value;
+  });
+  const config: AxiosRequestConfig = {
+    method: init.method ?? "GET",
+    headers: axiosHeaders,
+    data: init.body,
+    signal: init.signal ?? undefined,
+  };
+  const res = await http.request({ ...config, url: path });
   if (res.status === 401 && retry) {
     if (await ensureFreshToken()) return apiFetch(path, init, false);
     onAuthExpired?.();
@@ -123,16 +144,16 @@ export async function apiFetch(path: string, init: RequestInit = {}, retry = tru
 /** Exchange a Supabase token for our backend token pair. */
 export async function exchange(supabaseToken: string): Promise<User> {
   const res = await postJSON("/auth/exchange", { supabase_token: supabaseToken });
-  if (!res.ok) throw new Error(`exchange failed: ${res.status}`);
-  const data = await res.json();
+  if (!isSuccessful(res)) throw new Error(`exchange failed: ${res.status}`);
+  const data = res.data;
   tokens.set(data.access_token, data.refresh_token);
   return data.user as User;
 }
 
 export async function getMe(): Promise<User> {
   const res = await apiFetch("/users/me");
-  if (!res.ok) throw new Error(`getMe failed: ${res.status}`);
-  return (await res.json()) as User;
+  if (!isSuccessful(res)) throw new Error(`getMe failed: ${res.status}`);
+  return res.data as User;
 }
 
 /** Update the caller's display name and/or bio. Returns the updated user. */
@@ -145,8 +166,8 @@ export async function updateProfile(patch: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
-  if (!res.ok) throw new Error(`updateProfile failed: ${res.status}`);
-  return (await res.json()) as User;
+  if (!isSuccessful(res)) throw new Error(`updateProfile failed: ${res.status}`);
+  return res.data as User;
 }
 
 // ---- Gamification (Phase 5) ----
@@ -168,8 +189,8 @@ export interface Passport {
 /** The caller's digital passport (provinces visited). */
 export async function getPassport(): Promise<Passport> {
   const res = await apiFetch("/me/passport");
-  if (!res.ok) throw new Error(`getPassport failed: ${res.status}`);
-  return (await res.json()) as Passport;
+  if (!isSuccessful(res)) throw new Error(`getPassport failed: ${res.status}`);
+  return res.data as Passport;
 }
 
 export interface LeaderboardEntry {
@@ -190,8 +211,8 @@ export interface Leaderboard {
 /** Global top users by XP + the caller's own rank. */
 export async function getLeaderboard(): Promise<Leaderboard> {
   const res = await apiFetch("/leaderboard");
-  if (!res.ok) throw new Error(`getLeaderboard failed: ${res.status}`);
-  return (await res.json()) as Leaderboard;
+  if (!isSuccessful(res)) throw new Error(`getLeaderboard failed: ${res.status}`);
+  return res.data as Leaderboard;
 }
 
 export interface UserBadge extends Badge {
@@ -202,8 +223,8 @@ export interface UserBadge extends Badge {
 /** The badge catalog annotated with the caller's unlock state. */
 export async function getBadges(): Promise<UserBadge[]> {
   const res = await apiFetch("/me/badges");
-  if (!res.ok) throw new Error(`getBadges failed: ${res.status}`);
-  return (await res.json()) as UserBadge[];
+  if (!isSuccessful(res)) throw new Error(`getBadges failed: ${res.status}`);
+  return res.data as UserBadge[];
 }
 
 /** Upload a new avatar (multipart). Returns the updated user. */
@@ -213,8 +234,8 @@ export async function uploadAvatar(file: File): Promise<User> {
   // No Content-Type header — the browser sets the multipart boundary.
   const res = await apiFetch("/users/me/avatar", { method: "POST", body: form });
   if (res.status === 415) throw new Error("Ảnh phải là jpeg, png, webp hoặc gif.");
-  if (!res.ok) throw new Error(`uploadAvatar failed: ${res.status}`);
-  return (await res.json()) as User;
+  if (!isSuccessful(res)) throw new Error(`uploadAvatar failed: ${res.status}`);
+  return res.data as User;
 }
 
 export async function logout(): Promise<void> {
@@ -296,8 +317,8 @@ export interface CheckinInput {
 export async function getCheckpointsInBounds(b: Bounds): Promise<Checkpoint[]> {
   const bbox = `${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`;
   const res = await apiFetch(`/checkpoints?bbox=${bbox}&limit=300`);
-  if (!res.ok) throw new Error("load checkpoints failed");
-  return (await res.json()).checkpoints ?? [];
+  if (!isSuccessful(res)) throw new Error("load checkpoints failed");
+  return res.data.checkpoints ?? [];
 }
 
 export async function createCheckpoint(input: CheckinInput): Promise<CheckinResult> {
@@ -306,27 +327,27 @@ export async function createCheckpoint(input: CheckinInput): Promise<CheckinResu
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (!res.ok) throw new Error("create checkpoint failed");
-  return res.json();
+  if (!isSuccessful(res)) throw new Error("create checkpoint failed");
+  return res.data;
 }
 
 export async function getCheckpointDetail(id: string): Promise<CheckpointDetail> {
   const res = await apiFetch(`/checkpoints/${id}`);
-  if (!res.ok) throw new Error("load checkpoint failed");
-  return res.json();
+  if (!isSuccessful(res)) throw new Error("load checkpoint failed");
+  return res.data;
 }
 
 export async function getMyCheckpoints(limit = 30): Promise<Checkpoint[]> {
   const res = await apiFetch(`/checkpoints/me?limit=${limit}`);
-  if (!res.ok) throw new Error("load my checkpoints failed");
-  return (await res.json()).checkpoints ?? [];
+  if (!isSuccessful(res)) throw new Error("load my checkpoints failed");
+  return res.data.checkpoints ?? [];
 }
 
 /** Hard-delete the caller's checkpoint (server reverses XP/stats and cleans up
  *  the place + images). Only the owner can delete — others get a 404. */
 export async function deleteCheckpoint(id: string): Promise<void> {
   const res = await apiFetch(`/checkpoints/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(`delete checkpoint failed: ${res.status}`);
+  if (!isSuccessful(res)) throw new Error(`delete checkpoint failed: ${res.status}`);
 }
 
 export async function uploadCheckpointImages(id: string, files: File[]): Promise<CheckpointImage[]> {
@@ -334,12 +355,12 @@ export async function uploadCheckpointImages(id: string, files: File[]): Promise
   files.forEach((f) => form.append("images", f));
   // No Content-Type header — the browser sets the multipart boundary.
   const res = await apiFetch(`/checkpoints/${id}/images`, { method: "POST", body: form });
-  if (!res.ok) {
+  if (!isSuccessful(res)) {
     if (res.status === 415) throw new Error("Định dạng ảnh không hỗ trợ (chỉ jpeg/png/webp/gif).");
     if (res.status === 413 || res.status === 400) throw new Error("Ảnh quá lớn, vui lòng thử ảnh nhỏ hơn.");
     throw new Error(`upload images failed: ${res.status}`);
   }
-  return (await res.json()).images ?? [];
+  return res.data.images ?? [];
 }
 
 // ---- Places / Discovery (Phase 4) ----
@@ -398,8 +419,8 @@ export async function getFeed(at: LatLng, cursor?: string): Promise<FeedPage> {
   const p = new URLSearchParams({ lat: String(at.lat), lng: String(at.lng), limit: "15" });
   if (cursor) p.set("cursor", cursor);
   const res = await apiFetch(`/discover/feed?${p}`);
-  if (!res.ok) throw new Error("load feed failed");
-  return res.json();
+  if (!isSuccessful(res)) throw new Error("load feed failed");
+  return res.data;
 }
 
 export async function searchPlaces(q: string, near?: LatLng): Promise<Place[]> {
@@ -409,8 +430,8 @@ export async function searchPlaces(q: string, near?: LatLng): Promise<Place[]> {
     p.set("lng", String(near.lng));
   }
   const res = await apiFetch(`/places/search?${p}`);
-  if (!res.ok) throw new Error("search failed");
-  return (await res.json()).places ?? [];
+  if (!isSuccessful(res)) throw new Error("search failed");
+  return res.data.places ?? [];
 }
 
 export async function getPopularPlaces(near?: LatLng): Promise<Place[]> {
@@ -420,14 +441,14 @@ export async function getPopularPlaces(near?: LatLng): Promise<Place[]> {
     p.set("lng", String(near.lng));
   }
   const res = await apiFetch(`/places/popular?${p}`);
-  if (!res.ok) throw new Error("popular failed");
-  return (await res.json()).places ?? [];
+  if (!isSuccessful(res)) throw new Error("popular failed");
+  return res.data.places ?? [];
 }
 
 export async function getPlace(id: string): Promise<PlaceDetail> {
   const res = await apiFetch(`/places/${id}`);
-  if (!res.ok) throw new Error("load place failed");
-  return res.json();
+  if (!isSuccessful(res)) throw new Error("load place failed");
+  return res.data;
 }
 
 // ---- Journeys (Phase 3) ----
@@ -465,14 +486,14 @@ export interface JourneyDetail {
 
 export async function getMyJourneys(): Promise<Journey[]> {
   const res = await apiFetch("/journeys/me");
-  if (!res.ok) throw new Error("load journeys failed");
-  return (await res.json()).journeys ?? [];
+  if (!isSuccessful(res)) throw new Error("load journeys failed");
+  return res.data.journeys ?? [];
 }
 
 export async function getJourney(id: string): Promise<JourneyDetail> {
   const res = await apiFetch(`/journeys/${id}`);
-  if (!res.ok) throw new Error("load journey failed");
-  return res.json();
+  if (!isSuccessful(res)) throw new Error("load journey failed");
+  return res.data;
 }
 
 export async function createJourney(title: string, description?: string): Promise<Journey> {
@@ -481,8 +502,8 @@ export async function createJourney(title: string, description?: string): Promis
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title, description }),
   });
-  if (!res.ok) throw new Error("create journey failed");
-  return res.json();
+  if (!isSuccessful(res)) throw new Error("create journey failed");
+  return res.data;
 }
 
 export async function updateJourney(
@@ -494,6 +515,6 @@ export async function updateJourney(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
-  if (!res.ok) throw new Error("update journey failed");
-  return res.json();
+  if (!isSuccessful(res)) throw new Error("update journey failed");
+  return res.data;
 }
