@@ -16,7 +16,11 @@ function useCardImages(urls: string[]): string[] {
     Promise.all(
       urls.map(async (url) => {
         try {
-          const res = await fetch(url, { mode: "cors", cache: "reload" });
+          // Distinct query so we never reuse the page's earlier non-CORS <img>
+          // copy of this URL — forces a fresh request that carries Origin and
+          // gets the bucket's CORS headers back.
+          const corsUrl = url + (url.includes("?") ? "&" : "?") + "cors=1";
+          const res = await fetch(corsUrl, { mode: "cors" });
           if (!res.ok) return null;
           const blob = await res.blob();
           return await new Promise<string | null>((resolve) => {
