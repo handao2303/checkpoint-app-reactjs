@@ -1,19 +1,48 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { categoryIcon } from "../../lib/maps";
 
 const CARD_W = 540;
 
-/** Branded shell for all share cards: fixed size, gradient, pin + wordmark, and
- *  an optional link line at the bottom. */
-function CardShell({
-  gradient,
-  link,
-  children,
-}: {
-  gradient: string;
-  link?: string;
-  children: ReactNode;
-}) {
+/** Fetch remote images and turn them into data URLs so html-to-image can bake
+ *  them into the card with zero CORS/taint issues at capture time. `cache:
+ *  "reload"` bypasses any non-CORS copy the page cached via a plain <img>.
+ *  Needs the bucket's CORS to allow the app origin; failures just drop the photo. */
+function useCardImages(urls: string[]): string[] {
+  const [dataUrls, setDataUrls] = useState<string[]>([]);
+  const key = urls.join("|");
+
+  useEffect(() => {
+    let active = true;
+    Promise.all(
+      urls.map(async (url) => {
+        try {
+          const res = await fetch(url, { mode: "cors", cache: "reload" });
+          if (!res.ok) return null;
+          const blob = await res.blob();
+          return await new Promise<string | null>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+        } catch {
+          return null;
+        }
+      }),
+    ).then((results) => {
+      if (active) setDataUrls(results.filter((r): r is string => r !== null));
+    });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return dataUrls;
+}
+
+/** Branded shell: fixed size, gradient, pin + wordmark. */
+function CardShell({ gradient, children }: { gradient: string; children: ReactNode }) {
   return (
     <div style={{ width: CARD_W }} className={`flex flex-col gap-5 ${gradient} p-8 text-white`}>
       <div className="flex items-center gap-2">
@@ -21,7 +50,6 @@ function CardShell({
         <span className="font-display text-2xl font-extrabold">Checkpoint</span>
       </div>
       {children}
-      {link && <p className="truncate text-center text-sm text-white/75">🔗 {link}</p>}
     </div>
   );
 }
@@ -35,9 +63,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Photo collage baked into the card. Up to 3 images: 1 = hero, 2 = side by
- *  side, 3 = one wide + two small. crossOrigin lets html-to-image inline them
- *  (needs R2 CORS); any that fail are replaced by html-to-image's placeholder. */
+/** Photo collage (data URLs). 1 = hero, 2 = side by side, 3 = one wide + two. */
 function PhotoGrid({ urls }: { urls: string[] }) {
   const imgs = urls.slice(0, 3);
   if (imgs.length === 0) return null;
@@ -47,14 +73,9 @@ function PhotoGrid({ urls }: { urls: string[] }) {
         <img
           key={i}
           src={url}
-          crossOrigin="anonymous"
           alt=""
           className={`w-full rounded-xl object-cover ${
-            imgs.length === 1
-              ? "h-64"
-              : imgs.length === 3 && i === 0
-                ? "col-span-2 h-44"
-                : "h-36"
+            imgs.length === 1 ? "h-64" : imgs.length === 3 && i === 0 ? "col-span-2 h-44" : "h-36"
           }`}
         />
       ))}
@@ -71,7 +92,6 @@ export function CheckpointShareCard({
   author,
   date,
   imageUrls = [],
-  link,
 }: {
   name: string;
   category: string;
@@ -81,11 +101,11 @@ export function CheckpointShareCard({
   author: string;
   date: string;
   imageUrls?: string[];
-  link?: string;
 }) {
+  const photos = useCardImages(imageUrls);
   return (
-    <CardShell gradient="bg-[image:var(--gradient-primary)]" link={link}>
-      <PhotoGrid urls={imageUrls} />
+    <CardShell gradient="bg-[image:var(--gradient-primary)]">
+      <PhotoGrid urls={photos} />
 
       <div className="flex items-center gap-4">
         <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-4xl">
@@ -115,7 +135,6 @@ export function JourneyShareCard({
   distanceKm,
   date,
   imageUrls = [],
-  link,
 }: {
   title: string;
   count: number;
@@ -123,11 +142,11 @@ export function JourneyShareCard({
   distanceKm: number;
   date: string;
   imageUrls?: string[];
-  link?: string;
 }) {
+  const photos = useCardImages(imageUrls);
   return (
-    <CardShell gradient="bg-[image:var(--gradient-passport)]" link={link}>
-      <PhotoGrid urls={imageUrls} />
+    <CardShell gradient="bg-[image:var(--gradient-passport)]">
+      <PhotoGrid urls={photos} />
 
       <div>
         <p className="text-sm font-bold uppercase tracking-wider text-white/70">Hành trình</p>
@@ -152,7 +171,6 @@ export function ProfileShareCard({
   totalXp,
   checkpointCount,
   journeyCount,
-  link,
 }: {
   name: string;
   username: string;
@@ -160,10 +178,9 @@ export function ProfileShareCard({
   totalXp: number;
   checkpointCount: number;
   journeyCount: number;
-  link?: string;
 }) {
   return (
-    <CardShell gradient="bg-[image:var(--gradient-passport)]" link={link}>
+    <CardShell gradient="bg-[image:var(--gradient-passport)]">
       <div className="flex items-center gap-4 pt-2">
         <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 font-display text-4xl font-bold">
           {(name[0] ?? "?").toUpperCase()}

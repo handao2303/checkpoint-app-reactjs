@@ -82,7 +82,6 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               author={data.author.display_name || data.author.username}
               date={new Date(data.checkpoint.created_at).toLocaleDateString("vi-VN")}
               imageUrls={data.images?.map((im) => im.url)}
-              link={`${window.location.origin}/c/${data.checkpoint.id}`}
             />
           </ShareButton>
 

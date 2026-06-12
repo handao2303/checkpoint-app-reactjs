@@ -38,6 +38,7 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/assets\//],
       },
       manifest: {
+        id: "/",
         name: "Checkpoint",
         short_name: "Checkpoint",
         description: "Khám phá thế giới, lưu dấu hành trình",
@@ -49,6 +50,10 @@ export default defineConfig({
         orientation: "portrait",
         scope: "/",
         start_url: "/",
+        // Reuse the running PWA window for in-scope links (e.g. shared /c/:id),
+        // and let Android Chrome capture those links into the installed app.
+        launch_handler: { client_mode: ["navigate-existing", "auto"] },
+        handle_links: "preferred",
         categories: ["travel", "social", "lifestyle"],
         icons: [
           { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

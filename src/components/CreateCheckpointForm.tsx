@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Flag, Plus, X, Camera } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Flag, Plus, X, Camera, Luggage } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { createCheckpoint, uploadCheckpointImages, type Badge } from "../lib/api";
+import { createCheckpoint, getMyJourneys, uploadCheckpointImages, type Badge } from "../lib/api";
 import { prepareImage } from "../lib/image";
 import { CATEGORIES } from "../lib/maps";
 import { Button } from "./ui/Button";
@@ -47,6 +47,10 @@ export function CreateCheckpointForm({
   onCreated: (xp: number, newBadges: Badge[]) => void;
 }) {
   const qc = useQueryClient();
+  // The server auto-attaches the user's active journey to a check-in, so surface
+  // which journey this check-in will be recorded under.
+  const { data: journeys = [] } = useQuery({ queryKey: ["journeys"], queryFn: getMyJourneys });
+  const activeJourney = journeys.find((j) => j.is_active);
   const [name, setName] = useState(place?.name ?? "");
   const [category, setCategory] = useState(place?.category ?? "cafe");
   const [note, setNote] = useState("");
@@ -142,6 +146,15 @@ export function CreateCheckpointForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
+      {activeJourney && (
+        <div className="flex items-center gap-2 rounded-xl bg-secondary/10 px-3 py-2 text-sm text-secondary">
+          <Luggage size={18} className="shrink-0" />
+          <span>
+            Đang ghi cho hành trình <b>“{activeJourney.title}”</b>
+          </span>
+        </div>
+      )}
+
       <input
         required
         value={name}
