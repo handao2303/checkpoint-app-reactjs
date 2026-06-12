@@ -183,4 +183,12 @@
     font-family: var(--font-display);
     letter-spacing: -0.01em;
   }
+  .pwa-standalone body {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .pwa-standalone :is(input, textarea, [contenteditable="true"]) {
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }

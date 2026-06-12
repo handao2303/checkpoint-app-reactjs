@@ -50,6 +50,28 @@ function inferFacing(device: MediaDeviceInfo): Facing | undefined {
   return undefined;
 }
 
+function lensPreferenceScore(device: CameraDevice): number {
+  const label = device.info.label.toLowerCase();
+  if (/\b(ultra[\s-]?wide|0[.,]5x?|tele(photo)?|macro|depth|tof)\b/.test(label)) return -100;
+  if (/\b(main|primary|standard|normal|1x)\b/.test(label)) return 100;
+  if (/\bwide\b/.test(label)) return 40;
+  if (/^(back|rear) camera$/.test(label)) return 20;
+  return 0;
+}
+
+function preferredDefaultLens(
+  cameras: CameraDevice[],
+  activeDeviceId: string | null,
+): CameraDevice | undefined {
+  const environmentCameras = cameras.filter((camera) => camera.facing === "environment");
+  const active = environmentCameras.find((camera) => camera.info.deviceId === activeDeviceId);
+  const best = [...environmentCameras].sort(
+    (a, b) => lensPreferenceScore(b) - lensPreferenceScore(a),
+  )[0];
+  if (!best || lensPreferenceScore(best) <= 0) return undefined;
+  return !active || lensPreferenceScore(best) > lensPreferenceScore(active) ? best : undefined;
+}
+
 function isPhonePwa(): boolean {
   return (
     window.matchMedia("(pointer: coarse)").matches &&
@@ -84,6 +106,7 @@ export function CameraCaptureSheet({
   const [shots, setShots] = useState<Shot[]>([]);
   const [error, setError] = useState(false);
   const fallbackAttempted = useRef(false);
+  const defaultLensAttempted = useRef(false);
   const phonePwa = isPhonePwa();
 
   const shotsRef = useRef(shots);
@@ -123,6 +146,19 @@ export function CameraCaptureSheet({
             facing: info.deviceId === deviceId ? activeFacing : inferFacing(info),
           }));
         setDevices(cameras);
+
+        if (
+          activeFacing === "environment" &&
+          !selectedDeviceId &&
+          !defaultLensAttempted.current
+        ) {
+          defaultLensAttempted.current = true;
+          const preferred = preferredDefaultLens(cameras, deviceId ?? null);
+          if (preferred) {
+            saveDevice("environment", preferred.info.deviceId);
+            setSelectedDeviceId(preferred.info.deviceId);
+          }
+        }
       } catch {
         setDevices([]);
       }

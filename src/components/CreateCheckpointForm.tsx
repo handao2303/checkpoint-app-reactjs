@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Flag, Plus, X, Camera, Luggage } from "lucide-react";
+import { Flag, Image as ImageIcon, X, Camera, Luggage } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { createCheckpoint, getMyJourneys, uploadCheckpointImages, type Badge } from "../lib/api";
@@ -26,6 +26,15 @@ function canUseCamera(): boolean {
     !!navigator.mediaDevices?.getUserMedia &&
     window.isSecureContext &&
     window.matchMedia("(pointer: coarse)").matches
+  );
+}
+
+function isPhonePwa(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(pointer: coarse)").matches &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true)
   );
 }
 
@@ -63,13 +72,25 @@ export function CreateCheckpointForm({
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraAvailable = canUseCamera();
-  const showQuickCamera =
-    quickCheckinSettings.preferCameraOnCheckin && cameraAvailable && picked.length === 0;
+  const phonePwa = isPhonePwa();
+  const usePwaCamera = phonePwa && cameraAvailable;
+  const autoCameraAttempted = useRef(false);
 
   // Revoke object URLs on unmount (read latest via ref to avoid stale closure).
   const pickedRef = useRef(picked);
   pickedRef.current = picked;
   useEffect(() => () => pickedRef.current.forEach((p) => URL.revokeObjectURL(p.url)), []);
+
+  useEffect(() => {
+    if (
+      !autoCameraAttempted.current &&
+      usePwaCamera &&
+      quickCheckinSettings.preferCameraOnCheckin
+    ) {
+      autoCameraAttempted.current = true;
+      setCameraOpen(true);
+    }
+  }, [usePwaCamera]);
 
   // Convert HEIC + downscale so uploads are always a modest JPEG. Shared by the
   // file picker and the in-app camera.
@@ -94,7 +115,7 @@ export function CreateCheckpointForm({
   }
 
   const addPhotos = () => {
-    if (cameraAvailable) setCameraOpen(true);
+    if (usePwaCamera) setCameraOpen(true);
     else fileRef.current?.click();
   };
 
@@ -157,18 +178,6 @@ export function CreateCheckpointForm({
             Đang ghi cho hành trình <b>“{activeJourney.title}”</b>
           </span>
         </div>
-      )}
-
-      {showQuickCamera && (
-        <Button
-          type="button"
-          size="lg"
-          icon={<Camera size={22} />}
-          disabled={processing}
-          onClick={() => setCameraOpen(true)}
-        >
-          {processing ? "Đang xử lý..." : "Mở camera ngay"}
-        </Button>
       )}
 
       <input
@@ -249,10 +258,12 @@ export function CreateCheckpointForm({
           >
             {processing ? (
               <span className="text-xs">Đang xử lý…</span>
+            ) : usePwaCamera ? (
+              <Camera size={24} />
             ) : (
               <>
-                <Camera size={22} />
-                <Plus size={14} />
+                <ImageIcon size={22} />
+                <span className="text-xs font-medium">Chọn ảnh</span>
               </>
             )}
           </button>
