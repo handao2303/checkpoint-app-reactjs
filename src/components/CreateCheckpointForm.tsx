@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Flag, Plus, X } from "lucide-react";
+import { Flag, Plus, X, Camera } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { createCheckpoint, uploadCheckpointImages, type Badge } from "../lib/api";
 import { prepareImage } from "../lib/image";
 import { CATEGORIES } from "../lib/maps";
 import { Button } from "./ui/Button";
+import { CameraCaptureSheet } from "./CameraCaptureSheet";
 import { cn } from "../lib/cn";
 
 interface PickedImage {
@@ -15,6 +16,17 @@ interface PickedImage {
 }
 
 const MAX_IMAGES = 3;
+
+/** Prefer the in-app camera on touch devices with a usable camera + secure
+ *  context; desktop keeps the plain file picker. */
+function canUseCamera(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    !!navigator.mediaDevices?.getUserMedia &&
+    window.isSecureContext &&
+    window.matchMedia("(pointer: coarse)").matches
+  );
+}
 
 /** The check-in form (presentation-agnostic). Rendered inside a Sheet on the
  *  Map, or full-page on the Create tab. */
@@ -42,25 +54,25 @@ export function CreateCheckpointForm({
   const [picked, setPicked] = useState<PickedImage[]>([]);
   const [busy, setBusy] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Revoke object URLs on unmount (read latest via ref to avoid stale closure).
   const pickedRef = useRef(picked);
   pickedRef.current = picked;
   useEffect(() => () => pickedRef.current.forEach((p) => URL.revokeObjectURL(p.url)), []);
 
-  async function addFiles(list: FileList | null) {
-    if (!list) return;
+  // Convert HEIC + downscale so uploads are always a modest JPEG. Shared by the
+  // file picker and the in-app camera.
+  async function addFileArray(files: File[]) {
     const remainingSlots = MAX_IMAGES - pickedRef.current.length;
-    if (remainingSlots <= 0) return;
+    if (remainingSlots <= 0 || files.length === 0) return;
 
     setProcessing(true);
     setErr(null);
     try {
-      // Convert HEIC + downscale so uploads are always a modest JPEG.
-      const prepared = await Promise.all(
-        Array.from(list).slice(0, remainingSlots).map(prepareImage),
-      );
+      const prepared = await Promise.all(files.slice(0, remainingSlots).map(prepareImage));
       setPicked((prev) => [
         ...prev,
         ...prepared.map((file) => ({ file, url: URL.createObjectURL(file) })),
@@ -72,6 +84,11 @@ export function CreateCheckpointForm({
       setProcessing(false);
     }
   }
+
+  const addPhotos = () => {
+    if (canUseCamera()) setCameraOpen(true);
+    else fileRef.current?.click();
+  };
 
   function removeAt(index: number) {
     setPicked((prev) => {
@@ -192,26 +209,37 @@ export function CreateCheckpointForm({
           ))}
         </PhotoProvider>
         {picked.length < MAX_IMAGES && (
-          <label
+          <button
+            type="button"
+            onClick={addPhotos}
+            disabled={processing}
             className={cn(
-              "flex h-20 w-20 items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground",
+              "flex h-20 w-20 flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed border-border text-muted-foreground",
               processing ? "cursor-wait opacity-60" : "cursor-pointer",
             )}
           >
-            {processing ? <span className="text-xs">Đang xử lý…</span> : <Plus size={24} />}
-            <input
-              type="file"
-              accept="image/*,.heic,.heif"
-              multiple
-              disabled={processing}
-              className="hidden"
-              onChange={(e) => {
-                void addFiles(e.target.files);
-                e.target.value = ""; // allow re-picking the same file
-              }}
-            />
-          </label>
+            {processing ? (
+              <span className="text-xs">Đang xử lý…</span>
+            ) : (
+              <>
+                <Camera size={22} />
+                <Plus size={14} />
+              </>
+            )}
+          </button>
         )}
+        {/* Hidden picker — used directly on desktop / camera-unavailable. */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,.heic,.heif"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            void addFileArray(Array.from(e.target.files ?? []));
+            e.target.value = ""; // allow re-picking the same file
+          }}
+        />
       </div>
 
       {err && <p className="text-sm text-accent-600">{err}</p>}
@@ -219,6 +247,14 @@ export function CreateCheckpointForm({
       <Button type="submit" variant="accent" disabled={busy || processing} icon={<Flag size={20} />}>
         {busy ? "Đang lưu..." : "CẮM CỜ"}
       </Button>
+
+      {cameraOpen && (
+        <CameraCaptureSheet
+          maxCount={MAX_IMAGES - picked.length}
+          onClose={() => setCameraOpen(false)}
+          onDone={(files) => void addFileArray(files)}
+        />
+      )}
     </form>
   );
 }
