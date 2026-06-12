@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Flag, Plus, X, Camera, Luggage } from "lucide-react";
+import { Flag, Image as ImageIcon, X, Camera, Luggage } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { createCheckpoint, getMyJourneys, uploadCheckpointImages, type Badge } from "../lib/api";
 import { prepareImage } from "../lib/image";
 import { CATEGORIES } from "../lib/maps";
 import { Button } from "./ui/Button";
-import { CameraCaptureSheet } from "./CameraCaptureSheet";
 import { cn } from "../lib/cn";
 
 interface PickedImage {
@@ -17,15 +16,9 @@ interface PickedImage {
 
 const MAX_IMAGES = 3;
 
-/** Prefer the in-app camera on touch devices with a usable camera + secure
- *  context; desktop keeps the plain file picker. */
-function canUseCamera(): boolean {
-  return (
-    typeof navigator !== "undefined" &&
-    !!navigator.mediaDevices?.getUserMedia &&
-    window.isSecureContext &&
-    window.matchMedia("(pointer: coarse)").matches
-  );
+/** Native HTML capture is useful on touch devices; desktop keeps the picker. */
+function canUseNativeCamera(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 }
 
 /** The check-in form (presentation-agnostic). Rendered inside a Sheet on the
@@ -58,9 +51,10 @@ export function CreateCheckpointForm({
   const [picked, setPicked] = useState<PickedImage[]>([]);
   const [busy, setBusy] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [cameraOpen, setCameraOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const nativeCamera = canUseNativeCamera();
 
   // Revoke object URLs on unmount (read latest via ref to avoid stale closure).
   const pickedRef = useRef(picked);
@@ -68,7 +62,7 @@ export function CreateCheckpointForm({
   useEffect(() => () => pickedRef.current.forEach((p) => URL.revokeObjectURL(p.url)), []);
 
   // Convert HEIC + downscale so uploads are always a modest JPEG. Shared by the
-  // file picker and the in-app camera.
+  // gallery picker and native camera capture.
   async function addFileArray(files: File[]) {
     const remainingSlots = MAX_IMAGES - pickedRef.current.length;
     if (remainingSlots <= 0 || files.length === 0) return;
@@ -88,11 +82,6 @@ export function CreateCheckpointForm({
       setProcessing(false);
     }
   }
-
-  const addPhotos = () => {
-    if (canUseCamera()) setCameraOpen(true);
-    else fileRef.current?.click();
-  };
 
   function removeAt(index: number) {
     setPicked((prev) => {
@@ -222,26 +211,54 @@ export function CreateCheckpointForm({
           ))}
         </PhotoProvider>
         {picked.length < MAX_IMAGES && (
-          <button
-            type="button"
-            onClick={addPhotos}
-            disabled={processing}
-            className={cn(
-              "flex h-20 w-20 flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed border-border text-muted-foreground",
-              processing ? "cursor-wait opacity-60" : "cursor-pointer",
-            )}
-          >
-            {processing ? (
-              <span className="text-xs">Đang xử lý…</span>
-            ) : (
-              <>
+          <>
+            {nativeCamera && (
+              <button
+                type="button"
+                onClick={() => cameraRef.current?.click()}
+                disabled={processing}
+                className={cn(
+                  "flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-primary text-primary",
+                  processing ? "cursor-wait opacity-60" : "cursor-pointer",
+                )}
+              >
                 <Camera size={22} />
-                <Plus size={14} />
-              </>
+                <span className="text-xs font-medium">Chụp ảnh</span>
+              </button>
             )}
-          </button>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={processing}
+              className={cn(
+                "flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border text-muted-foreground",
+                processing ? "cursor-wait opacity-60" : "cursor-pointer",
+              )}
+            >
+              {processing ? (
+                <span className="text-xs">Đang xử lý…</span>
+              ) : (
+                <>
+                  <ImageIcon size={22} />
+                  <span className="text-xs font-medium">{nativeCamera ? "Thư viện" : "Chọn ảnh"}</span>
+                </>
+              )}
+            </button>
+          </>
         )}
-        {/* Hidden picker — used directly on desktop / camera-unavailable. */}
+        {/* Native camera capture: browsers may still choose to show a picker. */}
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            void addFileArray(Array.from(e.target.files ?? []));
+            e.target.value = "";
+          }}
+        />
+        {/* Gallery/file picker, separate so camera capture does not show its chooser. */}
         <input
           ref={fileRef}
           type="file"
@@ -260,14 +277,6 @@ export function CreateCheckpointForm({
       <Button type="submit" variant="accent" disabled={busy || processing} icon={<Flag size={20} />}>
         {busy ? "Đang lưu..." : "CẮM CỜ"}
       </Button>
-
-      {cameraOpen && (
-        <CameraCaptureSheet
-          maxCount={MAX_IMAGES - picked.length}
-          onClose={() => setCameraOpen(false)}
-          onDone={(files) => void addFileArray(files)}
-        />
-      )}
     </form>
   );
 }

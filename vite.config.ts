@@ -4,6 +4,12 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  server:{allowedHosts:['myapp.nport.link'],host: true, // Tương đương với --host
+    port: 5173,
+    // Thêm đoạn cấu hình hmr này vào:
+    hmr: {
+      clientPort: 5173,
+    },},
   build: {
     rollupOptions: {
       output: {
