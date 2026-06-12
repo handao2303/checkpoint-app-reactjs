@@ -358,7 +358,8 @@ export function renderCheckpointCard(data: {
   date: string;
   imageUrls?: string[];
 }): Promise<Blob | null> {
-  return loadImages(data.imageUrls ?? []).then((imgs) =>
+  const images = [data.imageUrls?.[0]].filter((u): u is string => !!u);
+  return loadImages(images).then((imgs) =>
     render(PRIMARY, [
       photos(imgs),
       header({ emoji: categoryIcon(data.category), title: data.name, subtitle: data.address ? `📍 ${data.address}` : undefined }),
