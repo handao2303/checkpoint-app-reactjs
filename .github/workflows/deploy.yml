@@ -18,9 +18,11 @@ jobs:
     name: Notify start
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/telegram-notify
         with:
+          bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
           message: "🚀 *[Web]* Deploy bắt đầu — `${{ github.ref_name }}` (${{ github.sha }})"
 
   # ── Typecheck ─────────────────────────────────────────────────
@@ -29,7 +31,7 @@ jobs:
     needs: notify-start
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-node@v4
         with:
@@ -45,6 +47,8 @@ jobs:
         if: always()
         uses: ./.github/actions/telegram-notify
         with:
+          bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
           message: "${{ job.status == 'success' && '✅' || '❌' }} *[Web]* Typecheck: ${{ job.status == 'success' && 'passed' || 'failed' }}"
 
   # ── Deploy ────────────────────────────────────────────────────
@@ -57,7 +61,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -81,6 +85,8 @@ jobs:
         if: always()
         uses: ./.github/actions/telegram-notify
         with:
+          bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
           message: |
             ${{ job.status == 'success' && '✅' || '❌' }} *[Web]* Deploy: ${{ job.status == 'success' && 'passed' || 'failed' }}
             ${{ job.status == 'success' && ' → https://checkpoint-web.dev-hongquan.workers.dev' || '' }}
