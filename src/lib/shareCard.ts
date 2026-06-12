@@ -151,16 +151,20 @@ function header(opts: { emoji?: string; initial?: string; title: string; subtitl
       ctx.fillStyle = "rgba(255,255,255,0.2)";
       roundRect(ctx, x, y, ICON, ICON, opts.initial ? ICON / 2 : 18);
       ctx.fill();
-      ctx.textAlign = "center";
       ctx.fillStyle = "#fff";
       if (opts.initial) {
+        ctx.textAlign = "center";
         ctx.font = font(700, 34);
         ctx.fillText(opts.initial, x + ICON / 2, y + ICON / 2 + 12);
+        ctx.textAlign = "left";
       } else if (opts.emoji) {
-        ctx.font = "40px system-ui";
-        ctx.fillText(opts.emoji, x + ICON / 2, y + ICON / 2 + 16);
+        ctx.save();
+        ctx.font = '40px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(opts.emoji, x + ICON / 2, y + ICON / 2);
+        ctx.restore();
       }
-      ctx.textAlign = "left";
 
       const tx = x + ICON + gap;
       const titleW = w - ICON - gap - (opts.badge ? 60 : 0);
