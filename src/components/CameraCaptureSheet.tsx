@@ -2,37 +2,57 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
 import { X, SwitchCamera, Image as ImageIcon, Check } from "lucide-react";
 
+type Facing = "user" | "environment";
 type Shot = { file: File; url: string };
+type CameraDevice = { info: MediaDeviceInfo; facing?: Facing };
 
-const CAMERA_DEVICE_KEY = "cp_camera_device_id";
+const CAMERA_DEVICE_KEYS: Record<Facing, string> = {
+  user: "cp_camera_device_user",
+  environment: "cp_camera_device_environment",
+};
 
-function loadSavedDevice(): string | null {
+function loadSavedDevice(facing: Facing): string | null {
   try {
-    return localStorage.getItem(CAMERA_DEVICE_KEY);
+    return localStorage.getItem(CAMERA_DEVICE_KEYS[facing]);
   } catch {
     return null;
   }
 }
 
-function saveDevice(deviceId: string) {
+function saveDevice(facing: Facing, deviceId: string) {
   try {
-    localStorage.setItem(CAMERA_DEVICE_KEY, deviceId);
+    localStorage.setItem(CAMERA_DEVICE_KEYS[facing], deviceId);
   } catch {
     // Storage can be unavailable in private browsing; selection still works.
   }
 }
 
-function clearSavedDevice() {
+function clearSavedDevice(facing: Facing) {
   try {
-    localStorage.removeItem(CAMERA_DEVICE_KEY);
+    localStorage.removeItem(CAMERA_DEVICE_KEYS[facing]);
   } catch {
-    // Non-fatal; the fallback environment camera can still open.
+    // Non-fatal; the fallback facing-mode camera can still open.
   }
+}
+
+function inferFacing(device: MediaDeviceInfo): Facing | undefined {
+  try {
+    const capabilities = (device as InputDeviceInfo).getCapabilities?.();
+    if (capabilities?.facingMode?.includes("user")) return "user";
+    if (capabilities?.facingMode?.includes("environment")) return "environment";
+  } catch {
+    // Some browsers expose getCapabilities but reject for inactive devices.
+  }
+
+  const label = device.label.toLowerCase();
+  if (/\b(front|user)\b/.test(label)) return "user";
+  if (/\b(back|rear|environment)\b/.test(label)) return "environment";
+  return undefined;
 }
 
 /**
  * Full-screen in-app camera for check-in photos. Live preview, shutter, camera
- * cycling, and a Photos button that falls back to the gallery picker.
+ * facing switch, lens selection, and a Photos button for the gallery picker.
  * Shoot up to `maxCount` photos then "Xong"; the captured Files are returned via
  * onDone (the caller runs them through the downscale pipeline). If the camera
  * can't open (denied, old iOS PWA), it shows a gallery fallback instead.
@@ -48,9 +68,10 @@ export function CameraCaptureSheet({
 }) {
   const webcamRef = useRef<Webcam>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
-  const [selectedDeviceId, setSelectedDeviceId] = useState(loadSavedDevice);
+  const [facing, setFacing] = useState<Facing>("environment");
+  const [selectedDeviceId, setSelectedDeviceId] = useState(() => loadSavedDevice("environment"));
   const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [devices, setDevices] = useState<CameraDevice[]>([]);
   const [mirrored, setMirrored] = useState(false);
   const [shots, setShots] = useState<Shot[]>([]);
   const [error, setError] = useState(false);
@@ -61,55 +82,72 @@ export function CameraCaptureSheet({
   useEffect(() => () => shotsRef.current.forEach((s) => URL.revokeObjectURL(s.url)), []);
 
   const full = shots.length >= maxCount;
-  const currentDevice = devices.find((device) => device.deviceId === activeDeviceId);
-  const currentDeviceIndex = devices.findIndex((device) => device.deviceId === activeDeviceId);
+  const facingDevices = devices.filter((device) => device.facing === facing);
+  const currentDevice = facingDevices.find((device) => device.info.deviceId === activeDeviceId);
+  const currentDeviceIndex = facingDevices.findIndex((device) => device.info.deviceId === activeDeviceId);
   const currentDeviceLabel = currentDevice
-    ? currentDevice.label || `Camera ${currentDeviceIndex + 1}/${devices.length}`
+    ? currentDevice.info.label || `Camera ${facing === "user" ? "trước" : "sau"} ${currentDeviceIndex + 1}`
     : null;
   const videoConstraints: MediaTrackConstraints = selectedDeviceId
     ? { deviceId: { exact: selectedDeviceId } }
-    : { facingMode: "environment" };
+    : { facingMode: facing };
 
   const handleUserMedia = useCallback(
     async (stream: MediaStream) => {
       const settings = stream.getVideoTracks()[0]?.getSettings();
       const deviceId = settings?.deviceId ?? selectedDeviceId;
+      const activeFacing: Facing =
+        settings?.facingMode === "user" || settings?.facingMode === "environment"
+          ? settings.facingMode
+          : facing;
 
       setError(false);
       setActiveDeviceId(deviceId ?? null);
-      setMirrored(settings?.facingMode === "user");
-      if (selectedDeviceId && deviceId) saveDevice(deviceId);
+      setFacing(activeFacing);
+      setMirrored(activeFacing === "user");
 
       try {
-        const cameras = (await navigator.mediaDevices.enumerateDevices()).filter(
-          (device) => device.kind === "videoinput",
-        );
+        const cameras = (await navigator.mediaDevices.enumerateDevices())
+          .filter((device) => device.kind === "videoinput")
+          .map((info): CameraDevice => ({
+            info,
+            facing: info.deviceId === deviceId ? activeFacing : inferFacing(info),
+          }));
         setDevices(cameras);
       } catch {
         setDevices([]);
       }
     },
-    [selectedDeviceId],
+    [facing, selectedDeviceId],
   );
 
   const handleUserMediaError = useCallback(() => {
     if (selectedDeviceId && !fallbackAttempted.current) {
       fallbackAttempted.current = true;
-      clearSavedDevice();
+      clearSavedDevice(facing);
       setSelectedDeviceId(null);
       setActiveDeviceId(null);
-      setMirrored(false);
+      setMirrored(facing === "user");
       return;
     }
     setError(true);
-  }, [selectedDeviceId]);
+  }, [facing, selectedDeviceId]);
 
-  const switchCamera = () => {
-    if (devices.length < 2) return;
-    const currentIndex = devices.findIndex((device) => device.deviceId === activeDeviceId);
-    const next = devices[(currentIndex + 1 + devices.length) % devices.length];
+  const switchFacing = () => {
+    const nextFacing: Facing = facing === "user" ? "environment" : "user";
     fallbackAttempted.current = false;
-    setSelectedDeviceId(next.deviceId);
+    setError(false);
+    setFacing(nextFacing);
+    setSelectedDeviceId(loadSavedDevice(nextFacing));
+    setActiveDeviceId(null);
+    setMirrored(nextFacing === "user");
+  };
+
+  const selectLens = (deviceId: string) => {
+    fallbackAttempted.current = false;
+    setError(false);
+    saveDevice(facing, deviceId);
+    setSelectedDeviceId(deviceId);
   };
 
   const capture = useCallback(async () => {
@@ -188,15 +226,39 @@ export function CameraCaptureSheet({
             className="h-full w-full object-cover"
           />
         )}
-        {!error && currentDeviceLabel && (
-          <span className="pointer-events-none absolute inset-x-4 bottom-3 truncate rounded-full bg-black/50 px-3 py-1.5 text-center text-xs font-medium text-white">
-            {currentDeviceLabel}
-          </span>
-        )}
       </div>
 
-      {/* Bottom controls: Photos · Shutter · Switch camera */}
-      <div className="grid grid-cols-3 items-center px-10 py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
+      {!error && currentDeviceLabel && (
+        <div className="flex flex-col items-center gap-2 px-4 pt-3 text-white">
+          <span className="max-w-full truncate rounded-full bg-white/10 px-3 py-1 text-xs font-medium">
+            {currentDeviceLabel}
+          </span>
+          {facingDevices.length > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              {facingDevices.map((device, index) => {
+                const active = device.info.deviceId === activeDeviceId;
+                return (
+                  <button
+                    key={device.info.deviceId}
+                    type="button"
+                    onClick={() => selectLens(device.info.deviceId)}
+                    aria-label={`Chọn camera ${index + 1}`}
+                    aria-pressed={active}
+                    className={`flex h-9 min-w-9 items-center justify-center rounded-full px-3 text-sm font-semibold ${
+                      active ? "bg-white text-black" : "bg-white/15 text-white"
+                    }`}
+                  >
+                    {index + 1}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Bottom controls: Photos · Shutter · Flip front/back */}
+      <div className="grid grid-cols-3 items-center px-10 py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
         <button
           type="button"
           onClick={() => galleryRef.current?.click()}
@@ -227,18 +289,14 @@ export function CameraCaptureSheet({
           <span className="block h-full w-full rounded-full bg-white" />
         </button>
 
-        {devices.length > 1 ? (
-          <button
-            type="button"
-            onClick={switchCamera}
-            aria-label="Đổi camera"
-            className="flex h-12 w-12 items-center justify-center justify-self-end rounded-full bg-white/15 text-white"
-          >
-            <SwitchCamera size={24} />
-          </button>
-        ) : (
-          <span />
-        )}
+        <button
+          type="button"
+          onClick={switchFacing}
+          aria-label="Lật camera trước sau"
+          className="flex h-12 w-12 items-center justify-center justify-self-end rounded-full bg-white/15 text-white"
+        >
+          <SwitchCamera size={24} />
+        </button>
       </div>
 
       <input
