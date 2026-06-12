@@ -4,6 +4,8 @@ import { Sheet } from "./ui/Sheet";
 import { Button } from "./ui/Button";
 import { useAuth } from "../auth/AuthContext";
 import { updateProfile, uploadAvatar } from "../lib/api";
+import { prepareImage } from "../lib/image";
+import { AvatarCropSheet } from "./AvatarCropSheet";
 
 /** Edit display name + bio, and change avatar. Updates the cached auth user on
  *  success so the profile reflects changes immediately. */
@@ -14,6 +16,7 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (!user) return null;
@@ -24,9 +27,26 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-picking the same file later
     if (!file) return;
+    setError(null);
+    setUploading(true);
+    try {
+      // Convert HEIC + downscale; then open crop sheet.
+      const prepared = await prepareImage(file);
+      setCropImageSrc(URL.createObjectURL(prepared));
+    } catch {
+      // Fallback: use the original file directly.
+      setCropImageSrc(URL.createObjectURL(file));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onCropDone = async (blob: Blob) => {
+    setCropImageSrc(null);
     setUploading(true);
     setError(null);
     try {
+      const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
       applyUser(await uploadAvatar(file));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Tải ảnh thất bại.");
@@ -56,7 +76,8 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Sheet title="Sửa hồ sơ" onClose={onClose}>
+    <>
+      <Sheet title="Sửa hồ sơ" onClose={onClose}>
       <div className="flex flex-col gap-4">
         {/* Avatar */}
         <div className="flex flex-col items-center gap-2">
@@ -124,5 +145,16 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
         </Button>
       </div>
     </Sheet>
+      {cropImageSrc && (
+        <AvatarCropSheet
+          imageSrc={cropImageSrc}
+          onClose={() => {
+            URL.revokeObjectURL(cropImageSrc);
+            setCropImageSrc(null);
+          }}
+          onDone={onCropDone}
+        />
+      )}
+    </>
   );
 }

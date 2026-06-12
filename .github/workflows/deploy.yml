@@ -13,8 +13,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── Notify start ──────────────────────────────────────────────
+  notify-start:
+    name: Notify start
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/telegram-notify
+        with:
+          message: "🚀 *[Web]* Deploy bắt đầu — \`${{ github.ref_name }}\` (${{ github.sha }})"
+
+  # ── Typecheck ─────────────────────────────────────────────────
+  typecheck:
+    name: Typecheck
+    needs: notify-start
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Notify typecheck result
+        if: always()
+        uses: ./.github/actions/telegram-notify
+        with:
+          message: "${{ job.status == 'success' && '✅' || '❌' }} *[Web]* Typecheck: ${{ job.status == 'success' && 'passed' || 'failed' }}"
+
+  # ── Deploy ────────────────────────────────────────────────────
   deploy:
     name: Deploy to Cloudflare Workers
+    needs: [notify-start, typecheck]
+    if: always() && needs.typecheck.result == 'success'
     runs-on: ubuntu-latest
     environment: production
 
@@ -31,9 +68,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
-
       - name: Deploy
         run: npm run deploy
         env:
@@ -42,3 +76,11 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Notify deploy result
+        if: always()
+        uses: ./.github/actions/telegram-notify
+        with:
+          message: |
+            ${{ job.status == 'success' && '✅' || '❌' }} *[Web]* Deploy: ${{ job.status == 'success' && 'passed' || 'failed' }}
+            ${{ job.status == 'success' && ' → https://checkpoint-web.dev-hongquan.workers.dev' || '' }}
