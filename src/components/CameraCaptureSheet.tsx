@@ -2,12 +2,37 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
 import { X, SwitchCamera, Image as ImageIcon, Check } from "lucide-react";
 
-type Facing = "user" | "environment";
 type Shot = { file: File; url: string };
 
+const CAMERA_DEVICE_KEY = "cp_camera_device_id";
+
+function loadSavedDevice(): string | null {
+  try {
+    return localStorage.getItem(CAMERA_DEVICE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveDevice(deviceId: string) {
+  try {
+    localStorage.setItem(CAMERA_DEVICE_KEY, deviceId);
+  } catch {
+    // Storage can be unavailable in private browsing; selection still works.
+  }
+}
+
+function clearSavedDevice() {
+  try {
+    localStorage.removeItem(CAMERA_DEVICE_KEY);
+  } catch {
+    // Non-fatal; the fallback environment camera can still open.
+  }
+}
+
 /**
- * Full-screen in-app camera for check-in photos. Live preview, shutter, flip
- * (front/back), and a Photos button that falls back to the gallery picker.
+ * Full-screen in-app camera for check-in photos. Live preview, shutter, camera
+ * cycling, and a Photos button that falls back to the gallery picker.
  * Shoot up to `maxCount` photos then "Xong"; the captured Files are returned via
  * onDone (the caller runs them through the downscale pipeline). If the camera
  * can't open (denied, old iOS PWA), it shows a gallery fallback instead.
@@ -23,15 +48,69 @@ export function CameraCaptureSheet({
 }) {
   const webcamRef = useRef<Webcam>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
-  const [facing, setFacing] = useState<Facing>("environment");
+  const [selectedDeviceId, setSelectedDeviceId] = useState(loadSavedDevice);
+  const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [mirrored, setMirrored] = useState(false);
   const [shots, setShots] = useState<Shot[]>([]);
   const [error, setError] = useState(false);
+  const fallbackAttempted = useRef(false);
 
   const shotsRef = useRef(shots);
   shotsRef.current = shots;
   useEffect(() => () => shotsRef.current.forEach((s) => URL.revokeObjectURL(s.url)), []);
 
   const full = shots.length >= maxCount;
+  const currentDevice = devices.find((device) => device.deviceId === activeDeviceId);
+  const currentDeviceIndex = devices.findIndex((device) => device.deviceId === activeDeviceId);
+  const currentDeviceLabel = currentDevice
+    ? currentDevice.label || `Camera ${currentDeviceIndex + 1}/${devices.length}`
+    : null;
+  const videoConstraints: MediaTrackConstraints = selectedDeviceId
+    ? { deviceId: { exact: selectedDeviceId } }
+    : { facingMode: "environment" };
+
+  const handleUserMedia = useCallback(
+    async (stream: MediaStream) => {
+      const settings = stream.getVideoTracks()[0]?.getSettings();
+      const deviceId = settings?.deviceId ?? selectedDeviceId;
+
+      setError(false);
+      setActiveDeviceId(deviceId ?? null);
+      setMirrored(settings?.facingMode === "user");
+      if (selectedDeviceId && deviceId) saveDevice(deviceId);
+
+      try {
+        const cameras = (await navigator.mediaDevices.enumerateDevices()).filter(
+          (device) => device.kind === "videoinput",
+        );
+        setDevices(cameras);
+      } catch {
+        setDevices([]);
+      }
+    },
+    [selectedDeviceId],
+  );
+
+  const handleUserMediaError = useCallback(() => {
+    if (selectedDeviceId && !fallbackAttempted.current) {
+      fallbackAttempted.current = true;
+      clearSavedDevice();
+      setSelectedDeviceId(null);
+      setActiveDeviceId(null);
+      setMirrored(false);
+      return;
+    }
+    setError(true);
+  }, [selectedDeviceId]);
+
+  const switchCamera = () => {
+    if (devices.length < 2) return;
+    const currentIndex = devices.findIndex((device) => device.deviceId === activeDeviceId);
+    const next = devices[(currentIndex + 1 + devices.length) % devices.length];
+    fallbackAttempted.current = false;
+    setSelectedDeviceId(next.deviceId);
+  };
 
   const capture = useCallback(async () => {
     if (shotsRef.current.length >= maxCount) return;
@@ -102,15 +181,21 @@ export function CameraCaptureSheet({
             audio={false}
             screenshotFormat="image/jpeg"
             screenshotQuality={0.92}
-            mirrored={facing === "user"}
-            videoConstraints={{ facingMode: facing }}
-            onUserMediaError={() => setError(true)}
+            mirrored={mirrored}
+            videoConstraints={videoConstraints}
+            onUserMedia={handleUserMedia}
+            onUserMediaError={handleUserMediaError}
             className="h-full w-full object-cover"
           />
         )}
+        {!error && currentDeviceLabel && (
+          <span className="pointer-events-none absolute inset-x-4 bottom-3 truncate rounded-full bg-black/50 px-3 py-1.5 text-center text-xs font-medium text-white">
+            {currentDeviceLabel}
+          </span>
+        )}
       </div>
 
-      {/* Bottom controls: Photos · Shutter · Flip */}
+      {/* Bottom controls: Photos · Shutter · Switch camera */}
       <div className="grid grid-cols-3 items-center px-10 py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
         <button
           type="button"
@@ -142,14 +227,18 @@ export function CameraCaptureSheet({
           <span className="block h-full w-full rounded-full bg-white" />
         </button>
 
-        <button
-          type="button"
-          onClick={() => setFacing((f) => (f === "user" ? "environment" : "user"))}
-          aria-label="Lật camera"
-          className="flex h-12 w-12 items-center justify-center justify-self-end rounded-full bg-white/15 text-white"
-        >
-          <SwitchCamera size={24} />
-        </button>
+        {devices.length > 1 ? (
+          <button
+            type="button"
+            onClick={switchCamera}
+            aria-label="Đổi camera"
+            className="flex h-12 w-12 items-center justify-center justify-self-end rounded-full bg-white/15 text-white"
+          >
+            <SwitchCamera size={24} />
+          </button>
+        ) : (
+          <span />
+        )}
       </div>
 
       <input
