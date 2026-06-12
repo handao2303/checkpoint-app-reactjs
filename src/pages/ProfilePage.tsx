@@ -201,7 +201,7 @@ export function ProfilePage() {
             <SettingSwitch
               checked={preferCameraOnCheckin}
               label="Ưu tiên chụp ảnh khi check-in"
-              description="Hiện nút chụp ảnh nhanh ở đầu form check-in."
+              description="Hiện nút mở camera nhanh ở đầu form check-in."
               onChange={(checked) => {
                 quickCheckinSettings.preferCameraOnCheckin = checked;
                 setPreferCameraOnCheckin(checked);
