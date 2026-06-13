@@ -310,7 +310,9 @@ export interface CheckinInput {
   rating?: number;
   lat: number;
   lng: number;
+  /** Resolved by the client via Photon before submit (photon.ts). */
   address?: string;
+  province?: string;
   place_id?: string;
   /** Attach to one of the user's active journeys (chosen in the form). */
   journey_id?: string;

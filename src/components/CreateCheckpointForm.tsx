@@ -4,6 +4,7 @@ import { Flag, Image as ImageIcon, X, Camera, Luggage } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { createCheckpoint, getMyJourneys, uploadCheckpointImages, type Badge } from "../lib/api";
+import { reverseGeocode, type GeoResult } from "../lib/photon";
 import { prepareImage } from "../lib/image";
 import { CATEGORIES } from "../lib/maps";
 import { Button } from "./ui/Button";
@@ -70,6 +71,7 @@ export function CreateCheckpointForm({
   const [note, setNote] = useState("");
   const [rating, setRating] = useState<number | undefined>(undefined);
   const [picked, setPicked] = useState<PickedImage[]>([]);
+  const [geo, setGeo] = useState<GeoResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -84,6 +86,12 @@ export function CreateCheckpointForm({
   const pickedRef = useRef(picked);
   pickedRef.current = picked;
   useEffect(() => () => pickedRef.current.forEach((p) => URL.revokeObjectURL(p.url)), []);
+
+  // Kick off geocode as soon as coordinates are known — runs in parallel while
+  // the user fills the form so submit never has to wait for it.
+  useEffect(() => {
+    reverseGeocode(at.lat, at.lng).then(setGeo);
+  }, [at.lat, at.lng]);
 
   useEffect(() => {
     if (
@@ -145,6 +153,8 @@ export function CreateCheckpointForm({
         rating,
         lat: at.lat,
         lng: at.lng,
+        address: geo?.address,
+        province: geo?.province,
         place_id: place?.id,
         journey_id: effectiveJourneyId ?? undefined,
       });
@@ -196,14 +206,19 @@ export function CreateCheckpointForm({
         </label>
       )}
 
-      <input
-        required
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        readOnly={!!place}
-        placeholder="Tên địa điểm"
-        className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring read-only:opacity-70"
-      />
+      <div className="flex flex-col gap-1">
+        <input
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          readOnly={!!place}
+          placeholder="Tên địa điểm"
+          className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring read-only:opacity-70"
+        />
+        {geo?.address && (
+          <p className="px-4 text-xs text-muted-foreground">{geo.address}</p>
+        )}
+      </div>
 
       <div className="flex flex-wrap gap-2">
         {CATEGORIES.map((c) => (
