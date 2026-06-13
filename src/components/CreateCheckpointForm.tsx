@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flag, Image as ImageIcon, X, Camera, Luggage } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { createCheckpoint, getMyJourneys, uploadCheckpointImages, type Badge } from "../lib/api";
+import { createCheckpoint, getMyJourneys, getUploadSlots, putFilesToSlots, type Badge } from "../lib/api";
 import { useGeocode } from "../hooks/useGeocode";
 import { prepareCheckpointImage } from "../lib/image";
 import { CATEGORIES } from "../lib/maps";
@@ -182,7 +182,26 @@ export function CreateCheckpointForm({
     setBusy(true);
     setErr(null);
 
-    // Step 1 — create the check-in. Only THIS failing means "try again".
+    // Step 1 — get presigned slots (before checkpoint exists).
+    let slots;
+    try {
+      slots = await getUploadSlots(picked.length);
+    } catch {
+      setErr("Không lấy được link upload. Vui lòng thử lại.");
+      setBusy(false);
+      return;
+    }
+
+    // Step 2 — upload directly to R2. Fails fast if any PUT fails.
+    try {
+      await putFilesToSlots(slots, picked.map((p) => ({ original: p.original, thumbnail: p.thumbnail })));
+    } catch {
+      setErr("Upload ảnh thất bại. Vui lòng thử lại.");
+      setBusy(false);
+      return;
+    }
+
+    // Step 3 — create checkpoint + link images atomically.
     let res;
     try {
       res = await createCheckpoint({
@@ -196,24 +215,12 @@ export function CreateCheckpointForm({
         province: geo?.province,
         place_id: place?.id,
         journey_id: effectiveJourneyId ?? undefined,
+        images: slots.map((s) => ({ object_key: s.object_key, thumbnail_key: s.thumbnail_key })),
       });
     } catch {
       setErr("Không tạo được check-in. Vui lòng thử lại.");
       setBusy(false);
       return;
-    }
-
-    // Step 2 — attach photos (best-effort). The check-in is already saved, so a
-    // failure here must NOT report total failure or invite a duplicate retry.
-    if (picked.length) {
-      try {
-        await uploadCheckpointImages(
-          res.checkpoint.id,
-          picked.map((p) => ({ original: p.original, thumbnail: p.thumbnail })),
-        );
-      } catch (uploadErr) {
-        console.error("image upload failed (check-in still saved):", uploadErr);
-      }
     }
 
     await Promise.all([

@@ -318,6 +318,8 @@ export interface CheckinInput {
   place_id?: string;
   /** Attach to one of the user's active journeys (chosen in the form). */
   journey_id?: string;
+  /** Keys for images already uploaded directly to R2 (required ≥ 1). */
+  images: { object_key: string; thumbnail_key?: string }[];
 }
 
 export async function getCheckpointsInBounds(b: Bounds): Promise<Checkpoint[]> {
@@ -356,45 +358,30 @@ export async function deleteCheckpoint(id: string): Promise<void> {
   if (!isSuccessful(res)) throw new Error(`delete checkpoint failed: ${res.status}`);
 }
 
-interface UploadSlot {
+export interface UploadSlot {
   upload_url: string;
   object_key: string;
   thumbnail_upload_url: string;
   thumbnail_key: string;
 }
 
-async function getUploadUrls(id: string, count: number): Promise<UploadSlot[]> {
-  const res = await apiFetch(`/checkpoints/${id}/upload-urls`, {
+/** Request presigned R2 PUT URLs before the checkpoint is created.
+ *  Upload files directly to R2, then pass the returned keys in createCheckpoint. */
+export async function getUploadSlots(count: number): Promise<UploadSlot[]> {
+  const res = await apiFetch("/checkpoints/upload-slots", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ count }),
   });
-  if (!isSuccessful(res)) throw new Error(`get upload urls failed: ${res.status}`);
+  if (!isSuccessful(res)) throw new Error(`get upload slots failed: ${res.status}`);
   return res.data.slots as UploadSlot[];
 }
 
-async function linkImages(
-  id: string,
-  slots: { object_key: string; thumbnail_key: string }[],
-): Promise<CheckpointImage[]> {
-  const res = await apiFetch(`/checkpoints/${id}/images/link`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ images: slots }),
-  });
-  if (!isSuccessful(res)) throw new Error(`link images failed: ${res.status}`);
-  return res.data.images ?? [];
-}
-
-export async function uploadCheckpointImages(
-  id: string,
+/** Upload files to the presigned URLs returned by getUploadSlots. */
+export async function putFilesToSlots(
+  slots: UploadSlot[],
   files: { original: File; thumbnail: File }[],
-): Promise<CheckpointImage[]> {
-  // Step 1 — ask BE for presigned PUT URLs (keys are server-generated).
-  const slots = await getUploadUrls(id, files.length);
-
-  // Step 2 — upload directly to R2. Native fetch: presigned URLs are
-  // self-authenticating, no Authorization header needed or wanted.
+): Promise<void> {
   const puts = slots.flatMap((slot, i) => [
     fetch(slot.upload_url, {
       method: "PUT",
@@ -410,9 +397,6 @@ export async function uploadCheckpointImages(
   const results = await Promise.all(puts);
   const failed = results.find((r) => !r.ok);
   if (failed) throw new Error(`R2 upload failed: ${failed.status}`);
-
-  // Step 3 — tell BE which keys landed; BE writes them to the DB.
-  return linkImages(id, slots.map((s) => ({ object_key: s.object_key, thumbnail_key: s.thumbnail_key })));
 }
 
 // ---- Places / Discovery (Phase 4) ----
