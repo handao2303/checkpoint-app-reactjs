@@ -69,10 +69,11 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               <span className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
             )}
             <span className="flex items-baseline gap-1">
-              {data.author.display_name && (
+              {data.author.display_name ? (
                 <span className="font-medium text-foreground">{data.author.display_name}</span>
+              ) : (
+                <span className="font-medium text-foreground">{data.author.username}</span>
               )}
-              <span>@{data.author.username}</span>
             </span>
             <XPBadge xp={data.checkpoint.xp_awarded} />
           </div>
