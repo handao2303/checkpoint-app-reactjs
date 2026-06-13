@@ -54,7 +54,7 @@ export function CreatePage() {
   return (
     <div className="flex flex-col gap-4 pb-4">
       <h1 className="font-display text-2xl font-bold text-clay-600">Cắm cờ tại đây</h1>
-      <CreateCheckpointForm at={coords} onCreated={() => navigate("/")} />
+      <CreateCheckpointForm at={coords} onCreated={() => navigate("/discover")} />
     </div>
   );
 }
