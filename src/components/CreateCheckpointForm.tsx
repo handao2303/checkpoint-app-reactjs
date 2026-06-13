@@ -52,11 +52,14 @@ export interface CheckinPlace {
 export function CreateCheckpointForm({
   at,
   place,
+  initialFiles,
   onCreated,
 }: {
   at: { lat: number; lng: number };
   /** When set, check-in is to an existing place: name is fixed and place_id sent. */
   place?: CheckinPlace;
+  /** Pre-load these files into the image picker on mount (photo check-in flow). */
+  initialFiles?: File[];
   onCreated: (xp: number, newBadges: Badge[]) => void;
 }) {
   const qc = useQueryClient();
@@ -112,12 +115,21 @@ export function CreateCheckpointForm({
     if (
       !autoCameraAttempted.current &&
       usePwaCamera &&
+      !initialFiles?.length &&
       quickCheckinSettings.preferCameraOnCheckin
     ) {
       autoCameraAttempted.current = true;
       setCameraOpen(true);
     }
-  }, [usePwaCamera]);
+  }, [usePwaCamera, initialFiles?.length]);
+
+  // Seed the image picker with pre-loaded files (photo check-in flow). Runs
+  // once on mount via a ref so the effect doesn't re-run if the parent rerenders.
+  const initialFilesRef = useRef(initialFiles);
+  useEffect(() => {
+    if (initialFilesRef.current?.length) addFileArray(initialFilesRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Convert HEIC + downscale so uploads are always a modest JPEG. Shared by the
   // file picker and the in-app camera.

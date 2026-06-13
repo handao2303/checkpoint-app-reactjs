@@ -1,0 +1,104 @@
+import { useRef, useState } from "react";
+import { ImageUp, MapPin } from "lucide-react";
+import { extractGPS } from "../lib/exif";
+import type { Badge } from "../lib/api";
+import { CreateCheckpointForm } from "./CreateCheckpointForm";
+import { Button } from "./ui/Button";
+
+type Stage = "idle" | "reading" | "error" | "form";
+
+interface FormReady {
+  gps: { lat: number; lng: number };
+  file: File;
+}
+
+export function PhotoCheckinTab({
+  onCreated,
+}: {
+  onCreated: (xp: number, newBadges: Badge[]) => void;
+}) {
+  const [stage, setStage] = useState<Stage>("idle");
+  const [formData, setFormData] = useState<FormReady | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File) {
+    setStage("reading");
+    const gps = await extractGPS(file);
+    if (!gps) {
+      setStage("error");
+      return;
+    }
+    setFormData({ gps, file });
+    setStage("form");
+  }
+
+  if (stage === "form" && formData) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2 rounded-xl bg-surface-muted px-3 py-2 text-sm text-muted-foreground">
+          <MapPin size={14} className="shrink-0 text-primary" />
+          <span>
+            {formData.gps.lat.toFixed(5)}, {formData.gps.lng.toFixed(5)}
+          </span>
+        </div>
+        <CreateCheckpointForm
+          at={formData.gps}
+          initialFiles={[formData.file]}
+          onCreated={onCreated}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-5 py-6">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFile(f);
+          e.target.value = "";
+        }}
+      />
+
+      {(stage === "idle" || stage === "error") && (
+        <>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-border p-8 text-center transition hover:border-primary/50 hover:bg-surface-muted"
+          >
+            <ImageUp size={36} className="text-muted-foreground" />
+            <div className="flex flex-col gap-1">
+              <span className="font-semibold">Chọn ảnh có tọa độ GPS</span>
+              <span className="text-sm text-muted-foreground">
+                Ảnh chụp khi bật vị trí sẽ mang theo tọa độ check-in
+              </span>
+            </div>
+          </button>
+
+          {stage === "error" && (
+            <p className="max-w-xs text-center text-sm text-red-500">
+              Ảnh không có thông tin vị trí. Hãy chọn ảnh chụp với GPS bật, hoặc
+              dùng tab "Cắm cờ".
+            </p>
+          )}
+
+          <Button type="button" onClick={() => fileRef.current?.click()}>
+            {stage === "error" ? "Thử ảnh khác" : "Chọn ảnh"}
+          </Button>
+        </>
+      )}
+
+      {stage === "reading" && (
+        <div className="flex flex-col items-center gap-3 py-8">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+          <span className="text-sm text-muted-foreground">Đang đọc tọa độ từ ảnh…</span>
+        </div>
+      )}
+    </div>
+  );
+}
