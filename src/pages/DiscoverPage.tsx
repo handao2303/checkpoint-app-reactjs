@@ -23,7 +23,7 @@ export function DiscoverPage() {
   const [tab, setTab] = useState<"for-you" | "following">("for-you");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placeId, setPlaceId] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
+  const [query, _] = useState("");
   const [debounced, setDebounced] = useState("");
   const { user } = useAuth();
 
