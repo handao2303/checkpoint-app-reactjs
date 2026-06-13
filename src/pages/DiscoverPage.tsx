@@ -70,7 +70,7 @@ export function DiscoverPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5">
+      {/* <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5">
         <Search size={18} className="text-muted-foreground" />
         <input
           value={query}
@@ -78,7 +78,7 @@ export function DiscoverPage() {
           placeholder="Tìm địa điểm..."
           className="flex-1 bg-transparent text-sm outline-none placeholder:text-subtle-foreground"
         />
-      </div>
+      </div> */}
 
       {debounced ? (
         results.length === 0 ? (
