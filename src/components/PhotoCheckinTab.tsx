@@ -1,6 +1,5 @@
 import { ImageUp } from "lucide-react";
 import { useRef, useState } from "react";
-import type { Badge } from "../lib/api";
 import { extractGPS } from "../lib/exif";
 import { CreateCheckpointForm } from "./CreateCheckpointForm";
 import { Button } from "./ui/Button";
@@ -12,14 +11,14 @@ interface FormReady {
   file: File;
 }
 
-const isValidGPS = (gps: { lat: number; lng: number } | null): gps is { lat: number; lng: number } => { 
-    return !!gps && !isNaN(gps.lat) && !isNaN(gps.lng) && gps.lat >= -90 && gps.lat <= 90 && gps.lng >= -180 && gps.lng <= 180;
+const isValidGPS = (gps: { lat: number; lng: number } | null): gps is { lat: number; lng: number } => {
+  return !!gps && !isNaN(gps.lat) && !isNaN(gps.lng) && gps.lat >= -90 && gps.lat <= 90 && gps.lng >= -180 && gps.lng <= 180;
 };
 
 export function PhotoCheckinTab({
-  onCreated,
+  onUploaded,
 }: {
-  onCreated: (xp: number, newBadges: Badge[]) => void;
+  onUploaded: () => void;
 }) {
   const [stage, setStage] = useState<Stage>("idle");
   const [formData, setFormData] = useState<FormReady | null>(null);
@@ -42,7 +41,7 @@ export function PhotoCheckinTab({
         <CreateCheckpointForm
           at={formData.gps}
           initialFiles={[formData.file]}
-          onCreated={onCreated}
+          onUploaded={onUploaded}
           maxImages={1}
         />
       </div>

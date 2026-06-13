@@ -201,7 +201,7 @@ export function ProfilePage() {
             <SettingSwitch
               checked={preferCameraOnCheckin}
               label="Ưu tiên chụp ảnh khi check-in"
-              description="Tự mở camera một lần khi bắt đầu check-in trong PWA."
+              description="Tự mở camera một lần khi bắt đầu check-in."
               onChange={(checked) => {
                 quickCheckinSettings.preferCameraOnCheckin = checked;
                 setPreferCameraOnCheckin(checked);

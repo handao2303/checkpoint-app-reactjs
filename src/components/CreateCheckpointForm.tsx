@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Flag, Image as ImageIcon, X, Camera, Luggage } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { createCheckpoint, getMyJourneys, getUploadSlots, putFilesToSlots, type Badge } from "../lib/api";
+import { getMyJourneys, getUploadSlots, putFilesToSlots } from "../lib/api";
+import { useCheckinQueue } from "../context/CheckinQueue";
 import { useGeocode } from "../hooks/useGeocode";
 import { prepareCheckpointImage } from "../lib/image";
 import { CATEGORIES } from "../lib/maps";
@@ -53,7 +54,7 @@ export function CreateCheckpointForm({
   at,
   place,
   initialFiles,
-  onCreated,
+  onUploaded,
   maxImages = MAX_IMAGES,
 }: {
   at: { lat: number; lng: number };
@@ -61,10 +62,10 @@ export function CreateCheckpointForm({
   place?: CheckinPlace;
   /** Pre-load these files into the image picker on mount (photo check-in flow). */
   initialFiles?: File[];
-  onCreated: (xp: number, newBadges: Badge[]) => void;
+  onUploaded: () => void;
   maxImages?: number;
 }) {
-  const qc = useQueryClient();
+  const { enqueue } = useCheckinQueue();
   // Pick which active journey this check-in is recorded under (multiple can be
   // active). Default to the most recently activated one until the user changes.
   const { data: journeys = [] } = useQuery({ queryKey: ["journeys"], queryFn: getMyJourneys });
@@ -201,36 +202,21 @@ export function CreateCheckpointForm({
       return;
     }
 
-    // Step 3 — create checkpoint + link images atomically.
-    let res;
-    try {
-      res = await createCheckpoint({
-        name,
-        category,
-        note: note || undefined,
-        rating,
-        lat: at.lat,
-        lng: at.lng,
-        address: geo?.address,
-        province: geo?.province,
-        place_id: place?.id,
-        journey_id: effectiveJourneyId ?? undefined,
-        images: slots.map((s) => ({ object_key: s.object_key, thumbnail_key: s.thumbnail_key })),
-      });
-    } catch {
-      setErr("Không tạo được check-in. Vui lòng thử lại.");
-      setBusy(false);
-      return;
-    }
-
-    await Promise.all([
-      qc.invalidateQueries({ queryKey: ["checkpoints"] }),
-      qc.invalidateQueries({ queryKey: ["feed"] }),
-      qc.invalidateQueries({ queryKey: ["place"] }),
-      qc.invalidateQueries({ queryKey: ["passport"] }),
-      qc.invalidateQueries({ queryKey: ["badges"] }),
-    ]);
-    onCreated(res.xp_awarded, res.new_badges ?? []);
+    // Step 3 — enqueue the POST in the background and return immediately.
+    enqueue({
+      name,
+      category,
+      note: note || undefined,
+      rating,
+      lat: at.lat,
+      lng: at.lng,
+      address: geo?.address,
+      province: geo?.province,
+      place_id: place?.id,
+      journey_id: effectiveJourneyId ?? undefined,
+      images: slots.map((s) => ({ object_key: s.object_key, thumbnail_key: s.thumbnail_key })),
+    });
+    onUploaded();
   }
 
   return (

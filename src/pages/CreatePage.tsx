@@ -64,7 +64,7 @@ export function CreatePage() {
     return (
       <div className="flex flex-col gap-4 pb-4">
         {tabBar}
-        <PhotoCheckinTab onCreated={() => navigate("/discover")} />
+        <PhotoCheckinTab onUploaded={() => navigate("/discover")} />
       </div>
     );
   }
@@ -96,7 +96,7 @@ export function CreatePage() {
     <div className="flex flex-col gap-4 pb-4">
       {tabBar}
       <h1 className="font-display text-2xl font-bold text-clay-600">Cắm cờ tại đây</h1>
-      <CreateCheckpointForm at={coords} onCreated={() => navigate("/discover")} />
+      <CreateCheckpointForm at={coords} onUploaded={() => navigate("/discover")} />
     </div>
   );
 }
