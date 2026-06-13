@@ -82,7 +82,7 @@ export function ProfilePage() {
   const { start, sheets } = useCheckin();
   const { data: myCheckpoints = [], isLoading: momentsLoading } = useQuery({
     queryKey: ["checkpoints", "me"],
-    queryFn: () => getMyCheckpoints(12),
+    queryFn: () => getMyCheckpoints(4),
   });
   if (!user) return null;
 
