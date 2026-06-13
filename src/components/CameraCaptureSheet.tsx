@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
 import { X, SwitchCamera, Image as ImageIcon } from "lucide-react";
 
@@ -97,6 +97,7 @@ function preferredDefaultLens(
 
 function isPhonePwa(): boolean {
   return (
+    typeof window !== "undefined" &&
     window.matchMedia("(pointer: coarse)").matches &&
     (window.matchMedia("(display-mode: standalone)").matches ||
       (navigator as Navigator & { standalone?: boolean }).standalone === true)
@@ -106,16 +107,19 @@ function isPhonePwa(): boolean {
 /**
  * Full-screen in-app camera for check-in photos. Live preview, shutter, camera
  * facing switch, lens selection, and a Photos button for the gallery picker.
- * Shoot up to `maxCount` photos then "Xong"; the captured Files are returned via
- * onDone (the caller runs them through the downscale pipeline). If the camera
- * can't open (denied, old iOS PWA), it shows a gallery fallback instead.
+ * After each shot, a preview is shown with "Chụp lại" / "Tiếp tục" / "Xong".
+ * Shoot up to `maxCount` photos then "Xong"; the captured Files are returned
+ * via onDone (the caller runs them through the downscale pipeline). If the
+ * camera can't open (denied, old iOS PWA), it shows a gallery fallback instead.
  */
 export function CameraCaptureSheet({
   onClose,
   onDone,
+  maxCount = 3,
 }: {
   onClose: () => void;
   onDone: (files: File[]) => void;
+  maxCount?: number;
 }) {
   const webcamRef = useRef<Webcam>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -139,6 +143,17 @@ export function CameraCaptureSheet({
     width: { ideal: 3840 },
     height: { ideal: 2160 },
   };
+
+  // Accumulated shots for this session.
+  const [shots, setShots] = useState<{ file: File; url: string }[]>([]);
+  const [mode, setMode] = useState<"viewfinder" | "preview">("viewfinder");
+  const shotsRef = useRef(shots);
+  shotsRef.current = shots;
+
+  useEffect(() => () => { shotsRef.current.forEach((s) => URL.revokeObjectURL(s.url)); }, []);
+
+  const isFull = shots.length >= maxCount;
+  const previewUrl = mode === "preview" ? shots[shots.length - 1]?.url : null;
 
   const handleUserMedia = useCallback(
     async (stream: MediaStream) => {
@@ -222,6 +237,7 @@ export function CameraCaptureSheet({
   };
 
   const capture = useCallback(async () => {
+    if (shotsRef.current.length >= maxCount) return;
     let blob: Blob | null = null;
     let capturedWithImageCapture = false;
     const video = webcamRef.current?.video;
@@ -242,15 +258,37 @@ export function CameraCaptureSheet({
     }
 
     const file = await toCameraFile(blob, capturedWithImageCapture && mirrored);
-    onDone([file]);
+    const url = URL.createObjectURL(file);
+    setShots((prev) => [...prev, { file, url }]);
+    setMode("preview");
+  }, [maxCount, mirrored]);
+
+  const retake = () => {
+    setShots((prev) => {
+      const last = prev[prev.length - 1];
+      if (last) URL.revokeObjectURL(last.url);
+      return prev.slice(0, -1);
+    });
+    setMode("viewfinder");
+  };
+
+  const continueCapture = () => setMode("viewfinder");
+
+  const finish = () => {
+    onDone(shotsRef.current.map((s) => s.file));
     onClose();
-  }, [mirrored, onClose, onDone]);
+  };
 
   const addFromGallery = (list: FileList | null) => {
-    const file = list?.[0];
-    if (!file) return;
-    onDone([file]);
-    onClose();
+    if (!list) return;
+    const remaining = maxCount - shotsRef.current.length;
+    const files = Array.from(list).slice(0, remaining);
+    if (!files.length) return;
+    setShots((prev) => [
+      ...prev,
+      ...files.map((f) => ({ file: f, url: URL.createObjectURL(f) })),
+    ]);
+    // Gallery files are already reviewed by the user; stay in viewfinder.
   };
 
   return (
@@ -260,42 +298,60 @@ export function CameraCaptureSheet({
         <button type="button" onClick={onClose} aria-label="Đóng" className="p-1">
           <X size={26} />
         </button>
-        <span className="w-10" />
-      </div>
-
-      {/* Viewfinder */}
-      <div className="relative flex-1 overflow-hidden">
-        {error ? (
-          <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center text-white">
-            <ImageIcon size={40} className="opacity-70" />
-            <p className="text-sm text-white/80">
-              Không mở được camera. Hãy chọn ảnh từ thư viện.
-            </p>
-            <button
-              type="button"
-              onClick={() => galleryRef.current?.click()}
-              className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black"
-            >
-              Chọn từ thư viện
-            </button>
-          </div>
+        <span className="text-sm font-semibold tabular-nums text-white/80">
+          {shots.length}/{maxCount}
+        </span>
+        {mode === "viewfinder" && shots.length > 0 ? (
+          <button type="button" onClick={finish} className="px-1 text-sm font-semibold text-white">
+            Xong
+          </button>
         ) : (
-          <Webcam
-            ref={webcamRef}
-            audio={false}
-            screenshotFormat="image/jpeg"
-            screenshotQuality={0.95}
-            forceScreenshotSourceSize
-            mirrored={mirrored}
-            videoConstraints={videoConstraints}
-            onUserMedia={handleUserMedia}
-            onUserMediaError={handleUserMediaError}
-            className="h-full w-full object-cover"
-          />
+          <span className="w-10" />
         )}
       </div>
 
-      {!error && currentDeviceLabel && (
+      {/* Camera / Preview area */}
+      <div className="relative flex-1 overflow-hidden">
+        {/* Preview (last captured shot) */}
+        {mode === "preview" && previewUrl && (
+          <img src={previewUrl} alt="Xem trước" className="h-full w-full object-cover" />
+        )}
+
+        {/* Viewfinder — always mounted so the camera stream stays warm */}
+        <div className={mode === "preview" ? "hidden" : "h-full w-full"}>
+          {error ? (
+            <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center text-white">
+              <ImageIcon size={40} className="opacity-70" />
+              <p className="text-sm text-white/80">
+                Không mở được camera. Hãy chọn ảnh từ thư viện.
+              </p>
+              <button
+                type="button"
+                onClick={() => galleryRef.current?.click()}
+                className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black"
+              >
+                Chọn từ thư viện
+              </button>
+            </div>
+          ) : (
+            <Webcam
+              ref={webcamRef}
+              audio={false}
+              screenshotFormat="image/jpeg"
+              screenshotQuality={0.95}
+              forceScreenshotSourceSize
+              mirrored={mirrored}
+              videoConstraints={videoConstraints}
+              onUserMedia={handleUserMedia}
+              onUserMediaError={handleUserMediaError}
+              className="h-full w-full object-cover"
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Lens selector (viewfinder only) */}
+      {mode === "viewfinder" && !error && currentDeviceLabel && (
         <div className="flex flex-col items-center gap-2 px-4 pt-3 text-white">
           <span className="max-w-full truncate rounded-full bg-white/10 px-3 py-1 text-xs font-medium">
             {currentDeviceLabel}
@@ -324,52 +380,84 @@ export function CameraCaptureSheet({
         </div>
       )}
 
-      {/* Bottom controls: Photos · Shutter · Flip front/back */}
-      <div className="grid grid-cols-3 items-center px-10 py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
-        <button
-          type="button"
-          onClick={() => galleryRef.current?.click()}
-          aria-label="Chọn từ thư viện"
-          className="justify-self-start text-white"
-        >
-          {phonePwa ? (
-            <span className="flex min-w-16 flex-col items-center gap-1 text-xs font-medium">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15">
+      {/* Preview bottom controls: Chụp lại · Tiếp tục · Xong */}
+      {mode === "preview" && (
+        <div className="flex items-center justify-around px-6 py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
+          <button
+            type="button"
+            onClick={retake}
+            className="rounded-full bg-white/15 px-5 py-3 text-sm font-semibold text-white"
+          >
+            Chụp lại
+          </button>
+          {!isFull && (
+            <button
+              type="button"
+              onClick={continueCapture}
+              className="rounded-full bg-white/15 px-5 py-3 text-sm font-semibold text-white"
+            >
+              Tiếp tục
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={finish}
+            className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-black"
+          >
+            Xong
+          </button>
+        </div>
+      )}
+
+      {/* Viewfinder bottom controls: Photos · Shutter · Flip front/back */}
+      {mode === "viewfinder" && (
+        <div className="grid grid-cols-3 items-center px-10 py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
+          <button
+            type="button"
+            onClick={() => galleryRef.current?.click()}
+            aria-label="Chọn từ thư viện"
+            className="justify-self-start text-white"
+          >
+            {phonePwa ? (
+              <span className="flex min-w-16 flex-col items-center gap-1 text-xs font-medium">
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15">
+                  <ImageIcon size={24} />
+                </span>
+                Thư viện
+              </span>
+            ) : (
+              <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">
                 <ImageIcon size={24} />
               </span>
-              Thư viện
-            </span>
-          ) : (
-            <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">
-              <ImageIcon size={24} />
-            </span>
-          )}
-        </button>
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={capture}
-          disabled={error}
-          aria-label="Chụp ảnh"
-          className="h-[4.5rem] w-[4.5rem] justify-self-center rounded-full border-4 border-white p-1 disabled:opacity-40"
-        >
-          <span className="block h-full w-full rounded-full bg-white" />
-        </button>
+          <button
+            type="button"
+            onClick={capture}
+            disabled={error || isFull}
+            aria-label="Chụp ảnh"
+            className="h-[4.5rem] w-[4.5rem] justify-self-center rounded-full border-4 border-white p-1 disabled:opacity-40"
+          >
+            <span className="block h-full w-full rounded-full bg-white" />
+          </button>
 
-        <button
-          type="button"
-          onClick={switchFacing}
-          aria-label="Lật camera trước sau"
-          className="flex h-12 w-12 items-center justify-center justify-self-end rounded-full bg-white/15 text-white"
-        >
-          <SwitchCamera size={24} />
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={switchFacing}
+            aria-label="Lật camera trước sau"
+            className="flex h-12 w-12 items-center justify-center justify-self-end rounded-full bg-white/15 text-white"
+          >
+            <SwitchCamera size={24} />
+          </button>
+        </div>
+      )}
 
       <input
         ref={galleryRef}
         type="file"
         accept="image/*,.heic,.heif"
+        multiple
         className="hidden"
         onChange={(e) => {
           addFromGallery(e.target.files);

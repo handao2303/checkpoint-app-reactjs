@@ -341,6 +341,7 @@ export function CreateCheckpointForm({
       </Button>
       {cameraOpen && (
         <CameraCaptureSheet
+          maxCount={MAX_IMAGES - picked.length}
           onClose={() => setCameraOpen(false)}
           onDone={(files) => void addFileArray(files)}
         />
