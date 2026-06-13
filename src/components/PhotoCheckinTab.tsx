@@ -35,16 +35,11 @@ export function PhotoCheckinTab({
   if (stage === "form" && formData) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-2 rounded-xl bg-surface-muted px-3 py-2 text-sm text-muted-foreground">
-          <MapPin size={14} className="shrink-0 text-primary" />
-          <span>
-            {formData.gps.lat.toFixed(5)}, {formData.gps.lng.toFixed(5)}
-          </span>
-        </div>
         <CreateCheckpointForm
           at={formData.gps}
           initialFiles={[formData.file]}
           onCreated={onCreated}
+          maxImages={1}
         />
       </div>
     );

@@ -54,6 +54,7 @@ export function CreateCheckpointForm({
   place,
   initialFiles,
   onCreated,
+  maxImages = MAX_IMAGES,
 }: {
   at: { lat: number; lng: number };
   /** When set, check-in is to an existing place: name is fixed and place_id sent. */
@@ -61,6 +62,7 @@ export function CreateCheckpointForm({
   /** Pre-load these files into the image picker on mount (photo check-in flow). */
   initialFiles?: File[];
   onCreated: (xp: number, newBadges: Badge[]) => void;
+  maxImages?: number;
 }) {
   const qc = useQueryClient();
   // Pick which active journey this check-in is recorded under (multiple can be
@@ -134,7 +136,7 @@ export function CreateCheckpointForm({
   // Convert HEIC + downscale so uploads are always a modest JPEG. Shared by the
   // file picker and the in-app camera.
   async function addFileArray(files: File[]) {
-    const remainingSlots = MAX_IMAGES - pickedRef.current.length;
+    const remainingSlots = maxImages - pickedRef.current.length;
     if (remainingSlots <= 0 || files.length === 0) return;
 
     setProcessing(true);
@@ -310,7 +312,7 @@ export function CreateCheckpointForm({
             </div>
           ))}
         </PhotoProvider>
-        {picked.length < MAX_IMAGES && (
+        {picked.length < maxImages && (
           <button
             type="button"
             onClick={addPhotos}
@@ -353,7 +355,7 @@ export function CreateCheckpointForm({
       </Button>
       {cameraOpen && (
         <CameraCaptureSheet
-          maxCount={MAX_IMAGES - picked.length}
+          maxCount={maxImages - picked.length}
           onClose={() => setCameraOpen(false)}
           onDone={(files) => void addFileArray(files)}
         />
