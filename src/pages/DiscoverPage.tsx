@@ -227,7 +227,7 @@ function FeedCard({
 
       <button onClick={onOpen} className="relative block w-full text-left">
         {item.image_url ? (
-          <img src={item.image_url} alt="" className="h-56 w-full object-cover" />
+          <img src={item.thumbnail_url ?? item.image_url} alt="" className="h-56 w-full object-cover" />
         ) : (
           <ImagePlaceholder className="h-56 w-full rounded-none" label={item.name} />
         )}

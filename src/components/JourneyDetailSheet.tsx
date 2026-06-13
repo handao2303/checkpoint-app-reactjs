@@ -182,7 +182,7 @@ function StopPhotoStack({ stop }: { stop: JourneyStop }) {
       <div className="relative h-12 w-12 translate-y-1.5">
         {visible.map((url, i) => (
           <PhotoView key={i} src={url}>
-            <img src={url} alt="" className={`${card} cursor-zoom-in ${rotations[i]}`} style={{ zIndex: i }} />
+            <img src={stop.thumbnail_images?.[i] ?? url} alt="" className={`${card} cursor-zoom-in ${rotations[i]}`} style={{ zIndex: i }} />
           </PhotoView>
         ))}
         {extra > 0 && (

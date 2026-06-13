@@ -4,6 +4,16 @@
 
 const MAX_EDGE = 1600;
 const JPEG_QUALITY = 0.85;
+const CHECKPOINT_MAX_EDGE = 2560;
+const CHECKPOINT_QUALITY = 0.9;
+const CHECKPOINT_MAX_BYTES = 3 * 1024 * 1024;
+const THUMBNAIL_MAX_EDGE = 640;
+const THUMBNAIL_QUALITY = 0.8;
+
+export interface PreparedCheckpointImage {
+  original: File;
+  thumbnail: File;
+}
 
 function isHeic(file: File): boolean {
   return /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
@@ -16,38 +26,70 @@ function toJpegName(name: string): string {
 /** Convert (if HEIC) + downscale a picked image. Falls back to the original
  *  file if any step is unsupported, so a check-in never silently loses a photo. */
 export async function prepareImage(file: File): Promise<File> {
-  let working = file;
-
-  // HEIC/HEIF (iPhone default) → JPEG. heic2any is browser-only and heavy, so
-  // load it on demand only when we actually hit a HEIC file.
-  if (isHeic(file)) {
-    try {
-      const { default: heic2any } = await import("heic2any");
-      const out = (await heic2any({
-        blob: file,
-        toType: "image/jpeg",
-        quality: JPEG_QUALITY,
-      })) as Blob;
-      working = new File([out], toJpegName(file.name), { type: "image/jpeg" });
-    } catch {
-      // Conversion failed — let downscale/backend deal with the original.
-    }
-  }
+  const working = await convertHeic(file, JPEG_QUALITY);
 
   try {
-    return await downscale(working);
+    return await resizeJpeg(working, MAX_EDGE, JPEG_QUALITY, "", true);
   } catch {
     return working;
   }
 }
 
-async function downscale(file: File): Promise<File> {
+/** Prepare a high-quality check-in image plus its lightweight list thumbnail. */
+export async function prepareCheckpointImage(file: File): Promise<PreparedCheckpointImage> {
+  const working = await convertHeic(file, CHECKPOINT_QUALITY);
+  const original = await resizeUnderLimit(
+    working,
+    CHECKPOINT_MAX_EDGE,
+    CHECKPOINT_QUALITY,
+    CHECKPOINT_MAX_BYTES,
+  );
+  const thumbnail = await resizeJpeg(original, THUMBNAIL_MAX_EDGE, THUMBNAIL_QUALITY, "-thumb");
+  return { original, thumbnail };
+}
+
+async function convertHeic(file: File, quality: number): Promise<File> {
+  if (!isHeic(file)) return file;
+  try {
+    const { default: heic2any } = await import("heic2any");
+    const out = (await heic2any({ blob: file, toType: "image/jpeg", quality })) as Blob;
+    return new File([out], toJpegName(file.name), { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
+async function resizeUnderLimit(
+  file: File,
+  maxEdge: number,
+  initialQuality: number,
+  maxBytes: number,
+): Promise<File> {
+  let quality = initialQuality;
+  let edge = maxEdge;
+  let result = await resizeJpeg(file, edge, quality);
+  while (result.size > maxBytes && quality > 0.65) {
+    quality -= 0.05;
+    result = await resizeJpeg(file, edge, quality);
+  }
+  while (result.size > maxBytes && edge > 1280) {
+    edge = Math.max(1280, Math.round(edge * 0.85));
+    result = await resizeJpeg(file, edge, quality);
+  }
+  return result;
+}
+
+async function resizeJpeg(
+  file: File,
+  maxEdge: number,
+  quality: number,
+  suffix = "",
+  preserveIfSmall = false,
+): Promise<File> {
   const bitmap = await createImageBitmap(file);
   const { width, height } = bitmap;
-  const scale = Math.min(1, MAX_EDGE / Math.max(width, height));
-
-  // Already small and an accepted type → no re-encode needed.
-  if (scale === 1 && /^image\/(jpeg|png|webp)$/.test(file.type)) {
+  const scale = Math.min(1, maxEdge / Math.max(width, height));
+  if (preserveIfSmall && scale === 1 && /^image\/(jpeg|png|webp)$/.test(file.type)) {
     bitmap.close();
     return file;
   }
@@ -66,8 +108,9 @@ async function downscale(file: File): Promise<File> {
   bitmap.close();
 
   const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY),
+    canvas.toBlob(resolve, "image/jpeg", quality),
   );
   if (!blob) return file;
-  return new File([blob], toJpegName(file.name), { type: "image/jpeg" });
+  const baseName = toJpegName(file.name).replace(/\.jpg$/, "");
+  return new File([blob], `${baseName}${suffix}.jpg`, { type: "image/jpeg" });
 }

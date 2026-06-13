@@ -262,6 +262,7 @@ export interface Checkpoint {
   lng: number;
   address?: string;
   image_url?: string;
+  thumbnail_url?: string;
   xp_awarded: number;
   created_at: string;
   updated_at: string;
@@ -270,6 +271,7 @@ export interface Checkpoint {
 export interface CheckpointImage {
   id: string;
   url: string;
+  thumbnail_url?: string;
   sort_order: number;
 }
 
@@ -354,9 +356,15 @@ export async function deleteCheckpoint(id: string): Promise<void> {
   if (!isSuccessful(res)) throw new Error(`delete checkpoint failed: ${res.status}`);
 }
 
-export async function uploadCheckpointImages(id: string, files: File[]): Promise<CheckpointImage[]> {
+export async function uploadCheckpointImages(
+  id: string,
+  files: { original: File; thumbnail: File }[],
+): Promise<CheckpointImage[]> {
   const form = new FormData();
-  files.forEach((f) => form.append("images", f));
+  files.forEach(({ original, thumbnail }) => {
+    form.append("images", original);
+    form.append("thumbnails", thumbnail);
+  });
   // No Content-Type header — the browser sets the multipart boundary.
   const res = await apiFetch(`/checkpoints/${id}/images`, { method: "POST", body: form });
   if (!isSuccessful(res)) {
@@ -391,7 +399,7 @@ export interface PlaceReview {
 export interface PlaceDetail {
   place: Place;
   avg_rating?: number;
-  images: { id: string; url: string }[];
+  images: { id: string; url: string; thumbnail_url?: string }[];
   reviews: PlaceReview[];
 }
 
@@ -409,6 +417,7 @@ export interface FeedItem {
   created_at: string;
   author: { username: string; display_name?: string; avatar_url?: string };
   image_url?: string;
+  thumbnail_url?: string;
   distance_m: number;
 }
 
@@ -479,6 +488,7 @@ export interface JourneyStop {
   lng: number;
   place_id?: string;
   images: string[];
+  thumbnail_images?: string[];
   created_at: string;
 }
 

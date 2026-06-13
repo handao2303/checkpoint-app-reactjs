@@ -246,7 +246,7 @@ export function ProfilePage() {
                 cp.image_url ? (
                   <PhotoView key={cp.id} src={cp.image_url}>
                     <img
-                      src={cp.image_url}
+                      src={cp.thumbnail_url ?? cp.image_url}
                       alt={cp.name}
                       className="h-28 w-full cursor-zoom-in rounded-lg object-cover"
                     />

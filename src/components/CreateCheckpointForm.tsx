@@ -1,20 +1,23 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Flag, Image as ImageIcon, X, Camera, Luggage } from "lucide-react";
+import { Flag, Image as ImageIcon, X, Camera, Luggage, Download } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { createCheckpoint, getMyJourneys, uploadCheckpointImages, type Badge } from "../lib/api";
-import { reverseGeocode, type GeoResult } from "../lib/photon";
-import { prepareImage } from "../lib/image";
+import { useGeocode } from "../hooks/useGeocode";
+import { prepareCheckpointImage } from "../lib/image";
 import { CATEGORIES } from "../lib/maps";
 import { Button } from "./ui/Button";
 import { cn } from "../lib/cn";
 import { quickCheckinSettings } from "../lib/settings";
-import { CameraCaptureSheet } from "./CameraCaptureSheet";
+import { CameraCaptureSheet, type CameraResult } from "./CameraCaptureSheet";
 
 interface PickedImage {
-  file: File;
+  original: File;
+  thumbnail: File;
   url: string;
+  thumbnailUrl: string;
+  source: "camera" | "library";
 }
 
 const MAX_IMAGES = 3;
@@ -71,7 +74,7 @@ export function CreateCheckpointForm({
   const [note, setNote] = useState("");
   const [rating, setRating] = useState<number | undefined>(undefined);
   const [picked, setPicked] = useState<PickedImage[]>([]);
-  const [geo, setGeo] = useState<GeoResult | null>(null);
+  const geo = useGeocode(at.lat, at.lng);
   const [busy, setBusy] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -85,13 +88,26 @@ export function CreateCheckpointForm({
   // Revoke object URLs on unmount (read latest via ref to avoid stale closure).
   const pickedRef = useRef(picked);
   pickedRef.current = picked;
-  useEffect(() => () => pickedRef.current.forEach((p) => URL.revokeObjectURL(p.url)), []);
+  useEffect(
+    () => () =>
+      pickedRef.current.forEach((p) => {
+        URL.revokeObjectURL(p.url);
+        URL.revokeObjectURL(p.thumbnailUrl);
+      }),
+    [],
+  );
 
-  // Kick off geocode as soon as coordinates are known — runs in parallel while
-  // the user fills the form so submit never has to wait for it.
+  // Auto-fill the place name from the first address component once geocode
+  // resolves — only for new places (not existing place check-ins) and only
+  // when the user hasn't typed anything yet.
+  const nameAutoFilled = useRef(false);
   useEffect(() => {
-    reverseGeocode(at.lat, at.lng).then(setGeo);
-  }, [at.lat, at.lng]);
+    if (!geo || place || nameAutoFilled.current) return;
+    const suggestion = geo.address.split(",")[0].trim();
+    if (!suggestion) return;
+    nameAutoFilled.current = true;
+    setName((prev) => (prev === "" ? suggestion : prev));
+  }, [geo, place]);
 
   useEffect(() => {
     if (
@@ -106,17 +122,24 @@ export function CreateCheckpointForm({
 
   // Convert HEIC + downscale so uploads are always a modest JPEG. Shared by the
   // file picker and the in-app camera.
-  async function addFileArray(files: File[]) {
+  async function addFileArray(results: CameraResult[]) {
     const remainingSlots = MAX_IMAGES - pickedRef.current.length;
-    if (remainingSlots <= 0 || files.length === 0) return;
+    if (remainingSlots <= 0 || results.length === 0) return;
 
     setProcessing(true);
     setErr(null);
     try {
-      const prepared = await Promise.all(files.slice(0, remainingSlots).map(prepareImage));
+      const selected = results.slice(0, remainingSlots);
+      const prepared = await Promise.all(selected.map(({ file }) => prepareCheckpointImage(file)));
       setPicked((prev) => [
         ...prev,
-        ...prepared.map((file) => ({ file, url: URL.createObjectURL(file) })),
+        ...prepared.map(({ original, thumbnail }, index) => ({
+          original,
+          thumbnail,
+          source: selected[index].source,
+          url: URL.createObjectURL(original),
+          thumbnailUrl: URL.createObjectURL(thumbnail),
+        })),
       ]);
     } catch (e) {
       console.error("image prepare failed:", e);
@@ -134,8 +157,27 @@ export function CreateCheckpointForm({
   function removeAt(index: number) {
     setPicked((prev) => {
       URL.revokeObjectURL(prev[index].url);
+      URL.revokeObjectURL(prev[index].thumbnailUrl);
       return prev.filter((_, i) => i !== index);
     });
+  }
+
+  async function saveToPhotos(file: File) {
+    try {
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Ảnh Checkpoint" });
+        return;
+      }
+    } catch (shareError) {
+      if (shareError instanceof DOMException && shareError.name === "AbortError") return;
+    }
+
+    const url = URL.createObjectURL(file);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = file.name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   async function submit(e: FormEvent) {
@@ -168,7 +210,10 @@ export function CreateCheckpointForm({
     // failure here must NOT report total failure or invite a duplicate retry.
     if (picked.length) {
       try {
-        await uploadCheckpointImages(res.checkpoint.id, picked.map((p) => p.file));
+        await uploadCheckpointImages(
+          res.checkpoint.id,
+          picked.map((p) => ({ original: p.original, thumbnail: p.thumbnail })),
+        );
       } catch (uploadErr) {
         console.error("image upload failed (check-in still saved):", uploadErr);
       }
@@ -215,9 +260,6 @@ export function CreateCheckpointForm({
           placeholder="Tên địa điểm"
           className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring read-only:opacity-70"
         />
-        {geo?.address && (
-          <p className="px-4 text-xs text-muted-foreground">{geo.address}</p>
-        )}
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -262,18 +304,30 @@ export function CreateCheckpointForm({
       <div className="flex flex-wrap gap-2">
         <PhotoProvider>
           {picked.map((p, i) => (
-            <div key={p.url} className="relative h-20 w-20">
-              <PhotoView src={p.url}>
-                <img src={p.url} alt="" className="h-20 w-20 cursor-zoom-in rounded-lg object-cover" />
-              </PhotoView>
-              <button
-                type="button"
-                onClick={() => removeAt(i)}
-                className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent-500 text-white shadow"
-                aria-label="Xóa ảnh"
-              >
-                <X size={14} />
-              </button>
+            <div key={p.url} className="flex w-20 flex-col gap-1">
+              <div className="relative h-20 w-20">
+                <PhotoView src={p.url}>
+                  <img src={p.thumbnailUrl} alt="" className="h-20 w-20 cursor-zoom-in rounded-lg object-cover" />
+                </PhotoView>
+                <button
+                  type="button"
+                  onClick={() => removeAt(i)}
+                  className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent-500 text-white shadow"
+                  aria-label="Xóa ảnh"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              {p.source === "camera" && (
+                <button
+                  type="button"
+                  onClick={() => void saveToPhotos(p.original)}
+                  className="flex items-center justify-center gap-1 rounded-full bg-secondary px-2 py-1 text-[10px] font-medium text-white shadow"
+                  aria-label="Lưu vào Photos"
+                >
+                  <Download size={11} /> Lưu Photos
+                </button>
+              )}
             </div>
           ))}
         </PhotoProvider>
@@ -307,7 +361,9 @@ export function CreateCheckpointForm({
           multiple
           className="hidden"
           onChange={(e) => {
-            void addFileArray(Array.from(e.target.files ?? []));
+            void addFileArray(
+              Array.from(e.target.files ?? []).map((file) => ({ file, source: "library" })),
+            );
             e.target.value = ""; // allow re-picking the same file
           }}
         />
@@ -318,10 +374,8 @@ export function CreateCheckpointForm({
       <Button type="submit" variant="accent" disabled={busy || processing} icon={<Flag size={20} />}>
         {busy ? "Đang lưu..." : "CẮM CỜ"}
       </Button>
-
       {cameraOpen && (
         <CameraCaptureSheet
-          maxCount={MAX_IMAGES - picked.length}
           onClose={() => setCameraOpen(false)}
           onDone={(files) => void addFileArray(files)}
         />

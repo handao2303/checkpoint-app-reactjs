@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Webcam from "react-webcam";
-import { X, SwitchCamera, Image as ImageIcon, Check } from "lucide-react";
+import { X, SwitchCamera, Image as ImageIcon } from "lucide-react";
 
 type Facing = "user" | "environment";
-type Shot = { file: File; url: string };
+type Ratio = "4:3" | "1:1" | "16:9";
+export type CameraResult = { file: File; source: "camera" | "library" };
 type CameraDevice = { info: MediaDeviceInfo; facing?: Facing };
+const RATIO_KEY = "cp_camera_ratio";
+const RATIOS: Ratio[] = ["4:3", "1:1", "16:9"];
 
 const CAMERA_DEVICE_KEYS: Record<Facing, string> = {
   user: "cp_camera_device_user",
@@ -33,6 +36,48 @@ function clearSavedDevice(facing: Facing) {
   } catch {
     // Non-fatal; the fallback facing-mode camera can still open.
   }
+}
+
+function loadRatio(): Ratio {
+  try {
+    const value = localStorage.getItem(RATIO_KEY) as Ratio | null;
+    return value && RATIOS.includes(value) ? value : "4:3";
+  } catch {
+    return "4:3";
+  }
+}
+
+function ratioValue(ratio: Ratio): number {
+  const [width, height] = ratio.split(":").map(Number);
+  return width / height;
+}
+
+async function cropBlob(blob: Blob, ratio: Ratio, mirror = false): Promise<File> {
+  const bitmap = await createImageBitmap(blob);
+  const targetRatio = ratioValue(ratio);
+  let sourceWidth = bitmap.width;
+  let sourceHeight = bitmap.height;
+  if (sourceWidth / sourceHeight > targetRatio) sourceWidth = sourceHeight * targetRatio;
+  else sourceHeight = sourceWidth / targetRatio;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(sourceWidth);
+  canvas.height = Math.round(sourceHeight);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    return new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+  }
+  if (mirror) {
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+  }
+  ctx.drawImage(bitmap, (bitmap.width - sourceWidth) / 2, (bitmap.height - sourceHeight) / 2, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const cropped = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", 0.95),
+  );
+  return new File([cropped ?? blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
 }
 
 function inferFacing(device: MediaDeviceInfo): Facing | undefined {
@@ -88,13 +133,11 @@ function isPhonePwa(): boolean {
  * can't open (denied, old iOS PWA), it shows a gallery fallback instead.
  */
 export function CameraCaptureSheet({
-  maxCount,
   onClose,
   onDone,
 }: {
-  maxCount: number;
   onClose: () => void;
-  onDone: (files: File[]) => void;
+  onDone: (files: CameraResult[]) => void;
 }) {
   const webcamRef = useRef<Webcam>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -103,26 +146,23 @@ export function CameraCaptureSheet({
   const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
   const [devices, setDevices] = useState<CameraDevice[]>([]);
   const [mirrored, setMirrored] = useState(false);
-  const [shots, setShots] = useState<Shot[]>([]);
+  const [ratio, setRatio] = useState<Ratio>(loadRatio);
+  const [resolution, setResolution] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const fallbackAttempted = useRef(false);
   const defaultLensAttempted = useRef(false);
   const phonePwa = isPhonePwa();
-
-  const shotsRef = useRef(shots);
-  shotsRef.current = shots;
-  useEffect(() => () => shotsRef.current.forEach((s) => URL.revokeObjectURL(s.url)), []);
-
-  const full = shots.length >= maxCount;
   const facingDevices = devices.filter((device) => device.facing === facing);
   const currentDevice = facingDevices.find((device) => device.info.deviceId === activeDeviceId);
   const currentDeviceIndex = facingDevices.findIndex((device) => device.info.deviceId === activeDeviceId);
   const currentDeviceLabel = currentDevice
     ? currentDevice.info.label || `Camera ${facing === "user" ? "trước" : "sau"} ${currentDeviceIndex + 1}`
     : null;
-  const videoConstraints: MediaTrackConstraints = selectedDeviceId
-    ? { deviceId: { exact: selectedDeviceId } }
-    : { facingMode: facing };
+  const videoConstraints: MediaTrackConstraints = {
+    ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : { facingMode: facing }),
+    width: { ideal: 3840 },
+    height: { ideal: 2160 },
+  };
 
   const handleUserMedia = useCallback(
     async (stream: MediaStream) => {
@@ -137,6 +177,17 @@ export function CameraCaptureSheet({
       setActiveDeviceId(deviceId ?? null);
       setFacing(activeFacing);
       setMirrored(activeFacing === "user");
+      setResolution(settings?.width && settings?.height ? `${settings.width} × ${settings.height}` : null);
+
+      const track = stream.getVideoTracks()[0];
+      try {
+        const capabilities = track?.getCapabilities();
+        if (capabilities && "focusMode" in capabilities) {
+          await track.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] });
+        }
+      } catch {
+        // Continuous autofocus is best-effort and unsupported on many browsers.
+      }
 
       try {
         const cameras = (await navigator.mediaDevices.enumerateDevices())
@@ -195,27 +246,44 @@ export function CameraCaptureSheet({
     setSelectedDeviceId(deviceId);
   };
 
-  const capture = useCallback(async () => {
-    if (shotsRef.current.length >= maxCount) return;
-    const dataUrl = webcamRef.current?.getScreenshot();
-    if (!dataUrl) return;
-    const blob = await (await fetch(dataUrl)).blob();
-    const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
-    setShots((s) => [...s, { file, url: URL.createObjectURL(file) }]);
-  }, [maxCount]);
-
-  const addFromGallery = (list: FileList | null) => {
-    if (!list) return;
-    const room = maxCount - shotsRef.current.length;
-    if (room <= 0) return;
-    const next = Array.from(list)
-      .slice(0, room)
-      .map((file) => ({ file, url: URL.createObjectURL(file) }));
-    setShots((s) => [...s, ...next]);
+  const selectRatio = (next: Ratio) => {
+    setRatio(next);
+    try {
+      localStorage.setItem(RATIO_KEY, next);
+    } catch {
+      // The selected ratio still applies for the current camera session.
+    }
   };
 
-  const finish = () => {
-    onDone(shots.map((s) => s.file));
+  const capture = useCallback(async () => {
+    let blob: Blob | null = null;
+    let capturedWithImageCapture = false;
+    const video = webcamRef.current?.video;
+    const track = (video?.srcObject as MediaStream | null)?.getVideoTracks()[0];
+
+    if (/Android/i.test(navigator.userAgent) && track && typeof ImageCapture !== "undefined") {
+      try {
+        blob = await new ImageCapture(track).takePhoto();
+        capturedWithImageCapture = true;
+      } catch {
+        // Fall back to react-webcam's source-sized screenshot.
+      }
+    }
+    if (!blob) {
+      const dataUrl = webcamRef.current?.getScreenshot();
+      if (!dataUrl) return;
+      blob = await (await fetch(dataUrl)).blob();
+    }
+
+    const file = await cropBlob(blob, ratio, capturedWithImageCapture && mirrored);
+    onDone([{ file, source: "camera" }]);
+    onClose();
+  }, [mirrored, onClose, onDone, ratio]);
+
+  const addFromGallery = (list: FileList | null) => {
+    const file = list?.[0];
+    if (!file) return;
+    onDone([{ file, source: "library" }]);
     onClose();
   };
 
@@ -226,20 +294,7 @@ export function CameraCaptureSheet({
         <button type="button" onClick={onClose} aria-label="Đóng" className="p-1">
           <X size={26} />
         </button>
-        <span className="text-sm font-medium">
-          {shots.length}/{maxCount}
-        </span>
-        {shots.length > 0 ? (
-          <button
-            type="button"
-            onClick={finish}
-            className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-black"
-          >
-            <Check size={16} /> Xong
-          </button>
-        ) : (
-          <span className="w-12" />
-        )}
+        <span className="w-10" />
       </div>
 
       {/* Viewfinder */}
@@ -263,7 +318,8 @@ export function CameraCaptureSheet({
             ref={webcamRef}
             audio={false}
             screenshotFormat="image/jpeg"
-            screenshotQuality={0.92}
+            screenshotQuality={0.95}
+            forceScreenshotSourceSize
             mirrored={mirrored}
             videoConstraints={videoConstraints}
             onUserMedia={handleUserMedia}
@@ -275,8 +331,24 @@ export function CameraCaptureSheet({
 
       {!error && currentDeviceLabel && (
         <div className="flex flex-col items-center gap-2 px-4 pt-3 text-white">
+          <div className="flex items-center justify-center gap-2">
+            {RATIOS.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => selectRatio(item)}
+                aria-pressed={ratio === item}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  ratio === item ? "bg-white text-black" : "bg-white/15 text-white"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
           <span className="max-w-full truncate rounded-full bg-white/10 px-3 py-1 text-xs font-medium">
             {currentDeviceLabel}
+            {resolution ? ` · ${resolution}` : ""}
           </span>
           {facingDevices.length > 1 && (
             <div className="flex items-center justify-center gap-2">
@@ -307,9 +379,8 @@ export function CameraCaptureSheet({
         <button
           type="button"
           onClick={() => galleryRef.current?.click()}
-          disabled={full}
           aria-label="Chọn từ thư viện"
-          className="justify-self-start text-white disabled:opacity-40"
+          className="justify-self-start text-white"
         >
           {phonePwa ? (
             <span className="flex min-w-16 flex-col items-center gap-1 text-xs font-medium">
@@ -318,14 +389,8 @@ export function CameraCaptureSheet({
               </span>
               Thư viện
             </span>
-          ) : shots.length > 0 ? (
-            <img
-              src={shots[shots.length - 1].url}
-              alt=""
-              className="h-12 w-12 rounded-lg object-cover ring-2 ring-white"
-            />
           ) : (
-            <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15 text-white">
+            <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">
               <ImageIcon size={24} />
             </span>
           )}
@@ -334,7 +399,7 @@ export function CameraCaptureSheet({
         <button
           type="button"
           onClick={capture}
-          disabled={full || error}
+          disabled={error}
           aria-label="Chụp ảnh"
           className="h-[4.5rem] w-[4.5rem] justify-self-center rounded-full border-4 border-white p-1 disabled:opacity-40"
         >
@@ -355,7 +420,6 @@ export function CameraCaptureSheet({
         ref={galleryRef}
         type="file"
         accept="image/*,.heic,.heif"
-        multiple
         className="hidden"
         onChange={(e) => {
           addFromGallery(e.target.files);
