@@ -312,6 +312,8 @@ export interface CheckinInput {
   lng: number;
   address?: string;
   place_id?: string;
+  /** Attach to one of the user's active journeys (chosen in the form). */
+  journey_id?: string;
 }
 
 export async function getCheckpointsInBounds(b: Bounds): Promise<Checkpoint[]> {

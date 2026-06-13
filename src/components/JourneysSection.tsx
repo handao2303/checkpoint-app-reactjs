@@ -20,7 +20,11 @@ export function JourneysSection() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
-  const active = journeys.find((j) => j.is_active);
+  // Multiple journeys can be active at once; a check-in picks which one to
+  // record under. Newest-activated first.
+  const activeJourneys = journeys
+    .filter((j) => j.is_active)
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 
   async function submitStart(e: FormEvent) {
     e.preventDefault();
@@ -53,25 +57,27 @@ export function JourneysSection() {
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h3 className="font-display text-lg font-bold">Hành trình</h3>
-        {!active && (
-          <button onClick={() => setStarting(true)} className="text-sm font-semibold text-primary">
-            + Bắt đầu
-          </button>
-        )}
+        <button onClick={() => setStarting(true)} className="text-sm font-semibold text-primary">
+          + Bắt đầu
+        </button>
       </div>
 
-      {active && (
-        <div className="mb-3 flex items-center gap-3 rounded-xl bg-green-50 p-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-green-700 text-white">
-            <Route size={18} />
-          </span>
-          <div className="flex-1">
-            <p className="text-xs text-green-700">Đang đi</p>
-            <p className="font-semibold text-foreground">{active.title}</p>
-          </div>
-          <Button size="sm" variant="outline" icon={<Square size={14} />} disabled={busy} onClick={() => end(active)}>
-            Kết thúc
-          </Button>
+      {activeJourneys.length > 0 && (
+        <div className="mb-3 flex flex-col gap-2">
+          {activeJourneys.map((active) => (
+            <div key={active.id} className="flex items-center gap-3 rounded-xl bg-green-50 p-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-green-700 text-white">
+                <Route size={18} />
+              </span>
+              <div className="flex-1">
+                <p className="text-xs text-green-700">Đang đi</p>
+                <p className="font-semibold text-foreground">{active.title}</p>
+              </div>
+              <Button size="sm" variant="outline" icon={<Square size={14} />} disabled={busy} onClick={() => end(active)}>
+                Kết thúc
+              </Button>
+            </div>
+          ))}
         </div>
       )}
 

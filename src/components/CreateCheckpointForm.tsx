@@ -57,10 +57,14 @@ export function CreateCheckpointForm({
   onCreated: (xp: number, newBadges: Badge[]) => void;
 }) {
   const qc = useQueryClient();
-  // The server auto-attaches the user's active journey to a check-in, so surface
-  // which journey this check-in will be recorded under.
+  // Pick which active journey this check-in is recorded under (multiple can be
+  // active). Default to the most recently activated one until the user changes.
   const { data: journeys = [] } = useQuery({ queryKey: ["journeys"], queryFn: getMyJourneys });
-  const activeJourney = journeys.find((j) => j.is_active);
+  const activeJourneys = journeys
+    .filter((j) => j.is_active)
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  const [journeyId, setJourneyId] = useState<string | null | undefined>(undefined);
+  const effectiveJourneyId = journeyId === undefined ? (activeJourneys[0]?.id ?? null) : journeyId;
   const [name, setName] = useState(place?.name ?? "");
   const [category, setCategory] = useState(place?.category ?? "cafe");
   const [note, setNote] = useState("");
@@ -142,6 +146,7 @@ export function CreateCheckpointForm({
         lat: at.lat,
         lng: at.lng,
         place_id: place?.id,
+        journey_id: effectiveJourneyId ?? undefined,
       });
     } catch {
       setErr("Không tạo được check-in. Vui lòng thử lại.");
@@ -171,13 +176,24 @@ export function CreateCheckpointForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
-      {activeJourney && (
-        <div className="flex items-center gap-2 rounded-xl bg-secondary/10 px-3 py-2 text-sm text-secondary">
-          <Luggage size={18} className="shrink-0" />
-          <span>
-            Đang ghi cho hành trình <b>“{activeJourney.title}”</b>
+      {activeJourneys.length > 0 && (
+        <label className="flex flex-col gap-1.5">
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-secondary">
+            <Luggage size={16} /> Ghi vào hành trình
           </span>
-        </div>
+          <select
+            value={effectiveJourneyId ?? ""}
+            onChange={(e) => setJourneyId(e.target.value || null)}
+            className="rounded-xl border border-border bg-surface p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">Không gắn hành trình</option>
+            {activeJourneys.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.title}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
 
       <input
