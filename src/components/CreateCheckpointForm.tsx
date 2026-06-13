@@ -175,6 +175,10 @@ export function CreateCheckpointForm({
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (!picked.length) {
+      setErr("Bắt buộc phải có ít nhất 1 ảnh.");
+      return;
+    }
     setBusy(true);
     setErr(null);
 
@@ -350,7 +354,7 @@ export function CreateCheckpointForm({
 
       {err && <p className="text-sm text-accent-600">{err}</p>}
 
-      <Button type="submit" variant="accent" disabled={busy || processing} icon={<Flag size={20} />}>
+      <Button type="submit" variant="accent" disabled={busy || processing || !picked.length} icon={<Flag size={20} />}>
         {busy ? "Đang lưu..." : "CẮM CỜ"}
       </Button>
       {cameraOpen && (
