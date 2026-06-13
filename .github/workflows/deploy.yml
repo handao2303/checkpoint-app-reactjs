@@ -89,5 +89,5 @@ jobs:
           bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
           message: |
-            ${{ job.status == 'success' && '✅' || '❌' }} <b>[Web]</b> Deploy: ${{ job.status == 'success' && 'passed' || 'failed' }}
+            ${{ job.status == 'success' && '✅' || '❌' }} <b>[Web]</b> Deploy: ${{ job.status == 'success' && 'passed' || 'failed' }} build version 'v' + ${{ github.run_number }}
             ${{ job.status == 'success' && ' → https://checkpoint-web.dev-hongquan.workers.dev' || '' }}

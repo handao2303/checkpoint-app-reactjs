@@ -59,8 +59,21 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
           )}
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="h-7 w-7 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
-            @{data.author.username}
+            {data.author.avatar_url ? (
+              <img
+                src={data.author.avatar_url}
+                alt=""
+                className="h-7 w-7 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <span className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
+            )}
+            <span className="flex items-baseline gap-1">
+              {data.author.display_name && (
+                <span className="font-medium text-foreground">{data.author.display_name}</span>
+              )}
+              <span>@{data.author.username}</span>
+            </span>
             <XPBadge xp={data.checkpoint.xp_awarded} />
           </div>
           <p className="text-xs text-subtle-foreground">
