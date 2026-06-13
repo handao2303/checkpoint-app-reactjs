@@ -23,7 +23,7 @@ jobs:
         with:
           bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          message: "🚀 <b>[Web]</b> Deploy bắt đầu — <code>${{ github.ref_name }}</code> (${{ github.sha }})"
+          message: "🚀 <b>[Web]</b> Deploy bắt đầu — <code>${{ github.ref_name }}</code> (${{ github.sha }}) commit message: ${{ github.event.head_commit.message }}"
 
   # ── Typecheck ─────────────────────────────────────────────────
   typecheck:
