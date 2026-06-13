@@ -12,6 +12,10 @@ interface FormReady {
   file: File;
 }
 
+const isValidGPS = (gps: { lat: number; lng: number } | null): gps is { lat: number; lng: number } => { 
+    return !!gps && !isNaN(gps.lat) && !isNaN(gps.lng) && gps.lat >= -90 && gps.lat <= 90 && gps.lng >= -180 && gps.lng <= 180;
+};
+
 export function PhotoCheckinTab({
   onCreated,
 }: {
@@ -24,7 +28,7 @@ export function PhotoCheckinTab({
   async function handleFile(file: File) {
     setStage("reading");
     const gps = await extractGPS(file);
-    if (!gps) {
+    if (!isValidGPS(gps)) {
       setStage("error");
       return;
     }
