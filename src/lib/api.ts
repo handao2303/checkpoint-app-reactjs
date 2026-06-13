@@ -7,6 +7,18 @@ import { supabase } from "./supabase";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
+/** HTTP error with a status code — used to distinguish retryable (5xx) from
+ *  non-retryable (4xx) failures in the background checkin queue. */
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 const ACCESS_KEY = "cp_access_token";
 const REFRESH_KEY = "cp_refresh_token";
 
@@ -335,7 +347,7 @@ export async function createCheckpoint(input: CheckinInput): Promise<CheckinResu
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (!isSuccessful(res)) throw new Error("create checkpoint failed");
+  if (!isSuccessful(res)) throw new ApiError(res.status, `create checkpoint failed: ${res.status}`);
   return res.data;
 }
 
