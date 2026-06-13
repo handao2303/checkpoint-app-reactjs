@@ -17,10 +17,19 @@ import { quickCheckinSettings } from "./lib/settings";
 // lazyWithRetry reloads once on a stale-chunk failure instead of white-screening.
 const MapPage = lazyWithRetry(() => import("./pages/MapPage").then((m) => ({ default: m.MapPage })), "map");
 
+function VersionTag() {
+  return (
+    <p className="absolute bottom-4 inset-x-0 text-center text-xs text-muted-foreground opacity-40">
+      build {import.meta.env.VITE_APP_VERSION ?? "dev"}
+    </p>
+  );
+}
+
 function Splash() {
   return (
-    <div className="flex min-h-full items-center justify-center bg-background">
+    <div className="relative flex min-h-full items-center justify-center bg-background">
       <img src="/pin.svg" alt="" className="h-12 w-12 animate-pulse" />
+      <VersionTag />
     </div>
   );
 }

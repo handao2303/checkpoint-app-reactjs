@@ -27,7 +27,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-md flex-col justify-center gap-6 overflow-y-auto bg-background px-6 py-8">
+    <div className="relative mx-auto flex h-full max-w-md flex-col justify-center gap-6 overflow-y-auto bg-background px-6 py-8">
       <div className="flex flex-col items-center gap-3 text-center">
         <img src="/pin.svg" alt="" className="h-16 w-16" />
         <h1 className="font-display text-4xl font-bold text-clay-600">Checkpoint</h1>
@@ -103,6 +103,10 @@ export function LoginPage() {
         >
           {mode === "signin" ? "Đăng ký ngay" : "Đăng nhập"}
         </button>
+      </p>
+
+      <p className="absolute bottom-4 inset-x-0 text-center text-xs text-muted-foreground opacity-40">
+        build {import.meta.env.VITE_APP_VERSION ?? "dev"}
       </p>
     </div>
   );
