@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Flag, Image as ImageIcon, X, Camera, Luggage, Download } from "lucide-react";
+import { Flag, Image as ImageIcon, X, Camera, Luggage } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { createCheckpoint, getMyJourneys, uploadCheckpointImages, type Badge } from "../lib/api";
@@ -10,14 +10,13 @@ import { CATEGORIES } from "../lib/maps";
 import { Button } from "./ui/Button";
 import { cn } from "../lib/cn";
 import { quickCheckinSettings } from "../lib/settings";
-import { CameraCaptureSheet, type CameraResult } from "./CameraCaptureSheet";
+import { CameraCaptureSheet } from "./CameraCaptureSheet";
 
 interface PickedImage {
   original: File;
   thumbnail: File;
   url: string;
   thumbnailUrl: string;
-  source: "camera" | "library";
 }
 
 const MAX_IMAGES = 3;
@@ -122,21 +121,19 @@ export function CreateCheckpointForm({
 
   // Convert HEIC + downscale so uploads are always a modest JPEG. Shared by the
   // file picker and the in-app camera.
-  async function addFileArray(results: CameraResult[]) {
+  async function addFileArray(files: File[]) {
     const remainingSlots = MAX_IMAGES - pickedRef.current.length;
-    if (remainingSlots <= 0 || results.length === 0) return;
+    if (remainingSlots <= 0 || files.length === 0) return;
 
     setProcessing(true);
     setErr(null);
     try {
-      const selected = results.slice(0, remainingSlots);
-      const prepared = await Promise.all(selected.map(({ file }) => prepareCheckpointImage(file)));
+      const prepared = await Promise.all(files.slice(0, remainingSlots).map(prepareCheckpointImage));
       setPicked((prev) => [
         ...prev,
-        ...prepared.map(({ original, thumbnail }, index) => ({
+        ...prepared.map(({ original, thumbnail }) => ({
           original,
           thumbnail,
-          source: selected[index].source,
           url: URL.createObjectURL(original),
           thumbnailUrl: URL.createObjectURL(thumbnail),
         })),
@@ -160,24 +157,6 @@ export function CreateCheckpointForm({
       URL.revokeObjectURL(prev[index].thumbnailUrl);
       return prev.filter((_, i) => i !== index);
     });
-  }
-
-  async function saveToPhotos(file: File) {
-    try {
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: "Ảnh Checkpoint" });
-        return;
-      }
-    } catch (shareError) {
-      if (shareError instanceof DOMException && shareError.name === "AbortError") return;
-    }
-
-    const url = URL.createObjectURL(file);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = file.name;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   async function submit(e: FormEvent) {
@@ -304,30 +283,18 @@ export function CreateCheckpointForm({
       <div className="flex flex-wrap gap-2">
         <PhotoProvider>
           {picked.map((p, i) => (
-            <div key={p.url} className="flex w-20 flex-col gap-1">
-              <div className="relative h-20 w-20">
-                <PhotoView src={p.url}>
-                  <img src={p.thumbnailUrl} alt="" className="h-20 w-20 cursor-zoom-in rounded-lg object-cover" />
-                </PhotoView>
-                <button
-                  type="button"
-                  onClick={() => removeAt(i)}
-                  className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent-500 text-white shadow"
-                  aria-label="Xóa ảnh"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-              {p.source === "camera" && (
-                <button
-                  type="button"
-                  onClick={() => void saveToPhotos(p.original)}
-                  className="flex items-center justify-center gap-1 rounded-full bg-secondary px-2 py-1 text-[10px] font-medium text-white shadow"
-                  aria-label="Lưu vào Photos"
-                >
-                  <Download size={11} /> Lưu Photos
-                </button>
-              )}
+            <div key={p.url} className="relative h-20 w-20">
+              <PhotoView src={p.url}>
+                <img src={p.thumbnailUrl} alt="" className="h-20 w-20 cursor-zoom-in rounded-lg object-cover" />
+              </PhotoView>
+              <button
+                type="button"
+                onClick={() => removeAt(i)}
+                className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent-500 text-white shadow"
+                aria-label="Xóa ảnh"
+              >
+                <X size={14} />
+              </button>
             </div>
           ))}
         </PhotoProvider>
@@ -361,9 +328,7 @@ export function CreateCheckpointForm({
           multiple
           className="hidden"
           onChange={(e) => {
-            void addFileArray(
-              Array.from(e.target.files ?? []).map((file) => ({ file, source: "library" })),
-            );
+            void addFileArray(Array.from(e.target.files ?? []));
             e.target.value = ""; // allow re-picking the same file
           }}
         />

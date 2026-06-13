@@ -3,11 +3,7 @@ import Webcam from "react-webcam";
 import { X, SwitchCamera, Image as ImageIcon } from "lucide-react";
 
 type Facing = "user" | "environment";
-type Ratio = "4:3" | "1:1" | "16:9";
-export type CameraResult = { file: File; source: "camera" | "library" };
 type CameraDevice = { info: MediaDeviceInfo; facing?: Facing };
-const RATIO_KEY = "cp_camera_ratio";
-const RATIOS: Ratio[] = ["4:3", "1:1", "16:9"];
 
 const CAMERA_DEVICE_KEYS: Record<Facing, string> = {
   user: "cp_camera_device_user",
@@ -38,41 +34,23 @@ function clearSavedDevice(facing: Facing) {
   }
 }
 
-function loadRatio(): Ratio {
-  try {
-    const value = localStorage.getItem(RATIO_KEY) as Ratio | null;
-    return value && RATIOS.includes(value) ? value : "4:3";
-  } catch {
-    return "4:3";
+async function toCameraFile(blob: Blob, mirror = false): Promise<File> {
+  if (!mirror) {
+    return new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
   }
-}
 
-function ratioValue(ratio: Ratio): number {
-  const [width, height] = ratio.split(":").map(Number);
-  return width / height;
-}
-
-async function cropBlob(blob: Blob, ratio: Ratio, mirror = false): Promise<File> {
   const bitmap = await createImageBitmap(blob);
-  const targetRatio = ratioValue(ratio);
-  let sourceWidth = bitmap.width;
-  let sourceHeight = bitmap.height;
-  if (sourceWidth / sourceHeight > targetRatio) sourceWidth = sourceHeight * targetRatio;
-  else sourceHeight = sourceWidth / targetRatio;
-
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(sourceWidth);
-  canvas.height = Math.round(sourceHeight);
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     bitmap.close();
     return new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
   }
-  if (mirror) {
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
-  }
-  ctx.drawImage(bitmap, (bitmap.width - sourceWidth) / 2, (bitmap.height - sourceHeight) / 2, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(bitmap, 0, 0);
   bitmap.close();
   const cropped = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, "image/jpeg", 0.95),
@@ -137,7 +115,7 @@ export function CameraCaptureSheet({
   onDone,
 }: {
   onClose: () => void;
-  onDone: (files: CameraResult[]) => void;
+  onDone: (files: File[]) => void;
 }) {
   const webcamRef = useRef<Webcam>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -146,8 +124,6 @@ export function CameraCaptureSheet({
   const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
   const [devices, setDevices] = useState<CameraDevice[]>([]);
   const [mirrored, setMirrored] = useState(false);
-  const [ratio, setRatio] = useState<Ratio>(loadRatio);
-  const [resolution, setResolution] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const fallbackAttempted = useRef(false);
   const defaultLensAttempted = useRef(false);
@@ -177,7 +153,6 @@ export function CameraCaptureSheet({
       setActiveDeviceId(deviceId ?? null);
       setFacing(activeFacing);
       setMirrored(activeFacing === "user");
-      setResolution(settings?.width && settings?.height ? `${settings.width} × ${settings.height}` : null);
 
       const track = stream.getVideoTracks()[0];
       try {
@@ -246,15 +221,6 @@ export function CameraCaptureSheet({
     setSelectedDeviceId(deviceId);
   };
 
-  const selectRatio = (next: Ratio) => {
-    setRatio(next);
-    try {
-      localStorage.setItem(RATIO_KEY, next);
-    } catch {
-      // The selected ratio still applies for the current camera session.
-    }
-  };
-
   const capture = useCallback(async () => {
     let blob: Blob | null = null;
     let capturedWithImageCapture = false;
@@ -275,15 +241,15 @@ export function CameraCaptureSheet({
       blob = await (await fetch(dataUrl)).blob();
     }
 
-    const file = await cropBlob(blob, ratio, capturedWithImageCapture && mirrored);
-    onDone([{ file, source: "camera" }]);
+    const file = await toCameraFile(blob, capturedWithImageCapture && mirrored);
+    onDone([file]);
     onClose();
-  }, [mirrored, onClose, onDone, ratio]);
+  }, [mirrored, onClose, onDone]);
 
   const addFromGallery = (list: FileList | null) => {
     const file = list?.[0];
     if (!file) return;
-    onDone([{ file, source: "library" }]);
+    onDone([file]);
     onClose();
   };
 
@@ -331,24 +297,8 @@ export function CameraCaptureSheet({
 
       {!error && currentDeviceLabel && (
         <div className="flex flex-col items-center gap-2 px-4 pt-3 text-white">
-          <div className="flex items-center justify-center gap-2">
-            {RATIOS.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => selectRatio(item)}
-                aria-pressed={ratio === item}
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  ratio === item ? "bg-white text-black" : "bg-white/15 text-white"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
           <span className="max-w-full truncate rounded-full bg-white/10 px-3 py-1 text-xs font-medium">
             {currentDeviceLabel}
-            {resolution ? ` · ${resolution}` : ""}
           </span>
           {facingDevices.length > 1 && (
             <div className="flex items-center justify-center gap-2">
