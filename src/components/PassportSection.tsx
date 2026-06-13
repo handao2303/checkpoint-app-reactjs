@@ -6,7 +6,9 @@ import { Skeleton } from "./ui/Skeleton";
 /** Digital passport: one "stamp" per province the user has checked in to. */
 export function PassportSection() {
   const { data, isLoading } = useQuery({ queryKey: ["passport"], queryFn: getPassport });
-  const stamps = data?.stamps ?? [];
+  const stamps = (data?.stamps ?? [])
+    .sort((a, b) => b.checkin_count - a.checkin_count)
+    .slice(0, 6);
 
   return (
     <div>
