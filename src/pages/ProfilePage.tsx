@@ -285,6 +285,10 @@ export function ProfilePage() {
         Đăng xuất
       </Button>
 
+      <p className="text-center text-xs text-muted-foreground opacity-40">
+        build {import.meta.env.VITE_APP_VERSION ?? "dev"}
+      </p>
+
       {editing && <EditProfileSheet onClose={() => setEditing(false)} />}
       {sheets}
     </div>

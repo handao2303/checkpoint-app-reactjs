@@ -1,7 +1,7 @@
+import { ImageUp } from "lucide-react";
 import { useRef, useState } from "react";
-import { ImageUp, MapPin } from "lucide-react";
-import { extractGPS } from "../lib/exif";
 import type { Badge } from "../lib/api";
+import { extractGPS } from "../lib/exif";
 import { CreateCheckpointForm } from "./CreateCheckpointForm";
 import { Button } from "./ui/Button";
 
