@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { MapPin, Star, Search, Trash2 } from "lucide-react";
+import { MapPin, Star, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "../auth/AuthContext";
+import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
+import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { XPBadge } from "../components/ui/Chip";
 import { Skeleton } from "../components/ui/Skeleton";
-import { getFeed, searchPlaces, type FeedItem, type LatLng } from "../lib/api";
-import { useAuth } from "../auth/AuthContext";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
-import { useUserLocation } from "../location/LocationProvider";
+import { getFeed, searchPlaces, type FeedItem, type LatLng } from "../lib/api";
 import { DEFAULT_VIEW, categoryIcon } from "../lib/maps";
-import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
-import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
+import { useUserLocation } from "../location/LocationProvider";
 
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
 
