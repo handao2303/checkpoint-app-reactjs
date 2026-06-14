@@ -12,6 +12,7 @@ import { XPBadge } from "../components/ui/Chip";
 import { Skeleton } from "../components/ui/Skeleton";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { useCheckinQueue } from "../context/CheckinQueue";
 import {
   followUser,
   getFeed,
@@ -42,6 +43,7 @@ export function DiscoverPage() {
   const [query, _] = useState("");
   const [debounced, setDebounced] = useState("");
   const { user } = useAuth();
+  const { pendingCount } = useCheckinQueue();
   const queryClient = useQueryClient();
 
   // Shared ambient location from the layout provider; fall back to the default
@@ -114,7 +116,7 @@ export function DiscoverPage() {
   // position:relative <main>) so virtual rows land in the right place.
   useLayoutEffect(() => {
     if (listRef.current) setScrollMargin(listRef.current.offsetTop);
-  }, [scrollEl, tab, items.length]);
+  }, [scrollEl, tab, items.length, pendingCount]);
 
   // Infinite loading off the virtualizer: page in more as the last row nears.
   useEffect(() => {
@@ -228,6 +230,8 @@ export function DiscoverPage() {
             ))}
           </div>
 
+          {tab === "for-you" && pendingCount > 0 && <PendingCheckinCard count={pendingCount} />}
+
           {isLoading ? (
         <>
           {Array.from({ length: 3 }).map((_, i) => (
@@ -302,6 +306,26 @@ export function DiscoverPage() {
         </button>
       )}
     </>
+  );
+}
+
+function PendingCheckinCard({ count }: { count: number }) {
+  return (
+    <Card className="flex flex-col gap-3 overflow-hidden p-0">
+      <div className="flex items-center gap-3 px-4 pt-4">
+        <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-foreground">
+            {count === 1 ? "Đang đăng check-in..." : `Đang đăng ${count} check-in...`}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Bài đăng sẽ tự xuất hiện sau khi xử lý xong.
+          </p>
+        </div>
+        <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-border border-t-primary" />
+      </div>
+      <Skeleton className="h-40 w-full rounded-none" />
+    </Card>
   );
 }
 

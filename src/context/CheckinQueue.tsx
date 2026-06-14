@@ -73,6 +73,7 @@ function sleep(ms: number): Promise<void> {
 
 interface CheckinQueueCtx {
   enqueue: (input: CheckinInput) => void;
+  pendingCount: number;
 }
 
 const Ctx = createContext<CheckinQueueCtx | null>(null);
@@ -144,7 +145,7 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
   }, [queue, qc]);
 
   return (
-    <Ctx.Provider value={{ enqueue }}>
+    <Ctx.Provider value={{ enqueue, pendingCount: queue.length }}>
       {children}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
       {badges.length > 0 && <BadgeUnlockToast badges={badges} onDone={() => setBadges([])} />}
