@@ -5,9 +5,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { useNavigate } from "react-router-dom";
+import { Toast } from "../components/ui/Toast";
 import { useAuth } from "../auth/AuthContext";
 import { getFeedFollowing, type LatLng } from "../lib/api";
 import { DEFAULT_VIEW } from "../lib/maps";
@@ -31,20 +34,38 @@ const NotificationContext = createContext<NotificationState | null>(null);
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { coords } = useUserLocation();
   const at: LatLng = coords ?? FALLBACK;
 
   const [stored, setStored] = useState<AppNotification[]>([]);
   const [lastSeen, setLastSeenState] = useState(0);
+  const [toast, setToast] = useState<AppNotification | null>(null);
+  const knownStoredIds = useRef(new Set<string>());
+  const storedInitialized = useRef(false);
 
   // Stored notifications (comment / follow / reaction), live.
   useEffect(() => {
     if (!user) {
       setStored([]);
+      setToast(null);
+      knownStoredIds.current.clear();
+      storedInitialized.current = false;
       return;
     }
     setLastSeenState(getLastSeen(user.id));
-    return subscribeNotifications(user.id, setStored);
+    knownStoredIds.current.clear();
+    storedInitialized.current = false;
+    return subscribeNotifications(user.id, (notifs) => {
+      if (storedInitialized.current) {
+        const newest = notifs.find((n) => !knownStoredIds.current.has(n.id));
+        if (newest) setToast(newest);
+      } else {
+        storedInitialized.current = true;
+      }
+      knownStoredIds.current = new Set(notifs.map((n) => n.id));
+      setStored(notifs);
+    });
   }, [user]);
 
   // Derived "a user you follow posted a new check-in" — from the following feed.
@@ -102,11 +123,47 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     [items, unreadCount, markAllSeen],
   );
 
-  return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
+  return (
+    <NotificationContext.Provider value={value}>
+      {children}
+      {toast && (
+        <Toast
+          message={notificationToastMessage(toast)}
+          onDone={() => setToast(null)}
+          onClick={() => {
+            const target =
+              toast.type === "follow" || toast.type === "unfollow"
+                ? `/u/${encodeURIComponent(toast.actor.username)}`
+                : toast.checkpoint_id
+                  ? `/c/${encodeURIComponent(toast.checkpoint_id)}`
+                  : null;
+            setToast(null);
+            if (target) navigate(target);
+          }}
+        />
+      )}
+    </NotificationContext.Provider>
+  );
 }
 
 export function useNotifications(): NotificationState {
   const ctx = useContext(NotificationContext);
   if (!ctx) throw new Error("useNotifications must be used within <NotificationProvider>");
   return ctx;
+}
+
+function notificationToastMessage(notification: AppNotification): string {
+  const actor = notification.actor.display_name || notification.actor.username;
+  switch (notification.type) {
+    case "comment":
+      return `${actor} đã bình luận về ${notification.checkpoint_name ?? "check-in của bạn"}`;
+    case "reaction":
+      return `${actor} đã bày tỏ cảm xúc về ${notification.checkpoint_name ?? "check-in của bạn"}`;
+    case "follow":
+      return `${actor} đã theo dõi bạn`;
+    case "unfollow":
+      return `${actor} đã bỏ theo dõi bạn`;
+    case "checkpoint":
+      return `${actor} vừa đăng check-in mới`;
+  }
 }

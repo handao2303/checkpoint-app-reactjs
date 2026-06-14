@@ -37,6 +37,26 @@ export interface AppNotification {
 
 const notifCol = (userId: string) => collection(db, "users", userId, "notifications");
 
+function reportNotificationError(action: string, error: unknown): void {
+  console.warn(`notification ${action} failed:`, error);
+}
+
+function reportNotificationInserted(
+  type: NotifType,
+  recipientId: string,
+  actorId: string,
+  notificationId: string,
+  checkpointId?: string,
+): void {
+  console.info("notification inserted:", {
+    type,
+    recipientId,
+    actorId,
+    notificationId,
+    ...(checkpointId ? { checkpointId } : {}),
+  });
+}
+
 function actorFields(actor: NotifActor) {
   return {
     actor_id: actor.id,
@@ -52,27 +72,34 @@ export function subscribeNotifications(
   cb: (notifs: AppNotification[]) => void,
 ): Unsubscribe {
   const q = query(notifCol(userId), orderBy("created_at", "desc"), limit(50));
-  return onSnapshot(q, (snap) => {
-    cb(
-      snap.docs.map((d): AppNotification => {
-        const v = d.data();
-        return {
-          id: d.id,
-          type: v.type,
-          actor: {
-            id: v.actor_id,
-            username: v.actor_username,
-            display_name: v.actor_display_name ?? undefined,
-            avatar_url: v.actor_avatar_url ?? undefined,
-          },
-          checkpoint_id: v.checkpoint_id ?? undefined,
-          checkpoint_name: v.checkpoint_name ?? undefined,
-          reaction: v.reaction ?? undefined,
-          created_at: v.created_at?.toDate() ?? new Date(),
-        };
-      }),
-    );
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      cb(
+        snap.docs.map((d): AppNotification => {
+          const v = d.data();
+          return {
+            id: d.id,
+            type: v.type,
+            actor: {
+              id: v.actor_id,
+              username: v.actor_username,
+              display_name: v.actor_display_name ?? undefined,
+              avatar_url: v.actor_avatar_url ?? undefined,
+            },
+            checkpoint_id: v.checkpoint_id ?? undefined,
+            checkpoint_name: v.checkpoint_name ?? undefined,
+            reaction: v.reaction ?? undefined,
+            created_at: v.created_at?.toDate() ?? new Date(),
+          };
+        }),
+      );
+    },
+    (error) => {
+      cb([]);
+      reportNotificationError("subscription", error);
+    },
+  );
 }
 
 /** Notify a checkpoint owner that `actor` commented. No-op if actor is the owner. */
@@ -83,13 +110,18 @@ export async function addCommentNotification(
   checkpointName: string,
 ): Promise<void> {
   if (!ownerId || ownerId === actor.id) return;
-  await addDoc(notifCol(ownerId), {
-    type: "comment",
-    ...actorFields(actor),
-    checkpoint_id: checkpointId,
-    checkpoint_name: checkpointName,
-    created_at: serverTimestamp(),
-  });
+  try {
+    const docRef = await addDoc(notifCol(ownerId), {
+      type: "comment",
+      ...actorFields(actor),
+      checkpoint_id: checkpointId,
+      checkpoint_name: checkpointName,
+      created_at: serverTimestamp(),
+    });
+    reportNotificationInserted("comment", ownerId, actor.id, docRef.id, checkpointId);
+  } catch (error) {
+    reportNotificationError("comment write", error);
+  }
 }
 
 /** Notify a checkpoint owner that `actor` reacted. No-op if actor is the owner. */
@@ -101,14 +133,19 @@ export async function addReactionNotification(
   reaction: string,
 ): Promise<void> {
   if (!ownerId || ownerId === actor.id) return;
-  await addDoc(notifCol(ownerId), {
-    type: "reaction",
-    ...actorFields(actor),
-    checkpoint_id: checkpointId,
-    checkpoint_name: checkpointName,
-    reaction,
-    created_at: serverTimestamp(),
-  });
+  try {
+    const docRef = await addDoc(notifCol(ownerId), {
+      type: "reaction",
+      ...actorFields(actor),
+      checkpoint_id: checkpointId,
+      checkpoint_name: checkpointName,
+      reaction,
+      created_at: serverTimestamp(),
+    });
+    reportNotificationInserted("reaction", ownerId, actor.id, docRef.id, checkpointId);
+  } catch (error) {
+    reportNotificationError("reaction write", error);
+  }
 }
 
 /** Notify a user that `actor` followed/unfollowed them. No-op for self. */
@@ -118,11 +155,16 @@ export async function addFollowNotification(
   actor: NotifActor,
 ): Promise<void> {
   if (!targetId || targetId === actor.id) return;
-  await addDoc(notifCol(targetId), {
-    type,
-    ...actorFields(actor),
-    created_at: serverTimestamp(),
-  });
+  try {
+    const docRef = await addDoc(notifCol(targetId), {
+      type,
+      ...actorFields(actor),
+      created_at: serverTimestamp(),
+    });
+    reportNotificationInserted(type, targetId, actor.id, docRef.id);
+  } catch (error) {
+    reportNotificationError(`${type} write`, error);
+  }
 }
 
 // ---- lastSeen (unread is derived from created_at > lastSeen; no write-on-read) ----
