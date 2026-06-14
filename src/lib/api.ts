@@ -276,6 +276,7 @@ export interface Checkpoint {
   image_url?: string;
   thumbnail_url?: string;
   xp_awarded: number;
+  view_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -441,6 +442,7 @@ export interface PlaceDetail {
 
 export interface FeedItem {
   id: string;
+  user_id: string;
   name: string;
   category: string;
   note?: string;
@@ -470,6 +472,45 @@ export async function getFeed(at: LatLng, cursor?: string): Promise<FeedPage> {
   const res = await apiFetch(`/discover/feed?${p}`);
   if (!isSuccessful(res)) throw new Error("load feed failed");
   return res.data;
+}
+
+/** The feed restricted to users the caller follows. */
+export async function getFeedFollowing(at: LatLng, cursor?: string): Promise<FeedPage> {
+  const p = new URLSearchParams({ lat: String(at.lat), lng: String(at.lng), limit: "15" });
+  if (cursor) p.set("cursor", cursor);
+  const res = await apiFetch(`/discover/feed/following?${p}`);
+  if (!isSuccessful(res)) throw new Error("load following feed failed");
+  return res.data;
+}
+
+// ---- Follow ----
+
+/** Ids of users the caller follows. Returns [] on error. */
+export async function getFollowing(): Promise<string[]> {
+  const res = await apiFetch("/users/following");
+  if (!isSuccessful(res)) return [];
+  return res.data.ids ?? [];
+}
+
+export async function followUser(username: string): Promise<void> {
+  const res = await apiFetch(`/users/${encodeURIComponent(username)}/follow`, { method: "POST" });
+  if (!isSuccessful(res)) throw new Error(`follow failed: ${res.status}`);
+}
+
+export async function unfollowUser(username: string): Promise<void> {
+  const res = await apiFetch(`/users/${encodeURIComponent(username)}/follow`, { method: "DELETE" });
+  if (!isSuccessful(res)) throw new Error(`unfollow failed: ${res.status}`);
+}
+
+// ---- Views ----
+
+/** Record one view of a checkpoint. Fire-and-forget; failures are swallowed. */
+export async function viewCheckpoint(id: string): Promise<void> {
+  try {
+    await apiFetch(`/checkpoints/${id}/view`, { method: "POST" });
+  } catch {
+    // vanity metric — ignore
+  }
 }
 
 export async function searchPlaces(q: string, near?: LatLng): Promise<Place[]> {

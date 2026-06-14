@@ -10,7 +10,7 @@ import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { MapSkeleton } from "../components/MapSkeleton";
 import { Button } from "../components/ui/Button";
 import { useCheckin } from "../hooks/useCheckin";
-import { getCheckpointsInBounds, type Bounds, type Checkpoint } from "../lib/api";
+import { getCheckpointsInBounds, getFollowing, type Bounds, type Checkpoint } from "../lib/api";
 import type { Coords } from "../lib/geo";
 import { DEFAULT_VIEW, MAP_STYLE, categoryIcon } from "../lib/maps";
 import { useUserLocation } from "../location/LocationProvider";
@@ -23,9 +23,17 @@ const LABELS: Record<MapFilter, string> = {
   mine: "Của tôi",
 };
 
-const getCheckpoints = ( data: Checkpoint[], filter: MapFilter, userId?: string) => {
+const getCheckpoints = (
+  data: Checkpoint[],
+  filter: MapFilter,
+  userId?: string,
+  followingIds: string[] = [],
+) => {
   if (filter === "mine") {
     return data.filter((cp) => cp.user_id === userId);
+  }
+  if (filter === "following") {
+    return data.filter((cp) => followingIds.includes(cp.user_id));
   }
   return data;
 };
@@ -63,7 +71,13 @@ export function MapPage() {
     placeholderData: keepPreviousData,
   });
 
-  const checkpoints = getCheckpoints(data, mapFilter, user?.id);
+  const { data: followingIds = [] } = useQuery({
+    queryKey: ["following"],
+    queryFn: getFollowing,
+    staleTime: Infinity,
+  });
+
+  const checkpoints = getCheckpoints(data, mapFilter, user?.id, followingIds);
 
   // Build supercluster index and compute clusters for current viewport.
   const { clusters, sc } = useMemo(() => {
@@ -211,12 +225,11 @@ export function MapPage() {
           <button
             key={key}
             onClick={() => setMapFilter(key)}
-            disabled={key === "following"}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold shadow-md transition ${
               mapFilter === key
                 ? "bg-primary text-white"
                 : "bg-surface/90 text-foreground backdrop-blur hover:bg-surface"
-            } disabled:opacity-50`}
+            }`}
           >
             {label}
           </button>
@@ -306,11 +319,14 @@ function ClusterSheet({
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-foreground">{cp.name}</p>
-                  {cp.rating != null ? (
-                    <p className="text-xs text-muted-foreground">⭐ {cp.rating}/5</p>
-                  ) : cp.address ? (
-                    <p className="truncate text-xs text-muted-foreground">{cp.address}</p>
-                  ) : null}
+                  <p className="flex items-center gap-2 truncate text-xs text-muted-foreground">
+                    {cp.rating != null ? (
+                      <span>⭐ {cp.rating}/5</span>
+                    ) : cp.address ? (
+                      <span className="truncate">{cp.address}</span>
+                    ) : null}
+                    <span className="shrink-0">👁 {cp.view_count}</span>
+                  </p>
                 </div>
               </button>
             ))}

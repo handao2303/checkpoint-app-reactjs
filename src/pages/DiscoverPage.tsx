@@ -1,5 +1,5 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { MapPin, MoreVertical, Star, Trash2 } from "lucide-react";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { MapPin, MoreVertical, Star, Trash2, UserMinus, UserPlus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
@@ -8,7 +8,16 @@ import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { XPBadge } from "../components/ui/Chip";
 import { Skeleton } from "../components/ui/Skeleton";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
-import { getFeed, searchPlaces, type FeedItem, type LatLng } from "../lib/api";
+import {
+  followUser,
+  getFeed,
+  getFeedFollowing,
+  getFollowing,
+  searchPlaces,
+  unfollowUser,
+  type FeedItem,
+  type LatLng,
+} from "../lib/api";
 import { DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { useUserLocation } from "../location/LocationProvider";
 
@@ -43,13 +52,29 @@ export function DiscoverPage() {
     enabled: debounced?.length > 0,
   });
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
+  const { data: followingIds = [] } = useQuery({
+    queryKey: ["following"],
+    queryFn: getFollowing,
+    staleTime: Infinity,
+  });
+
+  const forYou = useInfiniteQuery({
     queryKey: ["feed", at],
     queryFn: ({ pageParam }) => getFeed(at, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor,
   });
-  const items = data?.pages.flatMap((p) => p.items) ?? [];
+  const followingFeed = useInfiniteQuery({
+    queryKey: ["feed-following", at],
+    queryFn: ({ pageParam }) => getFeedFollowing(at, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.next_cursor,
+    enabled: tab === "following",
+  });
+
+  const active = tab === "following" ? followingFeed : forYou;
+  const { fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = active;
+  const items = active.data?.pages.flatMap((p) => p.items) ?? [];
 
   // Infinite scroll sentinel.
   const observer = useRef<IntersectionObserver | null>(null);
@@ -127,11 +152,7 @@ export function DiscoverPage() {
             ))}
           </div>
 
-          {tab === "following" ? (
-        <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-          Tính năng theo dõi sẽ có ở bản sau.
-        </p>
-      ) : isLoading ? (
+          {isLoading ? (
         <>
           {Array.from({ length: 3 }).map((_, i) => (
             <FeedCardSkeleton key={i} />
@@ -139,7 +160,9 @@ export function DiscoverPage() {
         </>
       ) : items.length === 0 ? (
         <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-          Chưa có check-in nào quanh đây. Hãy là người cắm cờ đầu tiên!
+          {tab === "following"
+            ? "Chưa theo dõi ai. Bấm ⋮ trên bài check-in để theo dõi."
+            : "Chưa có check-in nào quanh đây. Hãy là người cắm cờ đầu tiên!"}
         </p>
       ) : (
         <>
@@ -148,6 +171,7 @@ export function DiscoverPage() {
               key={it.id}
               item={it}
               mine={user != null && it.author.username === user.username}
+              isFollowing={followingIds.includes(it.user_id)}
               onOpen={() => setSelectedId(it.id)}
             />
           ))}
@@ -188,19 +212,39 @@ function FeedCardSkeleton() {
 function FeedCard({
   item,
   mine,
+  isFollowing,
   onOpen,
 }: {
   item: FeedItem;
   /** The feed item belongs to the signed-in user (delete allowed). */
   mine: boolean;
+  /** The signed-in user already follows this item's author. */
+  isFollowing: boolean;
   onOpen: () => void;
 }) {
   const author = item.author.display_name || item.author.username;
   const distance = formatDistance(item.distance_m);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [following, setFollowing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
   // Card disappears via the feed invalidation the hook performs.
   const { requestDelete, confirming, confirmBox } = useDeleteCheckpoint(item.id);
+
+  async function toggleFollow() {
+    setMenuOpen(false);
+    setFollowing(true);
+    try {
+      if (isFollowing) unfollowUser(item.author.username);
+      else followUser(item.author.username);
+      queryClient.invalidateQueries({ queryKey: ["following"] });
+      queryClient.invalidateQueries({ queryKey: ["feed-following"] });
+    } catch {
+      // best-effort; leave UI as-is on failure
+    } finally {
+      setFollowing(false);
+    }
+  }
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -225,7 +269,7 @@ function FeedCard({
           <p className="font-semibold text-foreground">{author}</p>
           {item.address && <p className="text-xs text-muted-foreground">{item.address}</p>}
         </div>
-        {mine && !confirming && (
+        {!confirming && (
           <div ref={menuRef} className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}
@@ -235,16 +279,34 @@ function FeedCard({
               <MoreVertical size={18} />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    requestDelete();
-                  }}
-                  className="flex w-full items-center gap-2 px-4 py-3 text-sm text-accent-600 hover:bg-accent-50"
-                >
-                  <Trash2 size={16} />
-                </button>
+              <div className="absolute right-0 top-full z-20 mt-1 min-w-40 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+                {mine ? (
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      requestDelete();
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-3 text-sm text-accent-600 hover:bg-accent-50"
+                  >
+                    <Trash2 size={16} /> Xoá check-in
+                  </button>
+                ) : (
+                  <button
+                    onClick={toggleFollow}
+                    disabled={following}
+                    className="flex w-full items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-surface-muted disabled:opacity-50"
+                  >
+                    {isFollowing ? (
+                      <>
+                        <UserMinus size={16} /> Bỏ theo dõi
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus size={16} /> Theo dõi
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             )}
           </div>

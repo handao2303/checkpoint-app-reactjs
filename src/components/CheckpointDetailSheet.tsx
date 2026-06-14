@@ -1,8 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { Trash2 } from "lucide-react";
-import { getCheckpointDetail } from "../lib/api";
+import { getCheckpointDetail, viewCheckpoint } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { useAuth } from "../auth/AuthContext";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
@@ -16,10 +17,22 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
   const { user } = useAuth();
   const { requestDelete, confirming, confirmBox } = useDeleteCheckpoint(id, { onDeleted: onClose });
 
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["checkpoint", id],
     queryFn: () => getCheckpointDetail(id),
   });
+
+  // Count this open as a view, then refetch so the displayed count includes it.
+  useEffect(() => {
+    let cancelled = false;
+    void viewCheckpoint(id).then(() => {
+      if (!cancelled) queryClient.invalidateQueries({ queryKey: ["checkpoint", id] });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, queryClient]);
 
   const isMine = data != null && user != null && data.checkpoint.user_id === user.id;
 
@@ -76,6 +89,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               )}
             </span>
             <XPBadge xp={data.checkpoint.xp_awarded} />
+            <span className="text-xs text-muted-foreground">👁 {data.checkpoint.view_count}</span>
           </div>
           <p className="text-xs text-subtle-foreground">
             {new Date(data.checkpoint.created_at).toLocaleString("vi-VN")}
