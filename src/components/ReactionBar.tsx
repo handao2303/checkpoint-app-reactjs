@@ -1,5 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Icon, type IconName } from "./ui/Icon";
+import { Button } from "./ui/Button";
+import { Sheet } from "./ui/Sheet";
 import { clearReaction, getReactions, setReaction, type ReactionSummary } from "../lib/api";
 import { addReactionNotification } from "../lib/notifications";
 import { useAuth } from "../auth/AuthContext";
@@ -43,6 +47,8 @@ export function ReactionBar({
   checkpointName: string;
 }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const qc = useQueryClient();
   const key = ["reactions", checkpointId];
 
@@ -86,37 +92,54 @@ export function ReactionBar({
   });
 
   function toggle(reaction: string) {
-    if (!user || mutation.isPending) return;
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    if (mutation.isPending) return;
     mutation.mutate(mine === reaction ? null : reaction);
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-      {REACTIONS.map((r) => {
-        const count = data.counts[r.key] ?? 0;
-        const active = mine === r.key;
-        return (
-          <button
-            key={r.key}
-            onClick={() => toggle(r.key)}
-            disabled={!user || mutation.isPending}
-            aria-pressed={active}
-            aria-label={r.label}
-            className={cn(
-              "flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm transition disabled:opacity-50",
-              active
-                ? `border-current ${r.activeClass} bg-surface-muted font-semibold`
-                : "border-border text-muted-foreground hover:bg-surface-muted",
-            )}
-          >
-            <Icon name={r.icon} size={16} className={active && r.fill ? "fill-current" : undefined} />
-            {count > 0 && <span>{count}</span>}
-          </button>
-        );
-      })}
-      {/* {data.total > 0 && (
-        <span className="ml-auto text-xs text-muted-foreground">{data.total}</span>
-      )} */}
-    </div>
+    <>
+      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+        {REACTIONS.map((r) => {
+          const count = data.counts[r.key] ?? 0;
+          const active = mine === r.key;
+          return (
+            <button
+              key={r.key}
+              onClick={() => toggle(r.key)}
+              disabled={mutation.isPending}
+              aria-pressed={active}
+              aria-label={r.label}
+              className={cn(
+                "flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm transition disabled:opacity-50 cursor-pointer",
+                active
+                  ? `border-current ${r.activeClass} bg-surface-muted font-semibold`
+                  : "border-border text-muted-foreground hover:bg-surface-muted",
+              )}
+            >
+              <Icon name={r.icon} size={16} className={active && r.fill ? "fill-current" : undefined} />
+              {count > 0 && <span>{count}</span>}
+            </button>
+          );
+        })}
+        {/* {data.total > 0 && (
+          <span className="ml-auto text-xs text-muted-foreground">{data.total}</span>
+        )} */}
+      </div>
+
+      {showLoginPrompt && (
+        <Sheet title="Đăng nhập để sử dụng tính năng" onClose={() => setShowLoginPrompt(false)}>
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">
+              Đăng nhập để thả cảm xúc và sử dụng đầy đủ các tính năng của Checkpoint.
+            </p>
+            <Button onClick={() => navigate("/login")}>Đăng nhập</Button>
+          </div>
+        </Sheet>
+      )}
+    </>
   );
 }

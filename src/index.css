@@ -161,6 +161,8 @@
   html, body, #root {
     height: 100%;
     overflow: hidden;
+    /* Stop iOS rubber-band from revealing a white gap behind the app shell. */
+    overscroll-behavior: none;
   }
   * {
     border-color: var(--border);

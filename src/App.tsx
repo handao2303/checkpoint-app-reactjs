@@ -11,6 +11,8 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { CheckpointLink, JourneyLink, UserProfileLink } from "./pages/LinkRoutes";
 import { MapSkeleton } from "./components/MapSkeleton";
+import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
+import { InstallHint } from "./components/InstallHint";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
 import { quickCheckinSettings } from "./lib/settings";
 
@@ -49,10 +51,21 @@ export default function App() {
 
   if (loading) return <Splash />;
 
+  // Global overlays (SW update toast + iOS install hint) rendered in both the
+  // anonymous and signed-in trees.
+  const overlays = (
+    <>
+      <PWAUpdatePrompt />
+      <InstallHint />
+    </>
+  );
+
   // Anonymous visitors: public Discover + shared pages (/c, /j, /u) render in a
   // minimal layout; everything else routes to login.
   if (!user) {
     return (
+      <>
+        {overlays}
       <Routes>
         <Route element={<PublicShareLayout />}>
           <Route index element={<Navigate to="/discover" replace />} />
@@ -64,10 +77,13 @@ export default function App() {
         <Route path="login" element={<LoginPage />} />
         <Route path="*" element={<Navigate to="/discover" replace />} />
       </Routes>
+      </>
     );
   }
 
   return (
+    <>
+      {overlays}
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<Suspense fallback={<MapSkeleton />}><MapPage /></Suspense>} />
@@ -85,5 +101,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    </>
   );
 }

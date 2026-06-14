@@ -17,6 +17,16 @@ const AUTO_ASK_DISMISSED_KEY = "cp.geo.autoAskDismissed";
 
 export type Coords = { lat: number; lng: number };
 
+/** Thrown when the page isn't a secure context. iOS Safari silently refuses to
+ *  even show the geolocation prompt over plain http:// (a LAN IP / non-HTTPS
+ *  tunnel) — this surfaces that as an actionable reason instead of a dead end. */
+export const ERR_INSECURE = "insecure-context";
+
+/** Geolocation needs a secure context (HTTPS, or localhost). */
+export function isGeolocationSecure(): boolean {
+  return typeof window !== "undefined" && window.isSecureContext;
+}
+
 export function markLocated(): void {
   try {
     localStorage.setItem(LOCATED_KEY, "1");
@@ -57,6 +67,10 @@ export function getCurrentCoords(
   opts: PositionOptions = { enableHighAccuracy: true, timeout: 10000 },
 ): Promise<Coords> {
   return new Promise((resolve, reject) => {
+    if (!isGeolocationSecure()) {
+      reject(new Error(ERR_INSECURE));
+      return;
+    }
     if (!navigator.geolocation) {
       reject(new Error("geolocation unsupported"));
       return;

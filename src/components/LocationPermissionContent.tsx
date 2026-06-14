@@ -1,23 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "./ui/Icon";
 import { Button } from "./ui/Button";
-import { getCurrentCoords } from "../lib/geo";
-
-type Platform = "ios" | "android" | "desktop";
-
-function getPlatform(): Platform {
-  const ua = navigator.userAgent;
-  if (/iphone|ipad|ipod/i.test(ua)) return "ios";
-  if (/android/i.test(ua)) return "android";
-  return "desktop";
-}
-
-function isStandalone(): boolean {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as unknown as { standalone?: boolean }).standalone === true
-  );
-}
+import { ERR_INSECURE, getCurrentCoords, isGeolocationSecure } from "../lib/geo";
+import { getPlatform, isStandalone } from "../lib/platform";
 
 /** Platform- and install-mode-specific steps to re-enable a blocked location
  *  permission (there is no web API to open these settings programmatically). */
@@ -90,9 +75,14 @@ export function LocationPermissionContent({
         setBusy(false);
         onGranted(coords);
       },
-      (err: GeolocationPositionError) => {
+      (err: GeolocationPositionError | Error) => {
         setBusy(false);
-        if (err.code === err.PERMISSION_DENIED) setState("denied");
+        // Non-secure origin: iOS won't even show the prompt — explain why.
+        if (err instanceof Error && err.message === ERR_INSECURE) {
+          setError("Định vị cần kết nối an toàn (HTTPS). Hãy mở app qua đường dẫn https://…");
+          return;
+        }
+        if ("code" in err && err.code === err.PERMISSION_DENIED) setState("denied");
         else setError("Không lấy được vị trí. Vui lòng thử lại.");
       },
     );
@@ -122,6 +112,7 @@ export function LocationPermissionContent({
   }, [fetchPosition]);
 
   const denied = state === "denied";
+  const insecure = !isGeolocationSecure();
 
   return (
     <div className="flex flex-col items-center gap-3 text-center">
@@ -150,8 +141,18 @@ export function LocationPermissionContent({
             Checkpoint cần vị trí của bạn để cắm cờ đúng nơi bạn đang đứng. Vị trí chỉ dùng cho lần
             check-in này.
           </p>
+          {insecure && (
+            <p className="text-sm text-accent-600">
+              Trình duyệt chỉ cho phép định vị qua HTTPS. Hãy mở app bằng đường dẫn https://…
+            </p>
+          )}
           {error && <p className="text-sm text-accent-600">{error}</p>}
-          <Button className="w-full" disabled={busy} icon={<Icon name="map-pin" size={20} />} onClick={fetchPosition}>
+          <Button
+            className="w-full"
+            disabled={busy || insecure}
+            icon={<Icon name="map-pin" size={20} />}
+            onClick={fetchPosition}
+          >
             {busy ? "Đang lấy vị trí..." : "Cho phép định vị"}
           </Button>
         </>

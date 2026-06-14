@@ -29,8 +29,17 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
-      includeAssets: ["pin.svg", "apple-touch-icon.png"],
+      // "prompt" + a visible refresh affordance (PWAUpdatePrompt) so iOS users,
+      // whose Safari caches hard and only re-checks the SW on relaunch, can take
+      // a new deploy without reinstalling.
+      registerType: "prompt",
+      // We register the SW ourselves in PWAUpdatePrompt (virtual:pwa-register),
+      // so don't also auto-inject a registration script.
+      injectRegister: false,
+      includeAssets: ["pin.svg"],
+      // Generate iOS/Android icons + iOS splash screens and inject their <link>
+      // tags (see pwa-assets.config.ts).
+      pwaAssets: { config: true },
       workbox: {
         // Drop the previous precache and take control immediately after a deploy
         // so clients stop requesting old (now-missing) chunk hashes. This only

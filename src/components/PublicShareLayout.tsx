@@ -26,7 +26,7 @@ export function PublicShareLayout() {
           </Link>
         </header>
 
-        <main ref={setScrollEl} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <main ref={setScrollEl} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
           <ScrollContainerContext.Provider value={scrollEl}>
             <Outlet />
           </ScrollContainerContext.Provider>
