@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { MapPin } from "lucide-react";
+import { Icon } from "./ui/Icon";
 import { getPassport } from "../lib/api";
 import { Skeleton } from "./ui/Skeleton";
 
@@ -13,7 +13,9 @@ export function PassportSection() {
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="font-display text-lg font-bold">🛂 Hộ chiếu</h3>
+        <h3 className="flex items-center gap-2 font-display text-lg font-bold">
+          <Icon name="passport" size={20} className="text-primary" /> Hộ chiếu
+        </h3>
         {data && data.province_count > 0 && (
           <span className="text-sm text-muted-foreground">{data.province_count} tỉnh thành</span>
         )}
@@ -46,12 +48,14 @@ export function PassportSection() {
                 <img src={s.cover_url} alt="" className="h-24 w-full object-cover" />
               ) : (
                 <div className="flex h-24 w-full items-center justify-center bg-[image:var(--gradient-passport)] text-white">
-                  <MapPin size={24} />
+                  <Icon name="map-pin" size={24} />
                 </div>
               )}
               <div className="p-2">
                 <p className="truncate font-semibold text-foreground">{s.province}</p>
-                <p className="text-xs text-muted-foreground">🚩 {s.checkin_count} lần</p>
+                <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Icon name="flag" size={12} /> {s.checkin_count} lần
+                </p>
               </div>
             </div>
           ))}

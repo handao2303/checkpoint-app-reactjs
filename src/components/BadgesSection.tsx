@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "./ui/Card";
+import { Icon } from "./ui/Icon";
+import { BadgeMedal } from "./BadgeMedal";
 import { getBadges } from "../lib/api";
 import { Skeleton } from "./ui/Skeleton";
 
@@ -11,7 +13,9 @@ export function BadgesSection() {
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="font-display text-lg font-bold">🏅 Huy hiệu</h3>
+        <h3 className="flex items-center gap-2 font-display text-lg font-bold">
+          <Icon name="award" size={20} className="text-gold" /> Huy hiệu
+        </h3>
         {badges?.length > 0 && (
           <span className="text-sm text-muted-foreground">
             {unlocked}/{badges.length}
@@ -35,16 +39,10 @@ export function BadgesSection() {
             <Card
               key={b.key}
               className={`flex flex-col items-center gap-2 py-4 text-center ${
-                b.awarded ? "" : "opacity-60"
+                b.awarded ? "" : "opacity-70"
               }`}
             >
-              <span
-                className={`flex h-12 w-12 items-center justify-center rounded-full text-2xl ${
-                  b.awarded ? "bg-primary-50" : "bg-surface-muted grayscale"
-                }`}
-              >
-                {b.awarded ? b.icon : "🔒"}
-              </span>
+              <BadgeMedal badge={b} awarded={b.awarded} />
               <p className="text-sm font-medium">{b.name}</p>
               <p className="text-xs text-muted-foreground">{b.description}</p>
             </Card>

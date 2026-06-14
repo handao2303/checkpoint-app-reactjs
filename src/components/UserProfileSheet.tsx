@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { UserMinus, UserPlus } from "lucide-react";
+import { Icon } from "./ui/Icon";
 import { useAuth } from "../auth/AuthContext";
 import {
   followUser,
@@ -107,7 +107,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
             <Button
               variant={isFollowing ? "outline" : "primary"}
               disabled={busy}
-              icon={isFollowing ? <UserMinus size={18} /> : <UserPlus size={18} />}
+              icon={isFollowing ? <Icon name="user-minus" size={18} /> : <Icon name="user-plus" size={18} />}
               onClick={toggleFollow}
             >
               {isFollowing ? "Đang theo dõi" : "Theo dõi"}
@@ -137,7 +137,11 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                       <ImagePlaceholder
                         key={cp.id}
                         className="h-28"
-                        label={`${categoryIcon(cp.category)} ${cp.name}`}
+                        label={
+                          <span className="flex items-center gap-1">
+                            <Icon name={categoryIcon(cp.category)} size={16} /> {cp.name}
+                          </span>
+                        }
                       />
                     ),
                   )}
@@ -166,7 +170,11 @@ function MomentCaption({ cp }: { cp?: Checkpoint }) {
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] bg-gradient-to-t from-black/80 to-transparent p-4 pb-8 text-center text-white">
       <p className="font-display text-lg font-bold">{cp.name}</p>
       {cp.note && <p className="text-sm">{cp.note}</p>}
-      {cp.address && <p className="mt-0.5 text-xs opacity-80">📍 {cp.address}</p>}
+      {cp.address && (
+        <p className="mt-0.5 flex items-center justify-center gap-1 text-xs opacity-80">
+          <Icon name="map-pin" size={12} /> {cp.address}
+        </p>
+      )}
     </div>
   );
 }

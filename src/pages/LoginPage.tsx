@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Mail } from "lucide-react";
+import { Icon } from "../components/ui/Icon";
 import { useAuth } from "../auth/AuthContext";
 import { authErrorMessage } from "../lib/authErrors";
 import { Button } from "../components/ui/Button";
@@ -57,7 +57,7 @@ export function LoginPage() {
           className="rounded-full border border-border bg-surface px-5 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         {error && <p className="px-2 text-sm text-accent-600">{error}</p>}
-        <Button type="submit" size="lg" disabled={busy} icon={<Mail size={20} />}>
+        <Button type="submit" size="lg" disabled={busy} icon={<Icon name="mail" size={20} />}>
           {busy ? "Đang xử lý..." : mode === "signin" ? "Đăng nhập" : "Đăng ký"}
         </Button>
       </form>

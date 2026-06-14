@@ -1,4 +1,4 @@
-import { ImageUp } from "lucide-react";
+import { Icon } from "./ui/Icon";
 import { useRef, useState } from "react";
 import { extractGPS } from "../lib/exif";
 import { CreateCheckpointForm } from "./CreateCheckpointForm";
@@ -70,7 +70,7 @@ export function PhotoCheckinTab({
             onClick={() => fileRef.current?.click()}
             className="flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-border p-8 text-center transition hover:border-primary/50 hover:bg-surface-muted"
           >
-            <ImageUp size={36} className="text-muted-foreground" />
+            <Icon name="image-up" size={36} className="text-muted-foreground" />
             <div className="flex flex-col gap-1">
               <span className="font-semibold">Chọn ảnh có tọa độ GPS</span>
               <span className="text-sm text-muted-foreground">

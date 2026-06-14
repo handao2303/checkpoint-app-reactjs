@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { MapPin } from "lucide-react";
+import { Icon } from "./ui/Icon";
 import { Button } from "./ui/Button";
 import { getCurrentCoords } from "../lib/geo";
 
@@ -126,7 +126,7 @@ export function LocationPermissionContent({
   return (
     <div className="flex flex-col items-center gap-3 text-center">
       <span className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-50 text-primary">
-        <MapPin size={32} />
+        <Icon name="map-pin" size={32} />
       </span>
       <h2 className="font-display text-lg font-bold">
         {denied ? "Vị trí đang bị chặn" : "Cho phép định vị"}
@@ -151,7 +151,7 @@ export function LocationPermissionContent({
             check-in này.
           </p>
           {error && <p className="text-sm text-accent-600">{error}</p>}
-          <Button className="w-full" disabled={busy} icon={<MapPin size={20} />} onClick={fetchPosition}>
+          <Button className="w-full" disabled={busy} icon={<Icon name="map-pin" size={20} />} onClick={fetchPosition}>
             {busy ? "Đang lấy vị trí..." : "Cho phép định vị"}
           </Button>
         </>

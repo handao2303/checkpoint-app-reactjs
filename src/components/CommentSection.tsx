@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Send, Trash2 } from "lucide-react";
+import { Icon } from "./ui/Icon";
 import { useCallback, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
@@ -101,7 +101,7 @@ export function CommentSection({ checkpointId }: { checkpointId: string }) {
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
             aria-label="Gửi"
           >
-            <Send size={16} />
+            <Icon name="send" size={16} />
           </button>
         </form>
       )}
@@ -170,7 +170,7 @@ function CommentRow({
           className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-surface-muted hover:text-accent-600"
           aria-label="Xoá bình luận"
         >
-          <Trash2 size={14} />
+          <Icon name="trash" size={14} />
         </button>
       )}
     </div>

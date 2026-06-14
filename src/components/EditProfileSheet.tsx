@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Camera } from "lucide-react";
+import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
 import { Button } from "./ui/Button";
 import { useAuth } from "../auth/AuthContext";
@@ -98,7 +98,7 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
               <span className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-border bg-surface-muted" />
             )}
             <span className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md">
-              <Camera size={16} />
+              <Icon name="camera" size={16} />
             </span>
           </button>
           <span className="text-xs text-muted-foreground">

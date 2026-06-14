@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Flag, Image as ImageIcon, X, Camera, Luggage } from "lucide-react";
+import { Icon } from "./ui/Icon";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { getMyJourneys, getNearbyPlaces, getUploadSlots, putFilesToSlots } from "../lib/api";
@@ -258,7 +258,7 @@ export function CreateCheckpointForm({
       {activeJourneys.length > 0 && (
         <label className="flex flex-col gap-1.5">
           <span className="flex items-center gap-1.5 text-sm font-semibold text-secondary">
-            <Luggage size={16} /> Ghi vào hành trình
+            <Icon name="luggage" size={16} /> Ghi vào hành trình
           </span>
           <select
             value={effectiveJourneyId ?? ""}
@@ -296,11 +296,11 @@ export function CreateCheckpointForm({
             type="button"
             onClick={() => setCategory(c.key)}
             className={cn(
-              "rounded-full px-3 py-1.5 text-sm font-medium",
+              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium",
               category === c.key ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground",
             )}
           >
-            {c.icon} {c.label}
+            <Icon name={c.icon} size={16} /> {c.label}
           </button>
         ))}
       </div>
@@ -320,10 +320,10 @@ export function CreateCheckpointForm({
             key={n}
             type="button"
             onClick={() => setRating(n === rating ? undefined : n)}
-            className={cn("text-2xl", rating && n <= rating ? "opacity-100" : "opacity-30")}
+            className={cn(rating && n <= rating ? "opacity-100" : "opacity-30")}
             aria-label={`${n} sao`}
           >
-            ⭐
+            <Icon name="star" size={28} className="fill-gold text-gold" />
           </button>
         ))}
       </div>
@@ -341,7 +341,7 @@ export function CreateCheckpointForm({
                 className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent-500 text-white shadow"
                 aria-label="Xóa ảnh"
               >
-                <X size={14} />
+                <Icon name="x" size={14} />
               </button>
             </div>
           ))}
@@ -359,10 +359,10 @@ export function CreateCheckpointForm({
             {processing ? (
               <span className="text-xs">Đang xử lý…</span>
             ) : usePwaCamera ? (
-              <Camera size={24} />
+              <Icon name="camera" size={24} />
             ) : (
               <>
-                <ImageIcon size={22} />
+                <Icon name="image" size={22} />
                 <span className="text-xs font-medium">Chọn ảnh</span>
               </>
             )}
@@ -384,7 +384,7 @@ export function CreateCheckpointForm({
 
       {err && <p className="text-sm text-accent-600">{err}</p>}
 
-      <Button type="submit" variant="accent" disabled={busy || processing || !picked.length} icon={<Flag size={20} />}>
+      <Button type="submit" variant="accent" disabled={busy || processing || !picked.length} icon={<Icon name="flag" size={20} />}>
         {busy ? "Đang lưu..." : "CẮM CỜ"}
       </Button>
       {cameraOpen && (

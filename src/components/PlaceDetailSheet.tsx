@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { Star, MapPin, Flag } from "lucide-react";
+import { Icon } from "./ui/Icon";
 import { getPlace } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { Sheet } from "./ui/Sheet";
@@ -42,25 +42,27 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
           )}
 
           <div className="flex items-center gap-2">
-            <span className="text-2xl">{categoryIcon(data.place.category)}</span>
+            <Icon name={categoryIcon(data.place.category)} size={24} className="text-muted-foreground" />
             <h2 className="font-display text-xl font-bold">{data.place.name}</h2>
           </div>
 
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             {data.avg_rating != null && (
               <span className="flex items-center gap-1">
-                <Star size={16} className="fill-gold text-gold" /> {data.avg_rating.toFixed(1)}
+                <Icon name="star" size={16} className="fill-gold text-gold" /> {data.avg_rating.toFixed(1)}
               </span>
             )}
-            <span>🚩 {data.place.checkin_count} lượt cắm cờ</span>
+            <span className="flex items-center gap-1">
+              <Icon name="flag" size={14} /> {data.place.checkin_count} lượt cắm cờ
+            </span>
           </div>
           {data.place.address && (
             <p className="flex items-center gap-1 text-sm text-muted-foreground">
-              <MapPin size={14} /> {data.place.address}
+              <Icon name="map-pin" size={14} /> {data.place.address}
             </p>
           )}
 
-          <Button icon={<Flag size={20} />} onClick={() => setCheckingIn(true)}>
+          <Button icon={<Icon name="flag" size={20} />} onClick={() => setCheckingIn(true)}>
             Cắm cờ tại đây
           </Button>
 
@@ -73,7 +75,11 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
                     <span className="font-semibold text-foreground">
                       {r.author.display_name || r.author.username}
                     </span>
-                    {r.rating != null && <span>⭐ {r.rating}</span>}
+                    {r.rating != null && (
+                      <span className="flex items-center gap-1">
+                        <Icon name="star" size={14} className="fill-gold text-gold" /> {r.rating}
+                      </span>
+                    )}
                   </div>
                   <p>{r.note}</p>
                 </div>

@@ -6,6 +6,7 @@ import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { getJourney, type JourneyStop } from "../lib/api";
 import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
+import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 import { ShareButton } from "./share/ShareButton";
@@ -120,7 +121,7 @@ export function JourneyDetailSheet({
                     onClick={() => onOpenCheckpoint?.(s.id)}
                     className="flex items-center gap-2 text-left text-sm"
                   >
-                    <span className="text-lg">{categoryIcon(s.category)}</span>
+                    <Icon name={categoryIcon(s.category)} size={18} className="text-muted-foreground" />
                     <span className="flex-1 font-medium">{s.name}</span>
                     <span className="text-xs text-subtle-foreground">
                       {new Date(s.created_at).toLocaleDateString("vi-VN")}
@@ -167,7 +168,11 @@ function StopPhotoStack({ stop }: { stop: JourneyStop }) {
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] bg-gradient-to-t from-black/80 to-transparent p-4 pb-8 text-center text-white">
       <p className="font-display text-lg font-bold">{stop.name}</p>
       {stop.note && <p className="text-sm">{stop.note}</p>}
-      {stop.address && <p className="mt-0.5 text-xs opacity-80">📍 {stop.address}</p>}
+      {stop.address && (
+        <p className="mt-0.5 flex items-center justify-center gap-1 text-xs opacity-80">
+          <Icon name="map-pin" size={12} /> {stop.address}
+        </p>
+      )}
     </div>
   );
 

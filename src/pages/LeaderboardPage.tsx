@@ -1,12 +1,25 @@
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getLeaderboard, type LeaderboardEntry } from "../lib/api";
+import { Icon, type IconName } from "../components/ui/Icon";
 import { XPBadge } from "../components/ui/Chip";
 import { Skeleton } from "../components/ui/Skeleton";
+import { UserProfileSheet } from "../components/UserProfileSheet";
 
-const MEDALS = ["🥇", "🥈", "🥉"];
+// Rank 1–3 get a colored medal icon; everyone else shows "#N".
+const MEDALS: { name: IconName; className: string }[] = [
+  { name: "medal", className: "text-gold" },
+  { name: "medal", className: "text-slate-400" },
+  { name: "medal", className: "text-amber-700" },
+];
 
-function rankLabel(rank: number): string {
-  return MEDALS[rank - 1] ?? `#${rank}`;
+function rankLabel(rank: number): ReactNode {
+  const medal = MEDALS[rank - 1];
+  return medal ? (
+    <Icon name={medal.name} size={24} className={`mx-auto ${medal.className}`} />
+  ) : (
+    `#${rank}`
+  );
 }
 
 export function LeaderboardPage() {
@@ -14,10 +27,13 @@ export function LeaderboardPage() {
   const entries = data?.entries ?? [];
   const me = data?.me;
   const meInTop = me != null && entries.some((e) => e.user_id === me.user_id);
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <h1 className="font-display text-2xl font-bold text-clay-600">🏆 Bảng xếp hạng</h1>
+      <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-clay-600">
+        <Icon name="trophy" size={26} className="text-gold" /> Bảng xếp hạng
+      </h1>
 
       {isLoading ? (
         <div className="flex flex-col gap-2">
@@ -40,27 +56,46 @@ export function LeaderboardPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {entries.map((e) => (
-            <Row key={e.user_id} entry={e} highlight={e.user_id === me?.user_id} />
+            <Row
+              key={e.user_id}
+              entry={e}
+              highlight={e.user_id === me?.user_id}
+              onOpen={() => setProfileUsername(e.username)}
+            />
           ))}
 
           {/* Pin the caller's row at the bottom if they're outside the top list. */}
           {me && !meInTop && (
             <>
               <p className="pt-2 text-center text-xs text-muted-foreground">• • •</p>
-              <Row entry={me} highlight />
+              <Row entry={me} highlight onOpen={() => setProfileUsername(me.username)} />
             </>
           )}
         </div>
+      )}
+
+      {profileUsername && (
+        <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
       )}
     </div>
   );
 }
 
-function Row({ entry, highlight }: { entry: LeaderboardEntry; highlight: boolean }) {
+function Row({
+  entry,
+  highlight,
+  onOpen,
+}: {
+  entry: LeaderboardEntry;
+  highlight: boolean;
+  onOpen: () => void;
+}) {
   const name = entry.display_name || entry.username;
   return (
-    <div
-      className={`flex items-center gap-3 rounded-xl p-3 ${
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`flex w-full items-center gap-3 rounded-xl p-3 text-left transition hover:brightness-95 active:scale-[0.99] ${
         highlight ? "bg-primary-50 ring-1 ring-primary" : "bg-surface shadow-card"
       }`}
     >
@@ -77,6 +112,6 @@ function Row({ entry, highlight }: { entry: LeaderboardEntry; highlight: boolean
         <p className="text-xs text-muted-foreground">Cấp {entry.level}</p>
       </div>
       <XPBadge xp={entry.total_xp} />
-    </div>
+    </button>
   );
 }

@@ -1,4 +1,4 @@
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "../../lib/cn";
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
@@ -16,7 +16,7 @@ export function ImagePlaceholder({
   label,
 }: {
   className?: string;
-  label?: string;
+  label?: ReactNode;
 }) {
   return (
     <div

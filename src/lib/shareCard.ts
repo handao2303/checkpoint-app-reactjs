@@ -4,7 +4,7 @@
 // vanished on iPhone. Canvas2D drawImage works everywhere.
 
 import QRCode from "qrcode";
-import { categoryIcon } from "./maps";
+import { categoryEmoji } from "./maps";
 
 const W = 540;
 const PAD = 32;
@@ -419,7 +419,7 @@ export function renderCheckpointCard(data: {
       PRIMARY,
       [
         photos(imgs),
-        header({ emoji: categoryIcon(data.category), title: data.name, subtitle: data.address ? `📍 ${data.address}` : undefined }),
+        header({ emoji: categoryEmoji(data.category), title: data.name, subtitle: data.address ? `📍 ${data.address}` : undefined }),
         data.note ? quote(data.note) : null,
         footer({ left: `+${data.xp} XP`, center: `bởi ${data.author}`, right: data.date }),
       ],

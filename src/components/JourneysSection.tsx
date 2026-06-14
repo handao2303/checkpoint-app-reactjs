@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Route, Plus, Square, Flag } from "lucide-react";
+import { Icon } from "./ui/Icon";
 import { getMyJourneys, createJourney, updateJourney, type Journey } from "../lib/api";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -67,13 +67,13 @@ export function JourneysSection() {
           {activeJourneys.map((active) => (
             <div key={active.id} className="flex items-center gap-3 rounded-xl bg-green-50 p-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-green-700 text-white">
-                <Route size={18} />
+                <Icon name="route" size={18} />
               </span>
               <div className="flex-1">
                 <p className="text-xs text-green-700">Đang đi</p>
                 <p className="font-semibold text-foreground">{active.title}</p>
               </div>
-              <Button size="sm" variant="outline" icon={<Square size={14} />} disabled={busy} onClick={() => end(active)}>
+              <Button size="sm" variant="outline" icon={<Icon name="square" size={14} />} disabled={busy} onClick={() => end(active)}>
                 Kết thúc
               </Button>
             </div>
@@ -83,7 +83,7 @@ export function JourneysSection() {
 
       {journeys.length === 0 ? (
         <Card className="flex flex-col items-center gap-2 py-6 text-center text-sm text-muted-foreground">
-          <Plus size={24} />
+          <Icon name="plus" size={24} />
           Chưa có hành trình. Bấm "Bắt đầu" rồi check-in để gom thành chuyến đi.
         </Card>
       ) : (
@@ -95,7 +95,7 @@ export function JourneysSection() {
               className="flex items-center gap-3 rounded-xl bg-surface p-3 text-left shadow-card"
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-50 text-primary">
-                <Route size={20} />
+                <Icon name="route" size={20} />
               </span>
               <div className="flex-1">
                 <p className="font-semibold text-foreground">{j.title}</p>
@@ -127,7 +127,7 @@ export function JourneysSection() {
               placeholder="Mô tả (tùy chọn)"
               className="resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
-            <Button type="submit" disabled={busy} icon={<Flag size={20} />}>
+            <Button type="submit" disabled={busy} icon={<Icon name="flag" size={20} />}>
               {busy ? "Đang tạo..." : "Bắt đầu"}
             </Button>
             <p className="text-center text-xs text-muted-foreground">

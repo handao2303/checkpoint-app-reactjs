@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Share2 } from "lucide-react";
+import { Icon } from "../ui/Icon";
 import { Button } from "../ui/Button";
 import { shareImageBlob } from "../../lib/share";
 
@@ -34,7 +34,7 @@ export function ShareButton({
   };
 
   return (
-    <Button variant="green" icon={<Share2 size={20} />} disabled={busy} onClick={onShare}>
+    <Button variant="green" icon={<Icon name="share" size={20} />} disabled={busy} onClick={onShare}>
       {busy ? "Đang tạo ảnh..." : label}
     </Button>
   );

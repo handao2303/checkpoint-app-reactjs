@@ -2,12 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { Trash2 } from "lucide-react";
+import { Icon } from "./ui/Icon";
 import { getCheckpointDetail, viewCheckpoint } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { useAuth } from "../auth/AuthContext";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
 import { CommentSection } from "./CommentSection";
+import { ReactionBar } from "./ReactionBar";
 import { UserProfileSheet } from "./UserProfileSheet";
 import { Sheet } from "./ui/Sheet";
 import { XPBadge } from "./ui/Chip";
@@ -63,16 +64,20 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
           )}
 
           <div className="flex items-center gap-2">
-            <span className="text-2xl">{categoryIcon(data.checkpoint.category)}</span>
+            <Icon name={categoryIcon(data.checkpoint.category)} size={24} className="text-muted-foreground" />
             <h2 className="font-display text-xl font-bold">{data.checkpoint.name}</h2>
           </div>
 
           {data.checkpoint.rating != null && (
-            <p className="text-sm">⭐ {data.checkpoint.rating}/5</p>
+            <p className="flex items-center gap-1 text-sm">
+              <Icon name="star" size={16} className="fill-gold text-gold" /> {data.checkpoint.rating}/5
+            </p>
           )}
           {data.checkpoint.note && <p className="text-sm text-foreground">{data.checkpoint.note}</p>}
           {data.checkpoint.address && (
-            <p className="text-sm text-muted-foreground">📍 {data.checkpoint.address}</p>
+            <p className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Icon name="map-pin" size={14} /> {data.checkpoint.address}
+            </p>
           )}
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -94,7 +99,9 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               </span>
             </button>
             <XPBadge xp={data.checkpoint.xp_awarded} />
-            <span className="text-xs text-muted-foreground">👁 {data.checkpoint.view_count}</span>
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Icon name="eye" size={14} /> {data.checkpoint.view_count}
+            </span>
           </div>
           <p className="text-xs text-subtle-foreground">
             {new Date(data.checkpoint.created_at).toLocaleString("vi-VN")}
@@ -120,6 +127,8 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
             }
           />
 
+          <ReactionBar checkpointId={id} />
+
           <CommentSection checkpointId={id} />
 
           {/* Delete — owner only. Hard delete: XP is taken back, photos removed. */}
@@ -131,7 +140,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                 onClick={requestDelete}
                 className="flex items-center justify-center gap-2 rounded-full py-2 text-sm font-semibold text-accent-600 hover:bg-accent-50"
               >
-                <Trash2 size={16} /> Xoá check-in
+                <Icon name="trash" size={16} /> Xoá check-in
               </button>
             ))}
         </div>

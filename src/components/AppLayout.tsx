@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import { Bell } from "lucide-react";
+import { Icon } from "./ui/Icon";
 import { BottomNav } from "./BottomNav";
 import { LocationProvider } from "../location/LocationProvider";
 import { CheckinQueueProvider } from "../context/CheckinQueue";
@@ -18,7 +18,7 @@ export function AppLayout() {
               className="rounded-full p-2 text-clay-600 hover:bg-surface-muted"
               aria-label="Thông báo"
             >
-              <Bell size={22} />
+              <Icon name="bell" size={22} />
             </button>
           </header>
 

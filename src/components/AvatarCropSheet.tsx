@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Cropper, { type Area, type Point } from "react-easy-crop";
-import { Check, ZoomIn, ZoomOut } from "lucide-react";
+import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
 import { Button } from "./ui/Button";
 
@@ -163,7 +163,7 @@ export function AvatarCropSheet({
 
         {/* Zoom slider */}
         <div className="flex items-center gap-3 px-2">
-          <ZoomOut size={18} className="text-muted-foreground shrink-0" />
+          <Icon name="zoom-out" size={18} className="text-muted-foreground shrink-0" />
           <input
             type="range"
             min={1}
@@ -174,14 +174,14 @@ export function AvatarCropSheet({
             className="h-2 flex-1 appearance-none rounded-full bg-surface-muted accent-primary"
             aria-label="Zoom"
           />
-          <ZoomIn size={18} className="text-muted-foreground shrink-0" />
+          <Icon name="zoom-in" size={18} className="text-muted-foreground shrink-0" />
         </div>
 
         {/* Actions */}
         <Button
           onClick={handleDone}
           disabled={processing}
-          icon={processing ? undefined : <Check size={18} />}
+          icon={processing ? undefined : <Icon name="check" size={18} />}
           className="w-full"
         >
           {processing ? "Đang xử lý..." : "Xong"}

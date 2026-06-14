@@ -305,7 +305,10 @@ export interface CheckpointDetail {
 export interface Badge {
   key: string;
   name: string;
+  /** Key into the SVG icon registry (see components/ui/Icon). */
   icon: string;
+  /** Palette token for the medallion (see components/BadgeMedal). */
+  color: string;
   description: string;
 }
 
@@ -525,6 +528,40 @@ export async function viewCheckpoint(id: string): Promise<void> {
   } catch {
     // vanity metric — ignore
   }
+}
+
+// ---- Reactions ----
+
+/** Reaction state for a checkpoint: per-type counts, total, and the caller's
+ *  own reaction (null when they haven't reacted). Keys match the SVG icon set. */
+export interface ReactionSummary {
+  counts: Record<string, number>;
+  total: number;
+  mine?: string | null;
+}
+
+export async function getReactions(id: string): Promise<ReactionSummary> {
+  const res = await apiFetch(`/checkpoints/${id}/reactions`);
+  if (!isSuccessful(res)) throw new Error("load reactions failed");
+  return res.data;
+}
+
+/** Set (or switch) the caller's reaction on a checkpoint. */
+export async function setReaction(id: string, reaction: string): Promise<ReactionSummary> {
+  const res = await apiFetch(`/checkpoints/${id}/reaction`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reaction }),
+  });
+  if (!isSuccessful(res)) throw new Error(`set reaction failed: ${res.status}`);
+  return res.data;
+}
+
+/** Clear the caller's reaction on a checkpoint. */
+export async function clearReaction(id: string): Promise<ReactionSummary> {
+  const res = await apiFetch(`/checkpoints/${id}/reaction`, { method: "DELETE" });
+  if (!isSuccessful(res)) throw new Error(`clear reaction failed: ${res.status}`);
+  return res.data;
 }
 
 export async function searchPlaces(q: string, near?: LatLng): Promise<Place[]> {

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
-import { X, SwitchCamera, Image as ImageIcon } from "lucide-react";
-
+import { Icon } from "./ui/Icon";
 type Facing = "user" | "environment";
 type CameraDevice = { info: MediaDeviceInfo; facing?: Facing };
 
@@ -412,7 +411,7 @@ export function CameraCaptureSheet({
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pb-2 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] text-white">
         <button type="button" onClick={onClose} aria-label="Đóng" className="p-1">
-          <X size={26} />
+          <Icon name="x" size={26} />
         </button>
         <span className="text-sm font-semibold tabular-nums text-white/80">
           {shots.length}/{maxCount}
@@ -443,7 +442,7 @@ export function CameraCaptureSheet({
         <div className={mode === "preview" ? "hidden" : "h-full w-full"}>
           {error ? (
             <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center text-white">
-              <ImageIcon size={40} className="opacity-70" />
+              <Icon name="image" size={40} className="opacity-70" />
               <p className="text-sm text-white/80">
                 Không mở được camera. Hãy chọn ảnh từ thư viện.
               </p>
@@ -553,13 +552,13 @@ export function CameraCaptureSheet({
             {phonePwa ? (
               <span className="flex min-w-16 flex-col items-center gap-1 text-xs font-medium">
                 <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15">
-                  <ImageIcon size={24} />
+                  <Icon name="image" size={24} />
                 </span>
                 Thư viện
               </span>
             ) : (
               <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">
-                <ImageIcon size={24} />
+                <Icon name="image" size={24} />
               </span>
             )}
           </button>
@@ -580,7 +579,7 @@ export function CameraCaptureSheet({
             aria-label="Lật camera trước sau"
             className="flex h-12 w-12 items-center justify-center justify-self-end rounded-full bg-white/15 text-white"
           >
-            <SwitchCamera size={24} />
+            <Icon name="switch-camera" size={24} />
           </button>
         </div>
       )}

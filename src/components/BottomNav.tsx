@@ -1,27 +1,27 @@
 import { NavLink } from "react-router-dom";
-import { Map, Compass, PlusCircle, Trophy, User, type LucideIcon } from "lucide-react";
+import { Icon, type IconName } from "./ui/Icon";
 import { cn } from "../lib/cn";
 
 type Tab = {
   to: string;
   label: string;
-  Icon: LucideIcon;
+  icon: IconName;
   tone: "primary" | "green";
 };
 
 const tabs: Tab[] = [
-  { to: "/", label: "Map", Icon: Map, tone: "primary" },
-  { to: "/discover", label: "Discover", Icon: Compass, tone: "primary" },
-  { to: "/create", label: "Create", Icon: PlusCircle, tone: "primary" },
-  { to: "/leaderboard", label: "Bảng XH", Icon: Trophy, tone: "primary" },
-  { to: "/profile", label: "Profile", Icon: User, tone: "primary" },
+  { to: "/", label: "Map", icon: "map", tone: "primary" },
+  { to: "/discover", label: "Discover", icon: "compass", tone: "primary" },
+  { to: "/create", label: "Create", icon: "plus-circle", tone: "primary" },
+  { to: "/leaderboard", label: "Bảng XH", icon: "trophy", tone: "primary" },
+  { to: "/profile", label: "Profile", icon: "user", tone: "primary" },
 ];
 
 export function BottomNav() {
   return (
     <nav className="sticky bottom-0 z-20 border-t border-border bg-surface/95 backdrop-blur">
       <ul className="mx-auto flex max-w-md items-center justify-around px-2 pb-[env(safe-area-inset-bottom)] pt-2">
-        {tabs.map(({ to, label, Icon, tone }) => (
+        {tabs.map(({ to, label, icon, tone }) => (
           <li key={to}>
             <NavLink
               to={to}
@@ -40,7 +40,7 @@ export function BottomNav() {
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <Icon size={22} strokeWidth={isActive ? 2.4 : 2} />
+                  <Icon name={icon} size={22} strokeWidth={isActive ? 2.4 : 2} />
                   {label}
                 </span>
               )}

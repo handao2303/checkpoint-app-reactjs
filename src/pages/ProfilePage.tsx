@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Camera, ChevronDown, LogOut, Pencil, Settings, Trophy } from "lucide-react";
+import { Icon } from "../components/ui/Icon";
 import { useQuery } from "@tanstack/react-query";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
@@ -64,7 +64,11 @@ function MomentCaption({ cp }: { cp?: Checkpoint }) {
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] bg-gradient-to-t from-black/80 to-transparent p-4 pb-8 text-center text-white">
       <p className="font-display text-lg font-bold">{cp.name}</p>
       {cp.note && <p className="text-sm">{cp.note}</p>}
-      {cp.address && <p className="mt-0.5 text-xs opacity-80">📍 {cp.address}</p>}
+      {cp.address && (
+        <p className="mt-0.5 flex items-center justify-center gap-1 text-xs opacity-80">
+          <Icon name="map-pin" size={12} /> {cp.address}
+        </p>
+      )}
     </div>
   );
 }
@@ -107,7 +111,7 @@ export function ProfilePage() {
           className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
           aria-label="Sửa hồ sơ"
         >
-          <Pencil size={16} />
+          <Icon name="pencil" size={16} />
         </button>
         <div className="flex flex-col items-center gap-2">
           {user.avatar_url ? (
@@ -163,7 +167,7 @@ export function ProfilePage() {
         className="flex items-center gap-3 rounded-xl bg-surface p-4 shadow-card"
       >
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold/15 text-gold">
-          <Trophy size={20} />
+          <Icon name="trophy" size={20} />
         </span>
         <div className="flex-1">
           <p className="font-semibold text-foreground">Bảng xếp hạng</p>
@@ -180,9 +184,9 @@ export function ProfilePage() {
           onClick={() => setSettingsOpen((open) => !open)}
           className="flex w-full items-center gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Settings size={18} className="text-clay-600" />
+          <Icon name="settings" size={18} className="text-clay-600" />
           <h3 className="flex-1 font-display text-lg font-bold">Cài đặt</h3>
-          <ChevronDown
+          <Icon name="chevron-down"
             size={18}
             className={`text-muted-foreground transition-transform ${settingsOpen ? "rotate-180" : ""}`}
           />
@@ -226,7 +230,7 @@ export function ProfilePage() {
             aria-label="Cắm cờ khoảnh khắc mới"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition hover:brightness-105 active:scale-95"
           >
-            <Camera size={18} />
+            <Icon name="camera" size={18} />
           </button>
         </div>
         {momentsLoading ? (
@@ -255,7 +259,11 @@ export function ProfilePage() {
                   <ImagePlaceholder
                     key={cp.id}
                     className="h-28"
-                    label={`${categoryIcon(cp.category)} ${cp.name}`}
+                    label={
+                      <span className="flex items-center gap-1">
+                        <Icon name={categoryIcon(cp.category)} size={16} /> {cp.name}
+                      </span>
+                    }
                   />
                 ),
               )}
@@ -282,7 +290,7 @@ export function ProfilePage() {
           })
         }
       />
-      <Button size="lg" variant="outline" icon={<LogOut size={20} />} onClick={signOut}>
+      <Button size="lg" variant="outline" icon={<Icon name="log-out" size={20} />} onClick={signOut}>
         Đăng xuất
       </Button>
 

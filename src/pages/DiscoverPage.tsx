@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPin, MoreVertical, Star, Trash2, UserMinus, UserPlus } from "lucide-react";
+import { Icon } from "../components/ui/Icon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
@@ -120,12 +120,14 @@ export function DiscoverPage() {
                 onClick={() => setPlaceId(p.id)}
                 className="flex items-center gap-3 rounded-xl bg-surface p-3 text-left shadow-card"
               >
-                <span className="text-2xl">{categoryIcon(p.category)}</span>
+                <Icon name={categoryIcon(p.category)} size={24} className="text-muted-foreground" />
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">{p.name}</p>
                   {p.address && <p className="text-xs text-muted-foreground">{p.address}</p>}
                 </div>
-                <span className="text-xs text-muted-foreground">🚩 {p.checkin_count}</span>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Icon name="flag" size={12} /> {p.checkin_count}
+                </span>
               </button>
             ))}
           </div>
@@ -289,7 +291,7 @@ function FeedCard({
               className="rounded-full p-2 text-muted-foreground hover:bg-surface-muted"
               aria-label="Tùy chọn"
             >
-              <MoreVertical size={18} />
+              <Icon name="more-vertical" size={18} />
             </button>
             {menuOpen && (
               <div className="absolute right-0 top-full z-20 mt-1 min-w-40 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
@@ -301,7 +303,7 @@ function FeedCard({
                     }}
                     className="flex w-full items-center gap-2 px-4 py-3 text-sm text-accent-600 hover:bg-accent-50"
                   >
-                    <Trash2 size={16} /> Xoá check-in
+                    <Icon name="trash" size={16} /> Xoá check-in
                   </button>
                 ) : (
                   <button
@@ -311,11 +313,11 @@ function FeedCard({
                   >
                     {isFollowing ? (
                       <>
-                        <UserMinus size={16} /> Bỏ theo dõi
+                        <Icon name="user-minus" size={16} /> Bỏ theo dõi
                       </>
                     ) : (
                       <>
-                        <UserPlus size={16} /> Theo dõi
+                        <Icon name="user-plus" size={16} /> Theo dõi
                       </>
                     )}
                   </button>
@@ -335,7 +337,7 @@ function FeedCard({
           <ImagePlaceholder className="h-56 w-full rounded-none" label={item.name} />
         )}
         <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-surface/90 px-3 py-1 text-xs font-semibold text-clay-600">
-          <MapPin size={14} /> {categoryIcon(item.category)} {item.name}
+          <Icon name={categoryIcon(item.category)} size={14} /> {item.name}
         </span>
         <span className="absolute bottom-3 right-3">
           <XPBadge xp={item.xp_awarded} />
@@ -345,12 +347,12 @@ function FeedCard({
       <div className="flex items-center gap-3 px-4 text-sm text-muted-foreground">
         {item.rating != null && (
           <span className="flex items-center gap-1">
-            <Star size={16} className="fill-gold text-gold" /> {item.rating}/5
+            <Icon name="star" size={16} className="fill-gold text-gold" /> {item.rating}/5
           </span>
         )}
         {distance && (
           <span className="flex items-center gap-1">
-            <MapPin size={14} /> cách {distance}
+            <Icon name="map-pin" size={14} /> cách {distance}
           </span>
         )}
         <span className="ml-auto text-xs">{new Date(item.created_at).toLocaleDateString("vi-VN")}</span>

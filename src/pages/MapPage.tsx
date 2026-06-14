@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { MapPin, X } from "lucide-react";
+import { Icon } from "../components/ui/Icon";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -204,8 +204,8 @@ export function MapPage() {
                   className="h-10 w-10 -translate-y-1 cursor-pointer rounded-full object-cover shadow-md ring-2 ring-white transition-transform hover:scale-110 active:scale-95"
                 />
               ) : (
-                <div className="flex h-9 w-9 -translate-y-1 cursor-pointer items-center justify-center rounded-full bg-primary text-base shadow-md ring-2 ring-white transition-transform hover:scale-110 active:scale-95">
-                  {categoryIcon(cp.category)}
+                <div className="flex h-9 w-9 -translate-y-1 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-white transition-transform hover:scale-110 active:scale-95">
+                  <Icon name={categoryIcon(cp.category)} size={18} />
                 </div>
               )}
             </Marker>
@@ -239,7 +239,7 @@ export function MapPage() {
       <Button
         size="lg"
         className="absolute inset-x-4 bottom-4 mx-auto max-w-md"
-        icon={<MapPin size={22} />}
+        icon={<Icon name="map-pin" size={22} />}
         onClick={start}
       >
         CHECK-IN
@@ -292,7 +292,7 @@ function ClusterSheet({
               {checkpoints.length} địa điểm
             </h2>
             <button onClick={onClose} className="rounded-full p-1 text-muted-foreground hover:bg-surface-muted">
-              <X size={18} />
+              <Icon name="x" size={18} />
             </button>
           </div>
         </div>
@@ -313,19 +313,23 @@ function ClusterSheet({
                     className="h-14 w-14 shrink-0 rounded-xl object-cover"
                   />
                 ) : (
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-surface-muted text-2xl">
-                    {categoryIcon(cp.category)}
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-surface-muted text-muted-foreground">
+                    <Icon name={categoryIcon(cp.category)} size={24} />
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-foreground">{cp.name}</p>
                   <p className="flex items-center gap-2 truncate text-xs text-muted-foreground">
                     {cp.rating != null ? (
-                      <span>⭐ {cp.rating}/5</span>
+                      <span className="flex items-center gap-1">
+                        <Icon name="star" size={12} className="fill-gold text-gold" /> {cp.rating}/5
+                      </span>
                     ) : cp.address ? (
                       <span className="truncate">{cp.address}</span>
                     ) : null}
-                    <span className="shrink-0">👁 {cp.view_count}</span>
+                    <span className="flex shrink-0 items-center gap-1">
+                      <Icon name="eye" size={12} /> {cp.view_count}
+                    </span>
                   </p>
                 </div>
               </button>
