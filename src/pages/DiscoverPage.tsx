@@ -235,8 +235,8 @@ function FeedCard({
     setMenuOpen(false);
     setFollowing(true);
     try {
-      if (isFollowing) unfollowUser(item.author.username);
-      else followUser(item.author.username);
+      if (isFollowing) await unfollowUser(item.author.username);
+      else await followUser(item.author.username);
       queryClient.invalidateQueries({ queryKey: ["following"] });
       queryClient.invalidateQueries({ queryKey: ["feed-following"] });
     } catch {
