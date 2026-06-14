@@ -278,6 +278,7 @@ export function ProfilePage() {
             totalXp: user.total_xp,
             checkpointCount: user.checkpoint_count,
             journeyCount: user.journey_count,
+            url: `${window.location.origin}/u/${user.username}`,
           })
         }
       />

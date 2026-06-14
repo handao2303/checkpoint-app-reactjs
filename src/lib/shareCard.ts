@@ -3,6 +3,7 @@
 // the SVG <foreignObject> that html-to-image relies on as BLANK — so photos
 // vanished on iPhone. Canvas2D drawImage works everywhere.
 
+import QRCode from "qrcode";
 import { categoryIcon } from "./maps";
 
 const W = 540;
@@ -30,6 +31,20 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
 async function loadImages(urls: string[]): Promise<HTMLImageElement[]> {
   const imgs = await Promise.all(urls.map(loadImage));
   return imgs.filter((i): i is HTMLImageElement => i !== null);
+}
+
+async function generateQR(url: string): Promise<HTMLCanvasElement | null> {
+  try {
+    const canvas = document.createElement("canvas");
+    await QRCode.toCanvas(canvas, url, {
+      width: 72,
+      margin: 1,
+      color: { dark: "#1a1a1a", light: "#ffffff" },
+    });
+    return canvas;
+  } catch {
+    return null;
+  }
 }
 
 async function ensureFonts() {
@@ -297,8 +312,14 @@ function centerText(text: string): Block {
   };
 }
 
-async function render(gradient: [string, string], blocks: (Block | null)[]): Promise<Blob | null> {
+const QR_SIZE = 72;
+const QR_ROW_H = QR_SIZE + 24; // 12px top margin + 12px bottom margin
+
+async function render(gradient: [string, string], blocks: (Block | null)[], qrUrl?: string): Promise<Blob | null> {
   await ensureFonts();
+
+  const qrImg = qrUrl ? await generateQR(qrUrl) : null;
+
   const list = blocks.filter((b): b is Block => b !== null);
   const contentW = W - PAD * 2;
 
@@ -307,7 +328,12 @@ async function render(gradient: [string, string], blocks: (Block | null)[]): Pro
   if (!measureCtx) return null;
   const wordmarkH = 36;
   const heights = list.map((b) => b.measure(measureCtx, contentW));
-  const total = PAD + wordmarkH + GAP + heights.reduce((a, h) => a + h, 0) + GAP * list.length + PAD;
+  const total =
+    PAD + wordmarkH + GAP +
+    heights.reduce((a, h) => a + h, 0) +
+    GAP * list.length +
+    (qrImg ? QR_ROW_H : 0) +
+    PAD;
 
   // Real canvas.
   const canvas = document.createElement("canvas");
@@ -343,6 +369,34 @@ async function render(gradient: [string, string], blocks: (Block | null)[]): Pro
     y += heights[i] + GAP;
   });
 
+  // QR row at the bottom.
+  if (qrImg) {
+    // Divider line.
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD, y);
+    ctx.lineTo(W - PAD, y);
+    ctx.stroke();
+
+    const rowY = y + 12;
+    const qrX = W - PAD - QR_SIZE;
+
+    // White rounded bg for QR.
+    ctx.fillStyle = "rgba(255,255,255,0.96)";
+    roundRect(ctx, qrX - 5, rowY - 5, QR_SIZE + 10, QR_SIZE + 10, 10);
+    ctx.fill();
+    ctx.drawImage(qrImg, qrX, rowY, QR_SIZE, QR_SIZE);
+
+    // "Quét để xem" label on the left.
+    ctx.font = font(600, 14);
+    ctx.fillStyle = "#fff";
+    ctx.fillText("Quét để xem", PAD, rowY + QR_SIZE / 2 - 18);
+    ctx.font = font(500, 13);
+    ctx.fillStyle = "rgba(255,255,255,0.75)";
+    ctx.fillText("trên Checkpoint", PAD, rowY + QR_SIZE / 2 + 2);
+  }
+
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
 }
 
@@ -357,15 +411,20 @@ export function renderCheckpointCard(data: {
   author: string;
   date: string;
   imageUrls?: string[];
+  url?: string;
 }): Promise<Blob | null> {
   const images = [data.imageUrls?.[0]].filter((u): u is string => !!u);
   return loadImages(images).then((imgs) =>
-    render(PRIMARY, [
-      photos(imgs),
-      header({ emoji: categoryIcon(data.category), title: data.name, subtitle: data.address ? `📍 ${data.address}` : undefined }),
-      data.note ? quote(data.note) : null,
-      footer({ left: `+${data.xp} XP`, center: `bởi ${data.author}`, right: data.date }),
-    ]),
+    render(
+      PRIMARY,
+      [
+        photos(imgs),
+        header({ emoji: categoryIcon(data.category), title: data.name, subtitle: data.address ? `📍 ${data.address}` : undefined }),
+        data.note ? quote(data.note) : null,
+        footer({ left: `+${data.xp} XP`, center: `bởi ${data.author}`, right: data.date }),
+      ],
+      data.url,
+    ),
   );
 }
 
@@ -376,18 +435,23 @@ export function renderJourneyCard(data: {
   distanceKm: number;
   date: string;
   imageUrls?: string[];
+  url?: string;
 }): Promise<Blob | null> {
   return loadImages(data.imageUrls ?? []).then((imgs) =>
-    render(PASSPORT, [
-      photos(imgs),
-      header({ emoji: "🧳", title: data.title, subtitle: "Hành trình" }),
-      stats([
-        { label: "Check-in", value: String(data.count) },
-        { label: "XP", value: String(data.xp) },
-        { label: "Km", value: data.distanceKm.toFixed(1) },
-      ]),
-      footer({ right: data.date }),
-    ]),
+    render(
+      PASSPORT,
+      [
+        photos(imgs),
+        header({ emoji: "🧳", title: data.title, subtitle: "Hành trình" }),
+        stats([
+          { label: "Check-in", value: String(data.count) },
+          { label: "XP", value: String(data.xp) },
+          { label: "Km", value: data.distanceKm.toFixed(1) },
+        ]),
+        footer({ right: data.date }),
+      ],
+      data.url,
+    ),
   );
 }
 
@@ -398,14 +462,19 @@ export function renderProfileCard(data: {
   totalXp: number;
   checkpointCount: number;
   journeyCount: number;
+  url?: string;
 }): Promise<Blob | null> {
-  return render(PASSPORT, [
-    header({ initial: (data.name[0] ?? "?").toUpperCase(), title: data.name, subtitle: `@${data.username}`, badge: `Lv ${data.level}` }),
-    stats([
-      { label: "Tổng XP", value: data.totalXp.toLocaleString() },
-      { label: "Số cờ", value: String(data.checkpointCount) },
-      { label: "Hành trình", value: String(data.journeyCount) },
-    ]),
-    centerText("Hộ chiếu du lịch của tôi 🛂"),
-  ]);
+  return render(
+    PASSPORT,
+    [
+      header({ initial: (data.name[0] ?? "?").toUpperCase(), title: data.name, subtitle: `@${data.username}`, badge: `Lv ${data.level}` }),
+      stats([
+        { label: "Tổng XP", value: data.totalXp.toLocaleString() },
+        { label: "Số cờ", value: String(data.checkpointCount) },
+        { label: "Hành trình", value: String(data.journeyCount) },
+      ]),
+      centerText("Hộ chiếu du lịch của tôi 🛂"),
+    ],
+    data.url,
+  );
 }
