@@ -235,7 +235,7 @@ function FeedCard({
               <MoreVertical size={18} />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-full z-20 mt-1 min-w-[140px] overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+              <div className="absolute right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
                 <button
                   onClick={() => {
                     setMenuOpen(false);
