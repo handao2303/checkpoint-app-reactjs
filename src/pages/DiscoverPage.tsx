@@ -138,36 +138,37 @@ export function DiscoverPage() {
   }, [scrollEl]);
 
   return (
-    <div
-      className={`relative flex flex-col gap-4 ${isPulling ? "" : "transition-transform duration-200 ease-out"}`}
-      style={{ transform: `translateY(${pullDistance}px)` }}
-    >
-      {(pullDistance > 0 || isRefreshing) && (
-        <div
-          className="absolute inset-x-0 top-0 flex -translate-y-full items-center justify-center gap-2 pb-3 text-sm font-medium text-muted-foreground"
-          aria-live="polite"
-        >
-          {isRefreshing ? (
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-primary" />
-          ) : (
-            <Icon
-              name="chevron-down"
-              size={20}
-              className="transition-transform"
-              style={{ transform: `rotate(${pullProgress * 180}deg)` }}
-            />
-          )}
-          <span>
-            {isRefreshing
-              ? "Đang làm mới..."
-              : isReady
-                ? "Thả để làm mới"
-                : "Kéo xuống để làm mới"}
-          </span>
-        </div>
-      )}
+    <>
+      <div
+        className={`relative flex flex-col gap-4 ${isPulling ? "" : "transition-transform duration-200 ease-out"}`}
+        style={{ transform: `translateY(${pullDistance}px)` }}
+      >
+        {(pullDistance > 0 || isRefreshing) && (
+          <div
+            className="absolute inset-x-0 top-0 flex -translate-y-full items-center justify-center gap-2 pb-3 text-sm font-medium text-muted-foreground"
+            aria-live="polite"
+          >
+            {isRefreshing ? (
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-primary" />
+            ) : (
+              <Icon
+                name="chevron-down"
+                size={20}
+                className="transition-transform"
+                style={{ transform: `rotate(${pullProgress * 180}deg)` }}
+              />
+            )}
+            <span>
+              {isRefreshing
+                ? "Đang làm mới..."
+                : isReady
+                  ? "Thả để làm mới"
+                  : "Kéo xuống để làm mới"}
+            </span>
+          </div>
+        )}
 
-      {/* <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5">
+        {/* <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5">
         <Search size={18} className="text-muted-foreground" />
         <input
           value={query}
@@ -177,33 +178,33 @@ export function DiscoverPage() {
         />
       </div> */}
 
-      {debounced ? (
-        results?.length === 0 ? (
-          <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-            Không tìm thấy địa điểm “{debounced}”.
-          </p>
+        {debounced ? (
+          results?.length === 0 ? (
+            <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
+              Không tìm thấy địa điểm “{debounced}”.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {results.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setPlaceId(p.id)}
+                  className="flex items-center gap-3 rounded-xl bg-surface p-3 text-left shadow-card"
+                >
+                  <Icon name={categoryIcon(p.category)} size={24} className="text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground">{p.name}</p>
+                    {p.address && <p className="text-xs text-muted-foreground">{p.address}</p>}
+                  </div>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Icon name="flag" size={12} /> {p.checkin_count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )
         ) : (
-          <div className="flex flex-col gap-2">
-            {results.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setPlaceId(p.id)}
-                className="flex items-center gap-3 rounded-xl bg-surface p-3 text-left shadow-card"
-              >
-                <Icon name={categoryIcon(p.category)} size={24} className="text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="font-semibold text-foreground">{p.name}</p>
-                  {p.address && <p className="text-xs text-muted-foreground">{p.address}</p>}
-                </div>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Icon name="flag" size={12} /> {p.checkin_count}
-                </span>
-              </button>
-            ))}
-          </div>
-        )
-      ) : (
-        <>
+          <>
           {/* "Following" tab only for signed-in users; anon sees just "for you". */}
           <div className="flex items-center justify-around border-b border-border">
             {(
@@ -274,8 +275,9 @@ export function DiscoverPage() {
           {isFetchingNextPage && <FeedCardSkeleton />}
         </>
       )}
-        </>
-      )}
+          </>
+        )}
+      </div>
 
       {selectedId && (
         <CheckpointDetailSheet id={selectedId} onClose={() => setSelectedId(null)} />
@@ -299,7 +301,7 @@ export function DiscoverPage() {
           <Icon name="chevron-down" size={22} className="rotate-180" />
         </button>
       )}
-    </div>
+    </>
   );
 }
 
