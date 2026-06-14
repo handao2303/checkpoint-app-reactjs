@@ -55,6 +55,7 @@ export function CreateCheckpointForm({
   place,
   initialFiles,
   onUploaded,
+  onReset,
   maxImages = MAX_IMAGES,
 }: {
   at: { lat: number; lng: number };
@@ -63,6 +64,8 @@ export function CreateCheckpointForm({
   /** Pre-load these files into the image picker on mount (photo check-in flow). */
   initialFiles?: File[];
   onUploaded: () => void;
+  /** Called when all images are removed (e.g. photo check-in flow → back to picker). */
+  onReset?: () => void;
   maxImages?: number;
 }) {
   const { enqueue } = useCheckinQueue();
@@ -110,19 +113,27 @@ export function CreateCheckpointForm({
     [],
   );
 
+  // When all images are removed after having had some (photo check-in), call onReset.
+  const prevPickedLen = useRef(0);
+  useEffect(() => {
+    const prev = prevPickedLen.current;
+    prevPickedLen.current = picked.length;
+    if (picked.length === 0 && prev > 0) onReset?.();
+  }, [picked.length, onReset]);
+
   // Auto-fill name+category from the top Google Places suggestion when it arrives
   // — only for new places and only when the name is still empty.
   const placeSuggestionApplied = useRef(false);
   useEffect(() => {
-    if (placeSuggestionApplied.current || place || !placeSuggestions.length) return;
-    const top = placeSuggestions[0];
-    if (!top.name) return;
+    if (placeSuggestionApplied.current || place) return;
+    const top = placeSuggestions.find((s) => s.name?.trim());
+    if (!top) return; // empty results or all names blank → let Photon fallback handle it
     placeSuggestionApplied.current = true;
     setName((prev) => {
       if (prev !== "") return prev; // user already typed something
       setSuggestionApplied(true);
-      setCategory(top.category);
-      return top.name;
+      setCategory(top.category || "other");
+      return top.name.trim();
     });
   }, [placeSuggestions, place]);
 

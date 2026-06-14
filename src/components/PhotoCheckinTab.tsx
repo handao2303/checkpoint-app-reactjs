@@ -42,6 +42,7 @@ export function PhotoCheckinTab({
           at={formData.gps}
           initialFiles={[formData.file]}
           onUploaded={onUploaded}
+          onReset={() => { setStage("idle"); setFormData(null); }}
           maxImages={1}
         />
       </div>
