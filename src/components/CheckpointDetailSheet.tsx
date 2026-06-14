@@ -110,7 +110,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                 onClick={requestDelete}
                 className="flex items-center justify-center gap-2 rounded-full py-2 text-sm font-semibold text-accent-600 hover:bg-accent-50"
               >
-                <Trash2 size={16} /> Xóa check-in
+                <Trash2 size={16} />
               </button>
             ))}
         </div>

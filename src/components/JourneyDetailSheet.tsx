@@ -96,7 +96,7 @@ export function JourneyDetailSheet({
                 )}
                 {stops.map((s, i) => (
                   <Marker key={s.id} longitude={s.lng} latitude={s.lat} anchor="center">
-                    {s.images?.length > 0 ? (
+                    {s.image_url ? (
                       <StopPhotoStack stop={s} />
                     ) : (
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground ring-2 ring-white">
@@ -147,7 +147,7 @@ export function JourneyDetailSheet({
                   date: new Date(
                     data.journey.started_at ?? data.journey.created_at,
                   ).toLocaleDateString("vi-VN"),
-                  imageUrls: stops.flatMap((s) => s.images),
+                  imageUrls: stops.map((s) => s.image_url).filter(Boolean) as string[],
                   url: `${window.location.origin}/j/${data.journey.id}`,
                 })
               }
@@ -159,13 +159,9 @@ export function JourneyDetailSheet({
   );
 }
 
-/** Photos for one journey stop, shown on its map marker as stacked "cards".
- *  Up to 2 visible, a "+N" placeholder beyond that. Click → lightbox of this
- *  stop's photos, captioned with name/note/address. */
+/** Cover photo for one journey stop, shown as a small rotated card. */
 function StopPhotoStack({ stop }: { stop: JourneyStop }) {
-  const imgs = stop.images;
-  const visible = imgs.slice(0, 2);
-  const extra = imgs.length - 2;
+  if (!stop.image_url) return null;
 
   const caption = (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] bg-gradient-to-t from-black/80 to-transparent p-4 pb-8 text-center text-white">
@@ -175,32 +171,16 @@ function StopPhotoStack({ stop }: { stop: JourneyStop }) {
     </div>
   );
 
-  const card = "absolute h-10 w-10 rounded-md border-2 border-white object-cover shadow-md";
-  const rotations = ["-rotate-6", "rotate-3"];
-
   return (
     <PhotoProvider overlayRender={() => caption}>
       <div className="relative h-12 w-12 translate-y-1.5">
-        {visible.map((url, i) => (
-          <PhotoView key={i} src={url}>
-            <img src={stop.thumbnail_images?.[i] ?? url} alt="" className={`${card} cursor-zoom-in ${rotations[i]}`} style={{ zIndex: i }} />
-          </PhotoView>
-        ))}
-        {extra > 0 && (
-          <PhotoView src={imgs[2]}>
-            <div
-              className={`${card} flex items-center justify-center bg-clay-700 text-xs font-bold text-white`}
-              style={{ zIndex: 5, transform: "rotate(8deg)" }}
-            >
-              +{extra}
-            </div>
-          </PhotoView>
-        )}
-        {imgs.slice(3).map((url, i) => (
-          <PhotoView key={`h${i}`} src={url}>
-            <span className="hidden" />
-          </PhotoView>
-        ))}
+        <PhotoView src={stop.image_url}>
+          <img
+            src={stop.thumbnail_url ?? stop.image_url}
+            alt=""
+            className="absolute h-10 w-10 -rotate-6 cursor-zoom-in rounded-md border-2 border-white object-cover shadow-md"
+          />
+        </PhotoView>
       </div>
     </PhotoProvider>
   );

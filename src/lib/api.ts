@@ -523,8 +523,8 @@ export interface JourneyStop {
   lat: number;
   lng: number;
   place_id?: string;
-  images: string[];
-  thumbnail_images?: string[];
+  image_url?: string;
+  thumbnail_url?: string;
   created_at: string;
 }
 

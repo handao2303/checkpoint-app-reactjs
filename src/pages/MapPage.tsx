@@ -1,22 +1,34 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Map, { Marker, GeolocateControl, NavigationControl } from "react-map-gl/maplibre";
-import type { Map as MapLibreMap } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { MapPin, X } from "lucide-react";
+import type { Map as MapLibreMap } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Map, { GeolocateControl, Marker, NavigationControl } from "react-map-gl/maplibre";
 import Supercluster from "supercluster";
-import { getCheckpointsInBounds, getMyCheckpoints, type Bounds, type Checkpoint } from "../lib/api";
-import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
-import { Button } from "../components/ui/Button";
-import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
-import { useCheckin } from "../hooks/useCheckin";
-import { useUserLocation } from "../location/LocationProvider";
-import { MapSkeleton } from "../components/MapSkeleton";
 import { useAuth } from "../auth/AuthContext";
-import { XPBadge } from "../components/ui/Chip";
+import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
+import { MapSkeleton } from "../components/MapSkeleton";
+import { Button } from "../components/ui/Button";
+import { useCheckin } from "../hooks/useCheckin";
+import { getCheckpointsInBounds, type Bounds, type Checkpoint } from "../lib/api";
 import type { Coords } from "../lib/geo";
+import { DEFAULT_VIEW, MAP_STYLE, categoryIcon } from "../lib/maps";
+import { useUserLocation } from "../location/LocationProvider";
 
 type MapFilter = "all" | "following" | "mine";
+
+const LABELS: Record<MapFilter, string> = {
+  all: "Tất cả",
+  following: "Đang follow",
+  mine: "Của tôi",
+};
+
+const getCheckpoints = ( data: Checkpoint[], filter: MapFilter, userId?: string) => {
+  if (filter === "mine") {
+    return data.filter((cp) => cp.user_id === userId);
+  }
+  return data;
+};
 
 export function MapPage() {
   const [bounds, setBounds] = useState<Bounds | null>(null);
@@ -27,7 +39,7 @@ export function MapPage() {
   const [mapFilter, setMapFilter] = useState<MapFilter>("all");
   const { start, sheets } = useCheckin();
   const { coords } = useUserLocation();
-  const { user: _user } = useAuth();
+  const { user } = useAuth();
 
   const mapRef = useRef<MapLibreMap | null>(null);
   const coordsRef = useRef<Coords | null>(null);
@@ -44,20 +56,14 @@ export function MapPage() {
     if (coords && mapRef.current) centerOnUser(mapRef.current, coords);
   }, [coords, centerOnUser]);
 
-  const { data: allCheckpoints = [] } = useQuery({
+  const { data = [] } = useQuery({
     queryKey: ["checkpoints", "bbox", bounds],
     queryFn: () => getCheckpointsInBounds(bounds!),
-    enabled: !!bounds && mapFilter === "all",
+    enabled: !!bounds,
     placeholderData: keepPreviousData,
   });
 
-  const { data: myCheckpoints = [] } = useQuery({
-    queryKey: ["checkpoints", "mine"],
-    queryFn: () => getMyCheckpoints(200),
-    enabled: mapFilter === "mine",
-  });
-
-  const checkpoints: Checkpoint[] = mapFilter === "mine" ? myCheckpoints : allCheckpoints;
+  const checkpoints = getCheckpoints(data, mapFilter, user?.id);
 
   // Build supercluster index and compute clusters for current viewport.
   const { clusters, sc } = useMemo(() => {
@@ -130,6 +136,8 @@ export function MapPage() {
           if (props.cluster) {
             const clusterId = props.cluster_id;
             const count = props.point_count;
+            const leaves = sc.getLeaves(clusterId, 2) as Array<{ properties: Checkpoint }>;
+            const thumbs = leaves.map((l) => l.properties.thumbnail_url).filter(Boolean) as string[];
             return (
               <Marker
                 key={`cluster-${clusterId}`}
@@ -141,10 +149,21 @@ export function MapPage() {
                   handleClusterClick(clusterId);
                 }}
               >
-                <div className="flex cursor-pointer items-center justify-center rounded-full bg-primary shadow-lg ring-2 ring-white transition-transform hover:scale-110 active:scale-95"
-                  style={{ width: Math.min(20 + count * 4, 56), height: Math.min(20 + count * 4, 56) }}
+                <div
+                  className="relative cursor-pointer transition-transform hover:scale-110 active:scale-95"
+                  style={{ width: thumbs.length >= 2 ? 52 : 36, height: 36 }}
                 >
-                  <span className="font-bold text-white" style={{ fontSize: count > 99 ? 11 : count > 9 ? 13 : 15 }}>
+                  {thumbs[1] && (
+                    <img src={thumbs[1]} alt="" className="absolute right-0 top-0 h-9 w-9 rounded-full object-cover shadow ring-2 ring-white" />
+                  )}
+                  {thumbs[0] ? (
+                    <img src={thumbs[0]} alt="" className="absolute left-0 top-0 z-10 h-9 w-9 rounded-full object-cover shadow ring-2 ring-white" />
+                  ) : (
+                    <div className="absolute left-0 top-0 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-primary shadow ring-2 ring-white">
+                      <span className="font-bold text-white text-sm">{count > 99 ? "99+" : count}</span>
+                    </div>
+                  )}
+                  <span className="absolute -bottom-1 -right-1 z-20 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-bold text-white shadow">
                     {count > 99 ? "99+" : count}
                   </span>
                 </div>
@@ -164,9 +183,17 @@ export function MapPage() {
                 setSelectedId(cp.id);
               }}
             >
-              <div className="flex h-9 w-9 -translate-y-1 cursor-pointer items-center justify-center rounded-full bg-primary text-base shadow-md ring-2 ring-white transition-transform hover:scale-110 active:scale-95">
-                {categoryIcon(cp.category)}
-              </div>
+              {cp.thumbnail_url ? (
+                <img
+                  src={cp.thumbnail_url}
+                  alt=""
+                  className="h-10 w-10 -translate-y-1 cursor-pointer rounded-full object-cover shadow-md ring-2 ring-white transition-transform hover:scale-110 active:scale-95"
+                />
+              ) : (
+                <div className="flex h-9 w-9 -translate-y-1 cursor-pointer items-center justify-center rounded-full bg-primary text-base shadow-md ring-2 ring-white transition-transform hover:scale-110 active:scale-95">
+                  {categoryIcon(cp.category)}
+                </div>
+              )}
             </Marker>
           );
         })}
@@ -176,9 +203,9 @@ export function MapPage() {
       <div className="absolute inset-x-4 bottom-20 mx-auto flex max-w-md justify-center gap-2">
         {(
           [
-            ["all", "Tất cả"],
-            ["following", "Đang follow"],
-            ["mine", "Của tôi"],
+            ["all", LABELS.all],
+            ["following", LABELS.following],
+            ["mine", LABELS.mine],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -279,12 +306,12 @@ function ClusterSheet({
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-foreground">{cp.name}</p>
-                  {cp.address && (
+                  {cp.rating != null ? (
+                    <p className="text-xs text-muted-foreground">⭐ {cp.rating}/5</p>
+                  ) : cp.address ? (
                     <p className="truncate text-xs text-muted-foreground">{cp.address}</p>
-                  )}
-                  <p className="mt-0.5 text-xs text-muted-foreground">{categoryIcon(cp.category)} {cp.category}</p>
+                  ) : null}
                 </div>
-                <XPBadge xp={cp.xp_awarded} />
               </button>
             ))}
           </div>
