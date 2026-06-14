@@ -12,7 +12,7 @@ export interface GeoResult {
 /** Resolve lat/lng to an address + province. Returns null on any failure. */
 export async function reverseGeocode(lat: number, lng: number): Promise<GeoResult | null> {
   try {
-    const url = `${BASE}/reverse?lat=${lat.toFixed(6)}&lon=${lng.toFixed(6)}`;
+    const url = `${BASE}/reverse?lat=${lat.toFixed(6)}&lon=${lng.toFixed(6)}&lang=vi`;
     const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;
     const json = await res.json();
