@@ -1,7 +1,8 @@
 import { Suspense, useEffect, useRef } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import { AppLayout } from "./components/AppLayout";
+import { PublicShareLayout } from "./components/PublicShareLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { DiscoverPage } from "./pages/DiscoverPage";
 import { CreatePage } from "./pages/CreatePage";
@@ -48,7 +49,23 @@ export default function App() {
 
   if (loading) return <Splash />;
 
-  if (!user) return <LoginPage />;
+  // Anonymous visitors: public Discover + shared pages (/c, /j, /u) render in a
+  // minimal layout; everything else routes to login.
+  if (!user) {
+    return (
+      <Routes>
+        <Route element={<PublicShareLayout />}>
+          <Route index element={<Navigate to="/discover" replace />} />
+          <Route path="discover" element={<DiscoverPage />} />
+          <Route path="c/:id" element={<CheckpointLink />} />
+          <Route path="j/:id" element={<JourneyLink />} />
+          <Route path="u/:username" element={<UserProfileLink />} />
+        </Route>
+        <Route path="login" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/discover" replace />} />
+      </Routes>
+    );
+  }
 
   return (
     <Routes>
@@ -64,6 +81,8 @@ export default function App() {
         <Route path="c/:id" element={<CheckpointLink />} />
         <Route path="j/:id" element={<JourneyLink />} />
         <Route path="u/:username" element={<UserProfileLink />} />
+        {/* Unknown paths (e.g. /login after signing in) → map. */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

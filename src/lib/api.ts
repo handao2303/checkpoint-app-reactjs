@@ -502,8 +502,10 @@ export async function getFeedFollowing(at: LatLng, cursor?: string): Promise<Fee
 
 // ---- Follow ----
 
-/** Ids of users the caller follows. Returns [] on error. */
+/** Ids of users the caller follows. Returns [] on error or when anonymous
+ *  (no token) — skips the private call to avoid a needless 401/re-auth. */
 export async function getFollowing(): Promise<string[]> {
+  if (!tokens.access) return [];
   const res = await apiFetch("/users/following");
   if (!isSuccessful(res)) return [];
   return res.data.ids ?? [];

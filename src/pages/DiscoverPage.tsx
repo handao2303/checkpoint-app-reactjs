@@ -135,11 +135,12 @@ export function DiscoverPage() {
         )
       ) : (
         <>
+          {/* "Following" tab only for signed-in users; anon sees just "for you". */}
           <div className="flex items-center justify-around border-b border-border">
             {(
               [
                 ["for-you", "Dành cho bạn"],
-                ["following", "Đang theo dõi"],
+                ...(user ? [["following", "Đang theo dõi"] as const] : []),
               ] as const
             ).map(([key, label]) => (
               <button
@@ -294,7 +295,7 @@ function FeedCard({
             {item.address && <p className="truncate text-xs text-muted-foreground">{item.address}</p>}
           </div>
         </button>
-        {!confirming && (
+        {me && !confirming && (
           <div ref={menuRef} className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}
