@@ -168,6 +168,13 @@ export async function getMe(): Promise<User> {
   return res.data as User;
 }
 
+/** Public profile of any user by username. */
+export async function getUserByUsername(username: string): Promise<User> {
+  const res = await apiFetch(`/users/${encodeURIComponent(username)}`);
+  if (!isSuccessful(res)) throw new Error(`load user failed: ${res.status}`);
+  return res.data as User;
+}
+
 /** Update the caller's display name and/or bio. Returns the updated user. */
 export async function updateProfile(patch: {
   display_name?: string;
@@ -361,6 +368,13 @@ export async function getCheckpointDetail(id: string): Promise<CheckpointDetail>
 export async function getMyCheckpoints(limit = 30): Promise<Checkpoint[]> {
   const res = await apiFetch(`/checkpoints/me?limit=${limit}`);
   if (!isSuccessful(res)) throw new Error("load my checkpoints failed");
+  return res.data.checkpoints ?? [];
+}
+
+/** Public list of a user's checkpoints (profile gallery), newest first. */
+export async function getUserCheckpoints(userId: string, limit = 30): Promise<Checkpoint[]> {
+  const res = await apiFetch(`/checkpoints/by-user?user_id=${encodeURIComponent(userId)}&limit=${limit}`);
+  if (!isSuccessful(res)) throw new Error("load user checkpoints failed");
   return res.data.checkpoints ?? [];
 }
 

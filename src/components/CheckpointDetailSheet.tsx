@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { Trash2 } from "lucide-react";
@@ -8,6 +8,7 @@ import { categoryIcon } from "../lib/maps";
 import { useAuth } from "../auth/AuthContext";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
 import { CommentSection } from "./CommentSection";
+import { UserProfileSheet } from "./UserProfileSheet";
 import { Sheet } from "./ui/Sheet";
 import { XPBadge } from "./ui/Chip";
 import { DetailSheetSkeleton } from "./ui/Skeleton";
@@ -19,6 +20,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
   const { requestDelete, confirming, confirmBox } = useDeleteCheckpoint(id, { onDeleted: onClose });
 
   const queryClient = useQueryClient();
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["checkpoint", id],
     queryFn: () => getCheckpointDetail(id),
@@ -38,6 +40,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
   const isMine = data != null && user != null && data.checkpoint.user_id === user.id;
 
   return (
+    <>
     <Sheet onClose={onClose}>
       {isLoading || !data ? (
         <DetailSheetSkeleton />
@@ -73,22 +76,23 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
           )}
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            {data.author.avatar_url ? (
-              <img
-                src={data.author.avatar_url}
-                alt=""
-                className="h-7 w-7 shrink-0 rounded-full object-cover"
-              />
-            ) : (
-              <span className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
-            )}
-            <span className="flex items-baseline gap-1">
-              {data.author.display_name ? (
-                <span className="font-medium text-foreground">{data.author.display_name}</span>
+            <button
+              onClick={() => setProfileUsername(data.author.username)}
+              className="flex items-center gap-2 rounded-full transition hover:opacity-80"
+            >
+              {data.author.avatar_url ? (
+                <img
+                  src={data.author.avatar_url}
+                  alt=""
+                  className="h-7 w-7 shrink-0 rounded-full object-cover"
+                />
               ) : (
-                <span className="font-medium text-foreground">{data.author.username}</span>
+                <span className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
               )}
-            </span>
+              <span className="font-medium text-foreground">
+                {data.author.display_name || data.author.username}
+              </span>
+            </button>
             <XPBadge xp={data.checkpoint.xp_awarded} />
             <span className="text-xs text-muted-foreground">👁 {data.checkpoint.view_count}</span>
           </div>
@@ -133,5 +137,11 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
         </div>
       )}
     </Sheet>
+
+    {/* Author profile — renders after the sheet so it stacks on top. */}
+    {profileUsername && (
+      <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
+    )}
+    </>
   );
 }

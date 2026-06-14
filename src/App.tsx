@@ -8,7 +8,7 @@ import { CreatePage } from "./pages/CreatePage";
 import { AIPlanPage } from "./pages/AIPlanPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
-import { CheckpointLink, JourneyLink } from "./pages/LinkRoutes";
+import { CheckpointLink, JourneyLink, UserProfileLink } from "./pages/LinkRoutes";
 import { MapSkeleton } from "./components/MapSkeleton";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
 import { quickCheckinSettings } from "./lib/settings";
@@ -63,6 +63,7 @@ export default function App() {
             right after signing in. */}
         <Route path="c/:id" element={<CheckpointLink />} />
         <Route path="j/:id" element={<JourneyLink />} />
+        <Route path="u/:username" element={<UserProfileLink />} />
       </Route>
     </Routes>
   );

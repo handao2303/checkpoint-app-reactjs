@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
+import { UserProfileSheet } from "../components/UserProfileSheet";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { XPBadge } from "../components/ui/Chip";
 import { Skeleton } from "../components/ui/Skeleton";
@@ -32,6 +33,7 @@ export function DiscoverPage() {
   const [tab, setTab] = useState<"for-you" | "following">("for-you");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placeId, setPlaceId] = useState<string | null>(null);
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
   const [query, _] = useState("");
   const [debounced, setDebounced] = useState("");
   const { user } = useAuth();
@@ -173,6 +175,7 @@ export function DiscoverPage() {
               mine={user != null && it.author.username === user.username}
               isFollowing={followingIds.includes(it.user_id)}
               onOpen={() => setSelectedId(it.id)}
+              onOpenProfile={setProfileUsername}
             />
           ))}
           <div ref={sentinelRef} className="h-8" />
@@ -186,6 +189,9 @@ export function DiscoverPage() {
         <CheckpointDetailSheet id={selectedId} onClose={() => setSelectedId(null)} />
       )}
       {placeId && <PlaceDetailSheet id={placeId} onClose={() => setPlaceId(null)} />}
+      {profileUsername && (
+        <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
+      )}
     </div>
   );
 }
@@ -214,6 +220,7 @@ function FeedCard({
   mine,
   isFollowing,
   onOpen,
+  onOpenProfile,
 }: {
   item: FeedItem;
   /** The feed item belongs to the signed-in user (delete allowed). */
@@ -221,6 +228,7 @@ function FeedCard({
   /** The signed-in user already follows this item's author. */
   isFollowing: boolean;
   onOpen: () => void;
+  onOpenProfile: (username: string) => void;
 }) {
   const author = item.author.display_name || item.author.username;
   const distance = formatDistance(item.distance_m);
@@ -260,15 +268,20 @@ function FeedCard({
   return (
     <Card className="flex flex-col gap-3 p-0">
       <div className="flex items-center gap-3 px-4 pt-4">
-        {item.author.avatar_url ? (
-          <img src={item.author.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
-        ) : (
-          <span className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
-        )}
-        <div className="flex-1">
-          <p className="font-semibold text-foreground">{author}</p>
-          {item.address && <p className="text-xs text-muted-foreground">{item.address}</p>}
-        </div>
+        <button
+          onClick={() => onOpenProfile(item.author.username)}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-80"
+        >
+          {item.author.avatar_url ? (
+            <img src={item.author.avatar_url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+          ) : (
+            <span className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-semibold text-foreground">{author}</p>
+            {item.address && <p className="truncate text-xs text-muted-foreground">{item.address}</p>}
+          </div>
+        </button>
         {!confirming && (
           <div ref={menuRef} className="relative">
             <button
