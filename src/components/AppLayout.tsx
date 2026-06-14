@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Icon } from "./ui/Icon";
 import { BottomNav } from "./BottomNav";
@@ -6,6 +6,15 @@ import { NotificationSheet } from "./NotificationSheet";
 import { LocationProvider } from "../location/LocationProvider";
 import { CheckinQueueProvider } from "../context/CheckinQueue";
 import { NotificationProvider, useNotifications } from "../context/NotificationProvider";
+
+// The app's single scrolling element is the layout's <main>. Pages reach it via
+// this context (e.g. to drive a virtualizer) since they render behind <Outlet/>.
+const ScrollContainerContext = createContext<HTMLElement | null>(null);
+
+/** The layout's scrolling <main> element, or null before it mounts. */
+export function useScrollContainer() {
+  return useContext(ScrollContainerContext);
+}
 
 function NotificationBell() {
   const { unreadCount } = useNotifications();
@@ -30,6 +39,7 @@ function NotificationBell() {
 }
 
 export function AppLayout() {
+  const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
   return (
     <CheckinQueueProvider>
       <LocationProvider>
@@ -43,8 +53,10 @@ export function AppLayout() {
               <NotificationBell />
             </header>
 
-            <main className="relative min-h-0 flex-1 overflow-y-auto px-4 py-4">
-              <Outlet />
+            <main ref={setScrollEl} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              <ScrollContainerContext.Provider value={scrollEl}>
+                <Outlet />
+              </ScrollContainerContext.Provider>
             </main>
 
             <div className="shrink-0">

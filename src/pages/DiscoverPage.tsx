@@ -1,6 +1,8 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Icon } from "../components/ui/Icon";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useScrollContainer } from "../components/AppLayout";
 import { useAuth } from "../auth/AuthContext";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
@@ -79,22 +81,41 @@ export function DiscoverPage() {
   const { fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = active;
   const items = active.data?.pages.flatMap((p) => p.items) ?? [];
 
-  // Infinite scroll sentinel.
-  const observer = useRef<IntersectionObserver | null>(null);
-  const sentinelRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      observer.current?.disconnect();
-      if (!node) return;
-      observer.current = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
-        },
-        { rootMargin: "300px" },
-      );
-      observer.current.observe(node);
-    },
-    [hasNextPage, isFetchingNextPage, fetchNextPage],
-  );
+  // Virtualize the feed: the app scrolls at the layout's <main>, so the
+  // virtualizer measures against that shared scroll element. Cards have variable
+  // height (optional note/rating/image) → measureElement corrects estimates.
+  const scrollEl = useScrollContainer();
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => scrollEl,
+    estimateSize: () => 420,
+    overscan: 4,
+    scrollMargin,
+    getItemKey: (i) => items[i]?.id ?? i,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
+
+  // The list starts below the tabs header; record that offset (relative to the
+  // position:relative <main>) so virtual rows land in the right place.
+  useLayoutEffect(() => {
+    if (listRef.current) setScrollMargin(listRef.current.offsetTop);
+  }, [scrollEl, tab, items.length]);
+
+  // Infinite loading off the virtualizer: page in more as the last row nears.
+  useEffect(() => {
+    const last = virtualItems.at(-1);
+    if (last && last.index >= items.length - 1 && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [virtualItems, items.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Both tabs share one scroll element — start a freshly-selected feed at the top.
+  useEffect(() => {
+    scrollEl?.scrollTo({ top: 0 });
+  }, [tab, scrollEl]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -172,17 +193,36 @@ export function DiscoverPage() {
         </p>
       ) : (
         <>
-          {items.map((it) => (
-            <FeedCard
-              key={it.id}
-              item={it}
-              mine={user != null && it.author.username === user.username}
-              isFollowing={followingIds.includes(it.user_id)}
-              onOpen={() => setSelectedId(it.id)}
-              onOpenProfile={setProfileUsername}
-            />
-          ))}
-          <div ref={sentinelRef} className="h-8" />
+          <div ref={listRef} style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+            {virtualItems.map((vi) => {
+              const it = items[vi.index];
+              return (
+                <div
+                  key={vi.key}
+                  data-index={vi.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${vi.start - scrollMargin}px)`,
+                  }}
+                >
+                  {/* pb-4 replaces the flex gap (rows are absolutely positioned). */}
+                  <div className="pb-4">
+                    <FeedCard
+                      item={it}
+                      mine={user != null && it.author.username === user.username}
+                      isFollowing={followingIds.includes(it.user_id)}
+                      onOpen={() => setSelectedId(it.id)}
+                      onOpenProfile={setProfileUsername}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
           {isFetchingNextPage && <FeedCardSkeleton />}
         </>
       )}
