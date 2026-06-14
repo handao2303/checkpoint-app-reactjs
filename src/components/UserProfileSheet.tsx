@@ -12,6 +12,7 @@ import {
   unfollowUser,
   type Checkpoint,
 } from "../lib/api";
+import { addFollowNotification } from "../lib/notifications";
 import { categoryIcon } from "../lib/maps";
 import { Button } from "./ui/Button";
 import { Card, ImagePlaceholder } from "./ui/Card";
@@ -47,6 +48,14 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
     try {
       if (isFollowing) await unfollowUser(u.username);
       else await followUser(u.username);
+      if (me) {
+        void addFollowNotification(u.id, isFollowing ? "unfollow" : "follow", {
+          id: me.id,
+          username: me.username,
+          display_name: me.display_name,
+          avatar_url: me.avatar_url,
+        });
+      }
       qc.invalidateQueries({ queryKey: ["following"] });
       qc.invalidateQueries({ queryKey: ["feed-following"] });
     } catch {

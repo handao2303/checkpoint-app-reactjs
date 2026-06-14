@@ -1,24 +1,23 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Icon } from "../components/ui/Icon";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { Card, ImagePlaceholder } from "../components/ui/Card";
-import { Button } from "../components/ui/Button";
 import { useAuth } from "../auth/AuthContext";
-import { UpgradeBanner } from "../components/UpgradeBanner";
-import { JourneysSection } from "../components/JourneysSection";
-import { PassportSection } from "../components/PassportSection";
 import { BadgesSection } from "../components/BadgesSection";
 import { EditProfileSheet } from "../components/EditProfileSheet";
-import { useCheckin } from "../hooks/useCheckin";
-import { Skeleton } from "../components/ui/Skeleton";
+import { JourneysSection } from "../components/JourneysSection";
+import { PassportSection } from "../components/PassportSection";
 import { ShareButton } from "../components/share/ShareButton";
-import { renderProfileCard } from "../lib/shareCard";
+import { Button } from "../components/ui/Button";
+import { Card, ImagePlaceholder } from "../components/ui/Card";
+import { Icon } from "../components/ui/Icon";
+import { Skeleton } from "../components/ui/Skeleton";
+import { UpgradeBanner } from "../components/UpgradeBanner";
+import { useCheckin } from "../hooks/useCheckin";
 import { getMyCheckpoints, type Checkpoint } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { quickCheckinSettings } from "../lib/settings";
+import { renderProfileCard } from "../lib/shareCard";
 
 function SettingSwitch({
   checked,
@@ -160,22 +159,6 @@ export function ProfilePage() {
             : "Bạn đã đạt cấp tối đa! 🏆"}
         </p>
       </Card>
-
-      {/* Leaderboard link */}
-      <Link
-        to="/leaderboard"
-        className="flex items-center gap-3 rounded-xl bg-surface p-4 shadow-card"
-      >
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold/15 text-gold">
-          <Icon name="trophy" size={20} />
-        </span>
-        <div className="flex-1">
-          <p className="font-semibold text-foreground">Bảng xếp hạng</p>
-          <p className="text-xs text-muted-foreground">Xem thứ hạng XP của bạn</p>
-        </div>
-        <span className="text-muted-foreground">›</span>
-      </Link>
-
       <Card>
         <button
           type="button"
@@ -239,7 +222,7 @@ export function ProfilePage() {
               <Skeleton key={i} className="h-28 w-full rounded-lg" />
             ))}
           </div>
-        ) : myCheckpoints.length === 0 ? (
+        ) : myCheckpoints?.length === 0 ? (
           <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
             Chưa có check-in nào. Mở tab Map và cắm cờ địa điểm đầu tiên!
           </p>

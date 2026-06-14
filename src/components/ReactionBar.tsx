@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Icon, type IconName } from "./ui/Icon";
 import { clearReaction, getReactions, setReaction, type ReactionSummary } from "../lib/api";
+import { addReactionNotification } from "../lib/notifications";
 import { useAuth } from "../auth/AuthContext";
 import { cn } from "../lib/cn";
 
@@ -32,7 +33,15 @@ function applyOptimistic(prev: ReactionSummary, next: string | null): ReactionSu
   return { counts, total, mine: next };
 }
 
-export function ReactionBar({ checkpointId }: { checkpointId: string }) {
+export function ReactionBar({
+  checkpointId,
+  ownerUserId,
+  checkpointName,
+}: {
+  checkpointId: string;
+  ownerUserId: string;
+  checkpointName: string;
+}) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const key = ["reactions", checkpointId];
@@ -55,7 +64,24 @@ export function ReactionBar({ checkpointId }: { checkpointId: string }) {
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(key, ctx.prev);
     },
-    onSuccess: (summary) => qc.setQueryData(key, summary),
+    onSuccess: (summary, reaction) => {
+      qc.setQueryData(key, summary);
+      // Notify the owner only when setting/switching a reaction (not clearing).
+      if (reaction && user) {
+        void addReactionNotification(
+          ownerUserId,
+          {
+            id: user.id,
+            username: user.username,
+            display_name: user.display_name,
+            avatar_url: user.avatar_url,
+          },
+          checkpointId,
+          checkpointName,
+          reaction,
+        );
+      }
+    },
     onSettled: () => qc.invalidateQueries({ queryKey: key }),
   });
 
@@ -88,9 +114,9 @@ export function ReactionBar({ checkpointId }: { checkpointId: string }) {
           </button>
         );
       })}
-      {data.total > 0 && (
+      {/* {data.total > 0 && (
         <span className="ml-auto text-xs text-muted-foreground">{data.total}</span>
-      )}
+      )} */}
     </div>
   );
 }

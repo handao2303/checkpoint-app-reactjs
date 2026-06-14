@@ -19,6 +19,7 @@ import {
   type FeedItem,
   type LatLng,
 } from "../lib/api";
+import { addFollowNotification } from "../lib/notifications";
 import { DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { useUserLocation } from "../location/LocationProvider";
 
@@ -108,7 +109,7 @@ export function DiscoverPage() {
       </div> */}
 
       {debounced ? (
-        results.length === 0 ? (
+        results?.length === 0 ? (
           <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
             Không tìm thấy địa điểm “{debounced}”.
           </p>
@@ -162,7 +163,7 @@ export function DiscoverPage() {
             <FeedCardSkeleton key={i} />
           ))}
         </>
-      ) : items.length === 0 ? (
+      ) : items?.length === 0 ? (
         <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
           {tab === "following"
             ? "Chưa theo dõi ai. Bấm ⋮ trên bài check-in để theo dõi."
@@ -234,6 +235,7 @@ function FeedCard({
 }) {
   const author = item.author.display_name || item.author.username;
   const distance = formatDistance(item.distance_m);
+  const { user: me } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [following, setFollowing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -247,6 +249,14 @@ function FeedCard({
     try {
       if (isFollowing) await unfollowUser(item.author.username);
       else await followUser(item.author.username);
+      if (me) {
+        void addFollowNotification(item.user_id, isFollowing ? "unfollow" : "follow", {
+          id: me.id,
+          username: me.username,
+          display_name: me.display_name,
+          avatar_url: me.avatar_url,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["following"] });
       queryClient.invalidateQueries({ queryKey: ["feed-following"] });
     } catch {

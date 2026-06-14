@@ -9,9 +9,18 @@ import {
   getCommentCount,
   type Comment,
 } from "../lib/comments";
+import { addCommentNotification } from "../lib/notifications";
 import { Skeleton } from "./ui/Skeleton";
 
-export function CommentSection({ checkpointId }: { checkpointId: string }) {
+export function CommentSection({
+  checkpointId,
+  ownerUserId,
+  checkpointName,
+}: {
+  checkpointId: string;
+  ownerUserId: string;
+  checkpointName: string;
+}) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [text, setText] = useState("");
@@ -41,12 +50,14 @@ export function CommentSection({ checkpointId }: { checkpointId: string }) {
     if (!value || !user || sending) return;
     setSending(true);
     try {
-      await addComment(checkpointId, value, {
+      const actor = {
         id: user.id,
         username: user.username,
         display_name: user.display_name,
         avatar_url: user.avatar_url,
-      });
+      };
+      await addComment(checkpointId, value, actor);
+      void addCommentNotification(ownerUserId, actor, checkpointId, checkpointName);
       setText("");
       refresh();
     } catch {
@@ -115,7 +126,7 @@ export function CommentSection({ checkpointId }: { checkpointId: string }) {
             </div>
           ))}
         </div>
-      ) : comments.length === 0 ? (
+      ) : comments?.length === 0 ? (
         <p className="py-2 text-sm text-muted-foreground">Chưa có bình luận nào.</p>
       ) : (
         <div className="flex flex-col gap-3">

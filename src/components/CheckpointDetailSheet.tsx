@@ -127,9 +127,17 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
             }
           />
 
-          <ReactionBar checkpointId={id} />
+          <ReactionBar
+            checkpointId={id}
+            ownerUserId={data.checkpoint.user_id}
+            checkpointName={data.checkpoint.name}
+          />
 
-          <CommentSection checkpointId={id} />
+          <CommentSection
+            checkpointId={id}
+            ownerUserId={data.checkpoint.user_id}
+            checkpointName={data.checkpoint.name}
+          />
 
           {/* Delete — owner only. Hard delete: XP is taken back, photos removed. */}
           {isMine &&

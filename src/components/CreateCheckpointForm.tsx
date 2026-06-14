@@ -117,9 +117,9 @@ export function CreateCheckpointForm({
   const prevPickedLen = useRef(0);
   useEffect(() => {
     const prev = prevPickedLen.current;
-    prevPickedLen.current = picked.length;
-    if (picked.length === 0 && prev > 0) onReset?.();
-  }, [picked.length, onReset]);
+    prevPickedLen.current = picked?.length;
+    if (picked?.length === 0 && prev > 0) onReset?.();
+  }, [picked?.length, onReset]);
 
   // Auto-fill name+category from the top Google Places suggestion when it arrives
   // — only for new places and only when the name is still empty.
@@ -171,8 +171,8 @@ export function CreateCheckpointForm({
   // Convert HEIC + downscale so uploads are always a modest JPEG. Shared by the
   // file picker and the in-app camera.
   async function addFileArray(files: File[]) {
-    const remainingSlots = maxImages - pickedRef.current.length;
-    if (remainingSlots <= 0 || files.length === 0) return;
+    const remainingSlots = maxImages - pickedRef.current?.length;
+    if (remainingSlots <= 0 || files?.length === 0) return;
 
     setProcessing(true);
     setErr(null);
@@ -210,7 +210,7 @@ export function CreateCheckpointForm({
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!picked.length) {
+    if (!picked?.length) {
       setErr("Bắt buộc phải có ít nhất 1 ảnh.");
       return;
     }
@@ -220,7 +220,7 @@ export function CreateCheckpointForm({
     // Step 1 — get presigned slots (before checkpoint exists).
     let slots;
     try {
-      slots = await getUploadSlots(picked.length);
+      slots = await getUploadSlots(picked?.length);
     } catch {
       setErr("Không lấy được link upload. Vui lòng thử lại.");
       setBusy(false);
@@ -255,7 +255,7 @@ export function CreateCheckpointForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
-      {activeJourneys.length > 0 && (
+      {activeJourneys?.length > 0 && (
         <label className="flex flex-col gap-1.5">
           <span className="flex items-center gap-1.5 text-sm font-semibold text-secondary">
             <Icon name="luggage" size={16} /> Ghi vào hành trình
@@ -346,7 +346,7 @@ export function CreateCheckpointForm({
             </div>
           ))}
         </PhotoProvider>
-        {picked.length < maxImages && (
+        {picked?.length < maxImages && (
           <button
             type="button"
             onClick={addPhotos}
@@ -384,12 +384,12 @@ export function CreateCheckpointForm({
 
       {err && <p className="text-sm text-accent-600">{err}</p>}
 
-      <Button type="submit" variant="accent" disabled={busy || processing || !picked.length} icon={<Icon name="flag" size={20} />}>
+      <Button type="submit" variant="accent" disabled={busy || processing || !picked?.length} icon={<Icon name="flag" size={20} />}>
         {busy ? "Đang lưu..." : "CẮM CỜ"}
       </Button>
       {cameraOpen && (
         <CameraCaptureSheet
-          maxCount={maxImages - picked.length}
+          maxCount={maxImages - picked?.length}
           onClose={() => setCameraOpen(false)}
           onDone={(files) => void addFileArray(files)}
         />
