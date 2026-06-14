@@ -5,6 +5,11 @@ import { X, SwitchCamera, Image as ImageIcon } from "lucide-react";
 type Facing = "user" | "environment";
 type CameraDevice = { info: MediaDeviceInfo; facing?: Facing };
 
+// MediaTrackCapabilities doesn't include zoom in the TS DOM lib yet.
+type ExtendedCapabilities = MediaTrackCapabilities & {
+  zoom?: { min: number; max: number; step: number };
+};
+
 const CAMERA_DEVICE_KEYS: Record<Facing, string> = {
   user: "cp_camera_device_user",
   environment: "cp_camera_device_environment",
@@ -58,6 +63,32 @@ async function toCameraFile(blob: Blob, mirror = false): Promise<File> {
   return new File([cropped ?? blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
 }
 
+/** Crop the centre region of a blob proportional to the CSS zoom level. */
+async function cropToZoom(blob: Blob, zoom: number): Promise<Blob> {
+  if (zoom <= 1.01) return blob;
+  const bitmap = await createImageBitmap(blob);
+  const { width, height } = bitmap;
+  const croppedW = width / zoom;
+  const croppedH = height / zoom;
+  const sx = (width - croppedW) / 2;
+  const sy = (height - croppedH) / 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(croppedW);
+  canvas.height = Math.round(croppedH);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) { bitmap.close(); return blob; }
+  ctx.drawImage(bitmap, sx, sy, croppedW, croppedH, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise<Blob>((resolve) =>
+    canvas.toBlob((b) => resolve(b ?? blob), "image/jpeg", 0.95),
+  );
+}
+
+function getTouchDistance(touches: React.TouchList): number {
+  const [t1, t2] = [touches[0], touches[1]];
+  return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+}
+
 function inferFacing(device: MediaDeviceInfo): Facing | undefined {
   try {
     const capabilities = (device as InputDeviceInfo).getCapabilities?.();
@@ -104,9 +135,14 @@ function isPhonePwa(): boolean {
   );
 }
 
+const MIN_ZOOM = 1;
+const MAX_ZOOM_FALLBACK = 5; // CSS-scale max when hardware zoom isn't available
+
 /**
  * Full-screen in-app camera for check-in photos. Live preview, shutter, camera
  * facing switch, lens selection, and a Photos button for the gallery picker.
+ * Supports pinch-to-zoom: uses hardware zoom (track constraints) when available,
+ * falls back to CSS scale + centre-crop on capture.
  * After each shot, a preview is shown with "Chụp lại" / "Tiếp tục" / "Xong".
  * Shoot up to `maxCount` photos then "Xong"; the captured Files are returned
  * via onDone (the caller runs them through the downscale pipeline). If the
@@ -155,6 +191,66 @@ export function CameraCaptureSheet({
   const isFull = shots.length >= maxCount;
   const previewUrl = mode === "preview" ? shots[shots.length - 1]?.url : null;
 
+  // ---- Zoom state ----
+  const [zoom, setZoom] = useState(1);
+  const [maxZoom, setMaxZoom] = useState(MAX_ZOOM_FALLBACK);
+  const [useHardwareZoom, setUseHardwareZoom] = useState(false);
+  const [showZoomLabel, setShowZoomLabel] = useState(false);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const useHardwareZoomRef = useRef(useHardwareZoom);
+  useHardwareZoomRef.current = useHardwareZoom;
+  const trackRef = useRef<MediaStreamTrack | null>(null);
+  const zoomLabelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(null);
+
+  function flashZoomLabel() {
+    setShowZoomLabel(true);
+    if (zoomLabelTimer.current) clearTimeout(zoomLabelTimer.current);
+    zoomLabelTimer.current = setTimeout(() => setShowZoomLabel(false), 1500);
+  }
+
+  function applyZoom(newZoom: number) {
+    const clamped = Math.max(MIN_ZOOM, Math.min(maxZoom, newZoom));
+    setZoom(clamped);
+    flashZoomLabel();
+    if (useHardwareZoomRef.current && trackRef.current) {
+      try {
+        trackRef.current.applyConstraints({
+          advanced: [{ zoom: clamped } as MediaTrackConstraintSet],
+        });
+      } catch {
+        // Hardware zoom failed silently; CSS fallback already active.
+      }
+    }
+  }
+
+  function handlePinchStart(e: React.TouchEvent) {
+    if (e.touches.length !== 2) return;
+    pinchRef.current = { startDist: getTouchDistance(e.touches), startZoom: zoomRef.current };
+  }
+
+  function handlePinchMove(e: React.TouchEvent) {
+    if (e.touches.length !== 2 || !pinchRef.current) return;
+    const ratio = getTouchDistance(e.touches) / pinchRef.current.startDist;
+    applyZoom(pinchRef.current.startZoom * ratio);
+  }
+
+  function handlePinchEnd() {
+    pinchRef.current = null;
+  }
+
+  function resetZoom() {
+    setZoom(1);
+    setShowZoomLabel(false);
+    if (trackRef.current && useHardwareZoomRef.current) {
+      try {
+        trackRef.current.applyConstraints({ advanced: [{ zoom: 1 } as MediaTrackConstraintSet] });
+      } catch { /* best-effort */ }
+    }
+  }
+  // ---- End zoom state ----
+
   const handleUserMedia = useCallback(
     async (stream: MediaStream) => {
       const settings = stream.getVideoTracks()[0]?.getSettings();
@@ -170,10 +266,22 @@ export function CameraCaptureSheet({
       setMirrored(activeFacing === "user");
 
       const track = stream.getVideoTracks()[0];
+      trackRef.current = track ?? null;
+
+      // Reset zoom when a new camera stream starts.
+      setZoom(1);
+      setUseHardwareZoom(false);
+      setMaxZoom(MAX_ZOOM_FALLBACK);
+
       try {
-        const capabilities = track?.getCapabilities();
+        const capabilities = track?.getCapabilities() as ExtendedCapabilities | undefined;
         if (capabilities && "focusMode" in capabilities) {
           await track.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] });
+        }
+        // Detect hardware zoom support.
+        if (capabilities?.zoom) {
+          setUseHardwareZoom(true);
+          setMaxZoom(Math.min(capabilities.zoom.max, 10));
         }
       } catch {
         // Continuous autofocus is best-effort and unsupported on many browsers.
@@ -227,6 +335,7 @@ export function CameraCaptureSheet({
     setSelectedDeviceId(loadSavedDevice(nextFacing));
     setActiveDeviceId(null);
     setMirrored(nextFacing === "user");
+    resetZoom();
   };
 
   const selectLens = (deviceId: string) => {
@@ -234,6 +343,7 @@ export function CameraCaptureSheet({
     setError(false);
     saveDevice(facing, deviceId);
     setSelectedDeviceId(deviceId);
+    resetZoom();
   };
 
   const capture = useCallback(async () => {
@@ -255,6 +365,12 @@ export function CameraCaptureSheet({
       const dataUrl = webcamRef.current?.getScreenshot();
       if (!dataUrl) return;
       blob = await (await fetch(dataUrl)).blob();
+    }
+
+    // When using CSS zoom (no hardware), crop the captured frame to the
+    // same centre region the viewfinder shows.
+    if (!useHardwareZoomRef.current && zoomRef.current > 1.01) {
+      blob = await cropToZoom(blob, zoomRef.current);
     }
 
     const file = await toCameraFile(blob, capturedWithImageCapture && mirrored);
@@ -311,7 +427,13 @@ export function CameraCaptureSheet({
       </div>
 
       {/* Camera / Preview area */}
-      <div className="relative flex-1 overflow-hidden">
+      <div
+        className="relative flex-1 overflow-hidden"
+        style={{ touchAction: "none" }}
+        onTouchStart={handlePinchStart}
+        onTouchMove={handlePinchMove}
+        onTouchEnd={handlePinchEnd}
+      >
         {/* Preview (last captured shot) */}
         {mode === "preview" && previewUrl && (
           <img src={previewUrl} alt="Xem trước" className="h-full w-full object-cover" />
@@ -344,10 +466,20 @@ export function CameraCaptureSheet({
               videoConstraints={videoConstraints}
               onUserMedia={handleUserMedia}
               onUserMediaError={handleUserMediaError}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-75"
+              style={!useHardwareZoom && zoom !== 1 ? { transform: `scale(${zoom})` } : undefined}
             />
           )}
         </div>
+
+        {/* Zoom level indicator — fades out after 1.5 s */}
+        {mode === "viewfinder" && showZoomLabel && zoom !== 1 && (
+          <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2">
+            <span className="rounded-full bg-black/60 px-4 py-1.5 text-sm font-bold text-white backdrop-blur-sm">
+              {zoom.toFixed(1)}×
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Lens selector (viewfinder only) */}
