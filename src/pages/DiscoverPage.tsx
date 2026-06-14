@@ -230,7 +230,7 @@ export function DiscoverPage() {
             ))}
           </div>
 
-          {tab === "for-you" && pendingCount > 0 && <PendingCheckinCard count={pendingCount} />}
+          {tab === "for-you" && pendingCount > 0 && <PendingCheckinStatus count={pendingCount} />}
 
           {isLoading ? (
         <>
@@ -309,23 +309,18 @@ export function DiscoverPage() {
   );
 }
 
-function PendingCheckinCard({ count }: { count: number }) {
+function PendingCheckinStatus({ count }: { count: number }) {
   return (
-    <Card className="flex flex-col gap-3 overflow-hidden p-0">
-      <div className="flex items-center gap-3 px-4 pt-4">
-        <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold text-foreground">
-            {count === 1 ? "Đang đăng check-in..." : `Đang đăng ${count} check-in...`}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Bài đăng sẽ tự xuất hiện sau khi xử lý xong.
-          </p>
-        </div>
-        <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-border border-t-primary" />
-      </div>
-      <Skeleton className="h-40 w-full rounded-none" />
-    </Card>
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex min-h-12 items-center gap-3 rounded-xl border border-border bg-surface-muted px-4 py-2.5 text-sm text-muted-foreground"
+    >
+      <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-border border-t-primary" />
+      <span className="truncate font-medium">
+        {count === 1 ? "Đang đăng check-in..." : `Đang đăng ${count} check-in...`}
+      </span>
+    </div>
   );
 }
 
