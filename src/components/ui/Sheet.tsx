@@ -1,5 +1,6 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { cn } from "../../lib/cn";
+import { Icon } from "./Icon";
 
 /** A bottom sheet modal. Drag the header to resize.
  *  - default: floor = content height, ceiling = ~92vh, body scrolls.
@@ -52,13 +53,22 @@ export function Sheet({
         style={height === null ? undefined : { height }}
         onClick={(e) => e.stopPropagation()}
       >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Đóng"
+          className="absolute right-3 top-2 z-20 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+        >
+          <Icon name="x" size={20} />
+        </button>
+
         <div
           ref={headerRef}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          className="shrink-0 cursor-grab touch-none select-none px-4 pt-2 active:cursor-grabbing"
+          className="min-h-11 shrink-0 cursor-grab touch-none select-none px-4 pr-14 pt-2 active:cursor-grabbing"
         >
           <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-border" />
           {title && <h2 className="mb-2 font-display text-lg font-bold">{title}</h2>}
