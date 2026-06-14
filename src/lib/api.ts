@@ -500,6 +500,25 @@ export async function getPlace(id: string): Promise<PlaceDetail> {
   return res.data;
 }
 
+/** A Google Places suggestion returned by the backend for check-in auto-fill. */
+export interface PlaceSuggestion {
+  name: string;
+  category: string;
+  place_id: string;
+}
+
+/** Returns nearby Google Places suggestions for a check-in location.
+ *  Returns [] when the API key is unset, quota is exhausted, or any error occurs. */
+export async function getNearbyPlaces(lat: number, lng: number): Promise<PlaceSuggestion[]> {
+  try {
+    const res = await apiFetch(`/places/suggest?lat=${lat}&lng=${lng}`);
+    if (!isSuccessful(res)) return [];
+    return Array.isArray(res.data) ? res.data : [];
+  } catch {
+    return [];
+  }
+}
+
 // ---- Journeys (Phase 3) ----
 
 export interface Journey {

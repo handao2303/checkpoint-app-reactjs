@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Flag, Image as ImageIcon, X, Camera, Luggage } from "lucide-react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { getMyJourneys, getUploadSlots, putFilesToSlots } from "../lib/api";
+import { getMyJourneys, getNearbyPlaces, getUploadSlots, putFilesToSlots } from "../lib/api";
 import { useCheckinQueue } from "../context/CheckinQueue";
 import { useGeocode } from "../hooks/useGeocode";
 import { prepareCheckpointImage } from "../lib/image";
@@ -76,10 +76,18 @@ export function CreateCheckpointForm({
   const effectiveJourneyId = journeyId === undefined ? (activeJourneys[0]?.id ?? null) : journeyId;
   const [name, setName] = useState(place?.name ?? "");
   const [category, setCategory] = useState(place?.category ?? "cafe");
+  const [suggestionApplied, setSuggestionApplied] = useState(false);
   const [note, setNote] = useState("");
   const [rating, setRating] = useState<number | undefined>(undefined);
   const [picked, setPicked] = useState<PickedImage[]>([]);
   const geo = useGeocode(at.lat, at.lng);
+  const { data: placeSuggestions = [] } = useQuery({
+    queryKey: ["places-suggest", at.lat, at.lng],
+    queryFn: () => getNearbyPlaces(at.lat, at.lng),
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+    enabled: !place, // skip for existing-place check-ins
+  });
   const [busy, setBusy] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -102,9 +110,24 @@ export function CreateCheckpointForm({
     [],
   );
 
-  // Auto-fill the place name from the first address component once geocode
-  // resolves — only for new places (not existing place check-ins) and only
-  // when the user hasn't typed anything yet.
+  // Auto-fill name+category from the top Google Places suggestion when it arrives
+  // — only for new places and only when the name is still empty.
+  const placeSuggestionApplied = useRef(false);
+  useEffect(() => {
+    if (placeSuggestionApplied.current || place || !placeSuggestions.length) return;
+    const top = placeSuggestions[0];
+    if (!top.name) return;
+    placeSuggestionApplied.current = true;
+    setName((prev) => {
+      if (prev !== "") return prev; // user already typed something
+      setSuggestionApplied(true);
+      setCategory(top.category);
+      return top.name;
+    });
+  }, [placeSuggestions, place]);
+
+  // Fallback: auto-fill the place name from the first Photon address component
+  // — only when Google Places didn't fill anything yet.
   const nameAutoFilled = useRef(false);
   useEffect(() => {
     if (!geo || place || nameAutoFilled.current) return;
@@ -245,7 +268,10 @@ export function CreateCheckpointForm({
         <input
           required
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            if (suggestionApplied) setSuggestionApplied(false);
+          }}
           readOnly={!!place}
           placeholder="Tên địa điểm"
           className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring read-only:opacity-70"
