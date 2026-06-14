@@ -1,6 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
 import { getLeaderboard, type LeaderboardEntry } from "../lib/api";
 import { XPBadge } from "../components/ui/Chip";
 import { Skeleton } from "../components/ui/Skeleton";
@@ -12,7 +10,6 @@ function rankLabel(rank: number): string {
 }
 
 export function LeaderboardPage() {
-  const navigate = useNavigate();
   const { data, isLoading } = useQuery({ queryKey: ["leaderboard"], queryFn: getLeaderboard });
   const entries = data?.entries ?? [];
   const me = data?.me;
@@ -20,16 +17,7 @@ export function LeaderboardPage() {
 
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => navigate(-1)}
-          className="rounded-full p-1.5 text-clay-600 hover:bg-surface-muted"
-          aria-label="Quay lại"
-        >
-          <ChevronLeft size={22} />
-        </button>
-        <h1 className="font-display text-2xl font-bold text-clay-600">🏆 Bảng xếp hạng</h1>
-      </div>
+      <h1 className="font-display text-2xl font-bold text-clay-600">🏆 Bảng xếp hạng</h1>
 
       {isLoading ? (
         <div className="flex flex-col gap-2">

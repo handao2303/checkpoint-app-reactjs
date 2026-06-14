@@ -148,6 +148,7 @@ export function JourneyDetailSheet({
                     data.journey.started_at ?? data.journey.created_at,
                   ).toLocaleDateString("vi-VN"),
                   imageUrls: stops.flatMap((s) => s.images),
+                  url: `${window.location.origin}/j/${data.journey.id}`,
                 })
               }
             />
