@@ -11,6 +11,7 @@ import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { XPBadge } from "../components/ui/Chip";
 import { Skeleton } from "../components/ui/Skeleton";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
+import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import {
   followUser,
   getFeed,
@@ -41,6 +42,7 @@ export function DiscoverPage() {
   const [query, _] = useState("");
   const [debounced, setDebounced] = useState("");
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Shared ambient location from the layout provider; fall back to the default
   // view ("near you" sorting still works, just centred on HCMC) until known.
@@ -88,6 +90,15 @@ export function DiscoverPage() {
   const scrollEl = useScrollContainer();
   const listRef = useRef<HTMLDivElement | null>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
+  const { pullDistance, pullProgress, isPulling, isRefreshing, isReady } = usePullToRefresh({
+    scrollElement: scrollEl,
+    disabled: selectedId != null || placeId != null || profileUsername != null || debounced !== "",
+    onRefresh: () =>
+      queryClient.resetQueries({
+        queryKey: [tab === "following" ? "feed-following" : "feed", at],
+        exact: true,
+      }),
+  });
 
   const virtualizer = useVirtualizer({
     count: items.length,
@@ -127,7 +138,35 @@ export function DiscoverPage() {
   }, [scrollEl]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className={`relative flex flex-col gap-4 ${isPulling ? "" : "transition-transform duration-200 ease-out"}`}
+      style={{ transform: `translateY(${pullDistance}px)` }}
+    >
+      {(pullDistance > 0 || isRefreshing) && (
+        <div
+          className="absolute inset-x-0 top-0 flex -translate-y-full items-center justify-center gap-2 pb-3 text-sm font-medium text-muted-foreground"
+          aria-live="polite"
+        >
+          {isRefreshing ? (
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-primary" />
+          ) : (
+            <Icon
+              name="chevron-down"
+              size={20}
+              className="transition-transform"
+              style={{ transform: `rotate(${pullProgress * 180}deg)` }}
+            />
+          )}
+          <span>
+            {isRefreshing
+              ? "Đang làm mới..."
+              : isReady
+                ? "Thả để làm mới"
+                : "Kéo xuống để làm mới"}
+          </span>
+        </div>
+      )}
+
       {/* <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5">
         <Search size={18} className="text-muted-foreground" />
         <input

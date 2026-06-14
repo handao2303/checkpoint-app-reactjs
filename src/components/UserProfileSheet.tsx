@@ -28,7 +28,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
     queryKey: ["user", username],
     queryFn: () => getUserByUsername(username),
   });
-  const { data: checkpoints = [] } = useQuery({
+  const { data: checkpoints = [], isLoading: checkpointsLoading } = useQuery({
     queryKey: ["user-checkpoints", u?.id],
     queryFn: () => getUserCheckpoints(u!.id),
     enabled: !!u?.id,
@@ -68,14 +68,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
   return (
     <Sheet onClose={onClose}>
       {isLoading || !u ? (
-        <div className="flex flex-col gap-4">
-          <Skeleton className="h-44 w-full rounded-2xl" />
-          <div className="grid grid-cols-2 gap-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 rounded-lg" />
-            ))}
-          </div>
-        </div>
+        <UserProfileSkeleton />
       ) : (
         <div className="flex flex-col gap-5 pb-2">
           {/* Passport card */}
@@ -126,7 +119,9 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
           {/* Check-in gallery */}
           <div>
             <h3 className="mb-2 font-display text-lg font-bold">Khoảnh khắc</h3>
-            {checkpoints.length === 0 ? (
+            {checkpointsLoading ? (
+              <MomentGridSkeleton />
+            ) : checkpoints.length === 0 ? (
               <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
                 Chưa có check-in nào.
               </p>
@@ -165,6 +160,35 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
         </div>
       )}
     </Sheet>
+  );
+}
+
+function UserProfileSkeleton() {
+  return (
+    <div className="flex flex-col gap-5 pb-2">
+      <div className="flex h-64 flex-col items-center gap-3 rounded-2xl bg-surface-muted p-5">
+        <Skeleton className="h-20 w-20 rounded-full bg-white/30" />
+        <Skeleton className="h-7 w-40 bg-white/30" />
+        <Skeleton className="h-6 w-24 rounded-full bg-white/30" />
+        <div className="mt-auto grid w-full grid-cols-4 gap-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 rounded-lg bg-white/20" />
+          ))}
+        </div>
+      </div>
+      <Skeleton className="h-6 w-28" />
+      <MomentGridSkeleton />
+    </div>
+  );
+}
+
+function MomentGridSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Skeleton key={i} className="h-28 rounded-lg" />
+      ))}
+    </div>
   );
 }
 

@@ -84,7 +84,7 @@ export function CreateCheckpointForm({
   const [rating, setRating] = useState<number | undefined>(undefined);
   const [picked, setPicked] = useState<PickedImage[]>([]);
   const geo = useGeocode(at.lat, at.lng);
-  const { data: placeSuggestions = [] } = useQuery({
+  const { data: placeSuggestions = [], isFetched: placeSuggestionsFetched } = useQuery({
     queryKey: ["places-suggest", at.lat, at.lng],
     queryFn: () => getNearbyPlaces(at.lat, at.lng),
     staleTime: 60 * 60 * 1000,
@@ -121,32 +121,28 @@ export function CreateCheckpointForm({
     if (picked?.length === 0 && prev > 0) onReset?.();
   }, [picked?.length, onReset]);
 
-  // Auto-fill name+category from the top Google Places suggestion when it arrives
-  // — only for new places and only when the name is still empty.
-  const placeSuggestionApplied = useRef(false);
+  // Prefer the top Places suggestion; only fall back to Photon after the Places
+  // request has completed without a usable result.
+  const autoFillResolved = useRef(false);
   useEffect(() => {
-    if (placeSuggestionApplied.current || place) return;
+    if (autoFillResolved.current || place || !placeSuggestionsFetched) return;
+
     const top = placeSuggestions.find((s) => s.name?.trim());
-    if (!top) return; // empty results or all names blank → let Photon fallback handle it
-    placeSuggestionApplied.current = true;
-    setName((prev) => {
-      if (prev !== "") return prev; // user already typed something
+    if (top) {
+      autoFillResolved.current = true;
+      if (name) return;
+      setName(top.name.trim());
       setSuggestionApplied(true);
       setCategory(top.category || "other");
-      return top.name.trim();
-    });
-  }, [placeSuggestions, place]);
+      return;
+    }
 
-  // Fallback: auto-fill the place name from the first Photon address component
-  // — only when Google Places didn't fill anything yet.
-  const nameAutoFilled = useRef(false);
-  useEffect(() => {
-    if (!geo || place || nameAutoFilled.current) return;
+    if (!geo) return;
     const suggestion = geo.address.split(",")[0].trim();
     if (!suggestion) return;
-    nameAutoFilled.current = true;
-    setName((prev) => (prev === "" ? suggestion : prev));
-  }, [geo, place]);
+    autoFillResolved.current = true;
+    if (!name) setName(suggestion);
+  }, [geo, name, place, placeSuggestions, placeSuggestionsFetched]);
 
   useEffect(() => {
     if (
