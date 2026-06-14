@@ -7,6 +7,7 @@ import { getCheckpointDetail, viewCheckpoint } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { useAuth } from "../auth/AuthContext";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
+import { CommentSection } from "./CommentSection";
 import { Sheet } from "./ui/Sheet";
 import { XPBadge } from "./ui/Chip";
 import { DetailSheetSkeleton } from "./ui/Skeleton";
@@ -114,6 +115,8 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               })
             }
           />
+
+          <CommentSection checkpointId={id} />
 
           {/* Delete — owner only. Hard delete: XP is taken back, photos removed. */}
           {isMine &&
