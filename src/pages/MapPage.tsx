@@ -4,21 +4,26 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { MapPin } from "lucide-react";
-import { getCheckpointsInBounds, type Bounds } from "../lib/api";
+import { getCheckpointsInBounds, getMyCheckpoints, type Bounds, type Checkpoint } from "../lib/api";
 import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { Button } from "../components/ui/Button";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { useCheckin } from "../hooks/useCheckin";
 import { useUserLocation } from "../location/LocationProvider";
 import { MapSkeleton } from "../components/MapSkeleton";
+import { useAuth } from "../auth/AuthContext";
 import type { Coords } from "../lib/geo";
+
+type MapFilter = "all" | "following" | "mine";
 
 export function MapPage() {
   const [bounds, setBounds] = useState<Bounds | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapFilter, setMapFilter] = useState<MapFilter>("all");
   const { start, sheets } = useCheckin();
   const { coords } = useUserLocation();
+  const { user } = useAuth();
 
   // Centre the map on the user once, the first time we learn their location —
   // whether that's before the map loads or shortly after.
@@ -37,12 +42,20 @@ export function MapPage() {
     if (coords && mapRef.current) centerOnUser(mapRef.current, coords);
   }, [coords, centerOnUser]);
 
-  const { data: checkpoints = [] } = useQuery({
+  const { data: allCheckpoints = [] } = useQuery({
     queryKey: ["checkpoints", "bbox", bounds],
     queryFn: () => getCheckpointsInBounds(bounds!),
-    enabled: !!bounds,
+    enabled: !!bounds && mapFilter === "all",
     placeholderData: keepPreviousData,
   });
+
+  const { data: myCheckpoints = [] } = useQuery({
+    queryKey: ["checkpoints", "mine"],
+    queryFn: () => getMyCheckpoints(200),
+    enabled: mapFilter === "mine",
+  });
+
+  const checkpoints: Checkpoint[] = mapFilter === "mine" ? myCheckpoints : allCheckpoints;
 
   const syncBounds = useCallback((map: MapLibreMap) => {
     const b = map.getBounds();
@@ -100,6 +113,30 @@ export function MapPage() {
           </Marker>
         ))}
       </Map>
+
+      {/* Filter chips */}
+      <div className="absolute inset-x-4 bottom-20 mx-auto flex max-w-md justify-center gap-2">
+        {(
+          [
+            ["all", "Tất cả"],
+            ["following", "Đang follow"],
+            ["mine", "Của tôi"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setMapFilter(key)}
+            disabled={key === "following"}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold shadow-md transition ${
+              mapFilter === key
+                ? "bg-primary text-white"
+                : "bg-surface/90 text-foreground backdrop-blur hover:bg-surface"
+            } disabled:opacity-50`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <Button
         size="lg"

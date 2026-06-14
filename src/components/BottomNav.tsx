@@ -1,12 +1,11 @@
 import { NavLink } from "react-router-dom";
-import { Map, Compass, PlusCircle, Bot, User, type LucideIcon } from "lucide-react";
+import { Map, Compass, PlusCircle, Trophy, User, type LucideIcon } from "lucide-react";
 import { cn } from "../lib/cn";
 
 type Tab = {
   to: string;
   label: string;
   Icon: LucideIcon;
-  /** Active highlight color, mirroring the mockups (Map = orange, AI Plan = green). */
   tone: "primary" | "green";
 };
 
@@ -14,7 +13,7 @@ const tabs: Tab[] = [
   { to: "/", label: "Map", Icon: Map, tone: "primary" },
   { to: "/discover", label: "Discover", Icon: Compass, tone: "primary" },
   { to: "/create", label: "Create", Icon: PlusCircle, tone: "primary" },
-  { to: "/ai-plan", label: "AI Plan", Icon: Bot, tone: "green" },
+  { to: "/leaderboard", label: "Bảng XH", Icon: Trophy, tone: "primary" },
   { to: "/profile", label: "Profile", Icon: User, tone: "primary" },
 ];
 
