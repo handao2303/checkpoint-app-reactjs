@@ -244,7 +244,6 @@ function FeedCard({
                   className="flex w-full items-center gap-2 px-4 py-3 text-sm text-accent-600 hover:bg-accent-50"
                 >
                   <Trash2 size={16} />
-                  Xóa check-in
                 </button>
               </div>
             )}

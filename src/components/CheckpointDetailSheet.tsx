@@ -12,7 +12,7 @@ import { DetailSheetSkeleton } from "./ui/Skeleton";
 import { ShareButton } from "./share/ShareButton";
 import { renderCheckpointCard } from "../lib/shareCard";
 
-export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: () => void }) {
+export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: () => void;}) {
   const { user } = useAuth();
   const { requestDelete, confirming, confirmBox } = useDeleteCheckpoint(id, { onDeleted: onClose });
 
@@ -110,7 +110,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                 onClick={requestDelete}
                 className="flex items-center justify-center gap-2 rounded-full py-2 text-sm font-semibold text-accent-600 hover:bg-accent-50"
               >
-                <Trash2 size={16} />
+                <Trash2 size={16} /> Xoá check-in
               </button>
             ))}
         </div>
