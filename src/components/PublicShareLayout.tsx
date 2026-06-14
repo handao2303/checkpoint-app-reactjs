@@ -1,10 +1,15 @@
+import { useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { LocationProvider } from "../location/LocationProvider";
+import { ScrollContainerContext } from "./AppLayout";
 
 /** Minimal layout for anonymous (not-logged-in) visitors: shared pages
  *  (/c, /j, /u) and the public Discover feed render under it. No notification /
- *  check-in providers — only LocationProvider, which DiscoverPage needs. */
+ *  check-in providers — only LocationProvider, which DiscoverPage needs.
+ *  Provides ScrollContainerContext so DiscoverPage's virtualizer can measure
+ *  against this <main> (same as AppLayout). */
 export function PublicShareLayout() {
+  const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
   return (
     <LocationProvider>
       <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden bg-background">
@@ -21,8 +26,10 @@ export function PublicShareLayout() {
           </Link>
         </header>
 
-        <main className="relative min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <Outlet />
+        <main ref={setScrollEl} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          <ScrollContainerContext.Provider value={scrollEl}>
+            <Outlet />
+          </ScrollContainerContext.Provider>
         </main>
       </div>
     </LocationProvider>

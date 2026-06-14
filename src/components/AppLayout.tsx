@@ -9,7 +9,8 @@ import { NotificationProvider, useNotifications } from "../context/NotificationP
 
 // The app's single scrolling element is the layout's <main>. Pages reach it via
 // this context (e.g. to drive a virtualizer) since they render behind <Outlet/>.
-const ScrollContainerContext = createContext<HTMLElement | null>(null);
+// Exported so other layouts (PublicShareLayout) can provide it too.
+export const ScrollContainerContext = createContext<HTMLElement | null>(null);
 
 /** The layout's scrolling <main> element, or null before it mounts. */
 export function useScrollContainer() {
