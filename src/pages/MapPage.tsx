@@ -211,14 +211,17 @@ export function MapPage() {
         <ClusterSheet
           checkpoints={clusterLeaves}
           onClose={() => setClusterLeaves(null)}
-          onSelect={(id) => {
-            setClusterLeaves(null);
-            setSelectedId(id);
-          }}
+          onSelect={(id) => setSelectedId(id)}
         />
       )}
 
-      {selectedId && <CheckpointDetailSheet id={selectedId} onClose={() => setSelectedId(null)} />}
+      {/* Detail renders after ClusterSheet so it stacks on top at the same z-level. */}
+      {selectedId && (
+        <CheckpointDetailSheet
+          id={selectedId}
+          onClose={() => setSelectedId(null)}
+        />
+      )}
 
       <MapSkeleton hidden={mapReady} />
     </div>
