@@ -2,54 +2,61 @@ import { Icon, type IconName } from "./ui/Icon";
 import type { Badge } from "../lib/api";
 import { cn } from "../lib/cn";
 
-// Palette tokens (from the backend badge catalog) → medallion styling. Awarded
-// badges get a rich gradient + ring; the same map will drive a future avatar
-// flair, so keep it the single source of truth for badge colors.
-const PALETTES: Record<string, { gradient: string; ring: string }> = {
-  emerald: { gradient: "from-emerald-400 to-emerald-600", ring: "ring-emerald-200" },
-  sky: { gradient: "from-sky-400 to-sky-600", ring: "ring-sky-200" },
-  violet: { gradient: "from-violet-400 to-violet-600", ring: "ring-violet-200" },
-  indigo: { gradient: "from-indigo-400 to-indigo-600", ring: "ring-indigo-200" },
-  amber: { gradient: "from-amber-400 to-amber-600", ring: "ring-amber-200" },
-  gold: { gradient: "from-gold to-clay-500", ring: "ring-gold/40" },
+// Warm-earth palette tokens matching the backend badge catalog.
+const PALETTES: Record<string, { bg: string; ring: string }> = {
+  green:   { bg: "bg-green-600",   ring: "ring-green-200" },
+  orange:  { bg: "bg-primary",     ring: "ring-orange-200" },
+  gold:    { bg: "bg-yellow-500",  ring: "ring-yellow-200" },
+  clay:    { bg: "bg-clay-600",    ring: "ring-clay-200" },
+  amber:   { bg: "bg-amber-500",   ring: "ring-amber-200" },
+  emerald: { bg: "bg-emerald-600", ring: "ring-emerald-200" },
 };
 
 const SIZES = {
-  sm: { box: "h-10 w-10", icon: 18 },
+  sm: { box: "h-10 w-10", icon: 16 },
   md: { box: "h-14 w-14", icon: 24 },
   lg: { box: "h-20 w-20", icon: 34 },
 } as const;
 
+const HEXAGON = "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)";
+
 /**
- * A circular badge medallion. Awarded badges render a coloured gradient disc
- * with a white glyph and a soft ring; locked ones render a muted disc with a
- * lock. Designed to be reused on the profile avatar as a flair later.
+ * A hexagonal badge medallion. Awarded badges render a coloured disc with a
+ * white glyph; locked ones render a muted disc with a lock icon.
+ * Pass `showLevel` to render a "Cấp X" chip below the hexagon.
  */
 export function BadgeMedal({
   badge,
   awarded = true,
   size = "md",
+  showLevel,
   className,
 }: {
   badge: Pick<Badge, "icon" | "color">;
   awarded?: boolean;
   size?: keyof typeof SIZES;
+  showLevel?: number;
   className?: string;
 }) {
   const palette = PALETTES[badge.color] ?? PALETTES.gold;
   const { box, icon } = SIZES[size];
   return (
-    <span
-      className={cn(
-        "flex shrink-0 items-center justify-center rounded-full",
-        awarded
-          ? cn("bg-gradient-to-br text-white shadow-md ring-2", palette.gradient, palette.ring)
-          : "bg-surface-muted text-muted-foreground",
-        box,
-        className,
+    <span className={cn("flex flex-col items-center gap-0.5", className)}>
+      <span
+        className={cn(
+          "flex shrink-0 items-center justify-center text-white shadow-md",
+          awarded ? cn(palette.bg, "ring-2", palette.ring) : "bg-surface-muted text-muted-foreground",
+          box,
+        )}
+        style={{ clipPath: HEXAGON }}
+      >
+        <Icon name={(awarded ? badge.icon : "lock") as IconName} size={icon} />
+      </span>
+      {showLevel != null && (
+        <span className="rounded-full bg-surface-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+          Cấp {showLevel}
+        </span>
       )}
-    >
-      <Icon name={(awarded ? badge.icon : "lock") as IconName} size={icon} />
     </span>
   );
 }

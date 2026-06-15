@@ -1,5 +1,5 @@
-import { createContext, useContext, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { createContext, useContext, useLayoutEffect, useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import { Icon } from "./ui/Icon";
 import { BottomNav } from "./BottomNav";
 import { NotificationSheet } from "./NotificationSheet";
@@ -39,6 +39,15 @@ function NotificationBell() {
   );
 }
 
+function ScrollToTop({ scrollEl }: { scrollEl: HTMLElement | null }) {
+  const { pathname } = useLocation();
+  useLayoutEffect(() => {
+    if (pathname?.includes("/discover")) return; // don't scroll to top when navigating within Discover
+    scrollEl?.scrollTo({ top: 0 });
+  }, [pathname, scrollEl]);
+  return null;
+}
+
 export function AppLayout() {
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
   return (
@@ -56,6 +65,7 @@ export function AppLayout() {
 
             <main ref={setScrollEl} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
               <ScrollContainerContext.Provider value={scrollEl}>
+                <ScrollToTop scrollEl={scrollEl} />
                 <Outlet />
               </ScrollContainerContext.Provider>
             </main>

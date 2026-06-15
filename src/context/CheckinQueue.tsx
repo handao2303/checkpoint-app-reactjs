@@ -11,9 +11,9 @@ import {
   type ReactNode,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { createCheckpoint, ApiError, type Badge, type CheckinInput } from "../lib/api";
-import { Toast } from "../components/ui/Toast";
-import { BadgeUnlockToast } from "../components/BadgeUnlockToast";
+import { createCheckpoint, ApiError, type Badge, type CheckinInput, type User } from "../lib/api";
+import { Toast, XPToast } from "../components/ui/Toast";
+import { BadgeUnlockModal } from "../components/BadgeUnlockModal";
 
 // ---- persistence ----------------------------------------------------------
 
@@ -88,12 +88,17 @@ export function useOptionalCheckinQueue() {
   return useContext(Ctx);
 }
 
+interface XPReward {
+  xp: number;
+  level: number;
+  didLevelUp: boolean;
+}
+
 export function CheckinQueueProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
-  // Seed queue from localStorage on first render so pending jobs from a
-  // previous session are recovered automatically.
   const [queue, setQueue] = useState<PendingJob[]>(() => loadJobs());
-  const [toast, setToast] = useState<string | null>(null);
+  const [errorToast, setErrorToast] = useState<string | null>(null);
+  const [xpReward, setXpReward] = useState<XPReward | null>(null);
   const [badges, setBadges] = useState<Badge[]>([]);
   const processing = useRef(false);
 
@@ -118,24 +123,31 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
         if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt]);
 
         try {
+          // Snapshot the user's current level before the checkin so we can
+          // detect a level-up from the response.
+          const prevUser = qc.getQueryData<User>(["me"]);
+
           const res = await createCheckpoint(job.input);
 
           removeJob(job.id);
           void Promise.all([
+            qc.invalidateQueries({ queryKey: ["me"] }),
             qc.invalidateQueries({ queryKey: ["checkpoints"] }),
             qc.invalidateQueries({ queryKey: ["feed"] }),
             qc.invalidateQueries({ queryKey: ["place"] }),
             qc.invalidateQueries({ queryKey: ["passport"] }),
             qc.invalidateQueries({ queryKey: ["badges"] }),
           ]);
-          setToast(`+${res.xp_awarded} XP 🎉`);
+
+          const didLevelUp = res.level > (prevUser?.level ?? res.level);
+          setXpReward({ xp: res.xp_awarded, level: res.level, didLevelUp });
           if (res.new_badges?.length) setBadges(res.new_badges);
           break;
         } catch (err) {
           const retry = isRetryable(err) && attempt < MAX_ATTEMPTS - 1;
           if (!retry) {
             removeJob(job.id);
-            setToast("Lưu check-in thất bại. Vui lòng thử lại.");
+            setErrorToast("Lưu check-in thất bại. Vui lòng thử lại.");
             break;
           }
         }
@@ -151,8 +163,18 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={{ enqueue, pendingCount: queue.length }}>
       {children}
-      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
-      {badges.length > 0 && <BadgeUnlockToast badges={badges} onDone={() => setBadges([])} />}
+      {xpReward && (
+        <XPToast
+          xp={xpReward.xp}
+          level={xpReward.level}
+          didLevelUp={xpReward.didLevelUp}
+          onDone={() => setXpReward(null)}
+        />
+      )}
+      {errorToast && <Toast message={errorToast} onDone={() => setErrorToast(null)} />}
+      {badges.length > 0 && (
+        <BadgeUnlockModal badges={badges} onDone={() => setBadges([])} />
+      )}
     </Ctx.Provider>
   );
 }

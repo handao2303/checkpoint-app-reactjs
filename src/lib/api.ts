@@ -58,6 +58,7 @@ export interface User {
   level: number;
   checkpoint_count: number;
   journey_count: number;
+  checkin_streak: number;
   created_at: string;
   updated_at: string;
   /** Derived: XP remaining to the next level (0 at max). */
@@ -310,6 +311,8 @@ export interface Badge {
   /** Palette token for the medallion (see components/BadgeMedal). */
   color: string;
   description: string;
+  /** Static difficulty label: 1 easy, 2 medium, 3 hard. Shown as "Cấp X". */
+  level: number;
 }
 
 export interface CheckinResult {

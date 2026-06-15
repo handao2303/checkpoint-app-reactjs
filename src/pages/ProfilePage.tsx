@@ -2,23 +2,29 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { BadgesSection } from "../components/BadgesSection";
+import { BadgeMedal } from "../components/BadgeMedal";
 import { DriveConnectCard } from "../components/DriveConnectCard";
-// import { GooglePhotosConnectCard } from "../components/GooglePhotosConnectCard";
 import { EditProfileSheet } from "../components/EditProfileSheet";
-import { Toast } from "../components/ui/Toast";
 import { JourneysSection } from "../components/JourneysSection";
 import { PassportSection } from "../components/PassportSection";
 import { ShareButton } from "../components/share/ShareButton";
+import { Toast } from "../components/ui/Toast";
 import { Button } from "../components/ui/Button";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
 import { UpgradeBanner } from "../components/UpgradeBanner";
 import { useCheckin } from "../hooks/useCheckin";
-import { getMyCheckpoints, type Checkpoint } from "../lib/api";
+import {
+  getBadges,
+  getLeaderboard,
+  getMyCheckpoints,
+  getPassport,
+  type Checkpoint,
+  type LeaderboardEntry,
+} from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { quickCheckinSettings } from "../lib/settings";
 import { renderProfileCard } from "../lib/shareCard";
@@ -76,8 +82,48 @@ function MomentCaption({ cp }: { cp?: Checkpoint }) {
   );
 }
 
+function avatarRingClass(level: number) {
+  if (level >= 16) return "border-4 border-yellow-400";
+  if (level >= 6) return "border-4 border-orange-300";
+  return "border-4 border-white/30";
+}
+
+function formatMemberSince(dateStr: string): string {
+  const d = new Date(dateStr);
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${month}/${d.getFullYear()}`;
+}
+
+function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 }) {
+  const ringClass = { 1: "ring-yellow-400", 2: "ring-slate-400", 3: "ring-amber-600" }[rank];
+  const name = entry.display_name || entry.username;
+  return (
+    <div className="flex flex-1 flex-col items-center gap-1 px-1">
+      <div className="relative">
+        {entry.avatar_url ? (
+          <img
+            src={entry.avatar_url}
+            alt=""
+            className={`h-10 w-10 rounded-full object-cover ring-2 ${ringClass}`}
+          />
+        ) : (
+          <span
+            className={`block h-10 w-10 rounded-full bg-gradient-to-br from-primary-300 to-clay-400 ring-2 ${ringClass}`}
+          />
+        )}
+        <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-surface px-1 text-[10px] font-bold text-muted-foreground shadow-sm">
+          #{rank}
+        </span>
+      </div>
+      <p className="mt-2 w-full truncate text-center text-xs font-semibold text-foreground">{name}</p>
+      <p className="text-[10px] text-muted-foreground">{entry.total_xp.toLocaleString()} XP</p>
+    </div>
+  );
+}
+
 export function ProfilePage() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [openCreateOnLaunch, setOpenCreateOnLaunch] = useState(
@@ -87,10 +133,24 @@ export function ProfilePage() {
     () => quickCheckinSettings.preferCameraOnCheckin,
   );
   const { start, sheets } = useCheckin();
+
   const { data: myCheckpoints = [], isLoading: momentsLoading } = useQuery({
     queryKey: ["checkpoints", "me"],
     queryFn: () => getMyCheckpoints(4),
   });
+  const { data: passport } = useQuery({
+    queryKey: ["passport"],
+    queryFn: getPassport,
+  });
+  const { data: badges = [] } = useQuery({
+    queryKey: ["badges"],
+    queryFn: getBadges,
+  });
+  const { data: leaderboard } = useQuery({
+    queryKey: ["leaderboard"],
+    queryFn: getLeaderboard,
+  });
+
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [driveToast, setDriveToast] = useState<string | null>(null);
@@ -118,21 +178,16 @@ export function ProfilePage() {
 
   if (!user) return null;
 
-  // Gallery order = checkpoints that have an image (matches PhotoView render order).
   const withImages = myCheckpoints.filter((cp) => cp.image_url);
-
-  const stats = [
-    { label: "TỔNG XP", value: user.total_xp.toLocaleString() },
-    { label: "SỐ CỜ", value: user.checkpoint_count.toString() },
-    { label: "HÀNH TRÌNH", value: user.journey_count.toString() },
-    { label: "CẤP", value: user.level.toString() },
-  ];
+  const unlockedBadges = badges.filter((b) => b.awarded);
+  const top3 = leaderboard?.entries.slice(0, 3) ?? [];
+  const firstProvince = passport?.stamps?.[0]?.province;
 
   return (
     <div className="flex flex-col gap-5 pb-4">
       {user.is_anonymous && <UpgradeBanner />}
 
-      {/* Passport card */}
+      {/* Hero card */}
       <div className="relative rounded-2xl bg-[image:var(--gradient-passport)] p-5 text-white shadow-card">
         <button
           onClick={() => setEditing(true)}
@@ -141,53 +196,168 @@ export function ProfilePage() {
         >
           <Icon name="pencil" size={16} />
         </button>
-        <div className="flex flex-col items-center gap-2">
-          {user.avatar_url ? (
-            <img
-              src={user.avatar_url}
-              alt=""
-              className="h-20 w-20 rounded-full border-4 border-white/30 object-cover"
-            />
-          ) : (
-            <span className="h-20 w-20 rounded-full border-4 border-white/30 bg-white/20" />
-          )}
-          <h2 className="font-display text-2xl font-bold text-white">
-            {user.display_name || user.username}
-          </h2>
-          <span className="rounded-full bg-white/15 px-3 py-1 text-sm">@{user.username}</span>
-          {user.bio && <p className="px-2 text-center text-sm text-white/80">{user.bio}</p>}
+
+        {/* Avatar + info */}
+        <div className="flex items-start gap-4">
+          <div className="relative shrink-0">
+            {user.avatar_url ? (
+              <img
+                src={user.avatar_url}
+                alt=""
+                className={`h-24 w-24 rounded-full object-cover ${avatarRingClass(user.level)}`}
+              />
+            ) : (
+              <span
+                className={`block h-24 w-24 rounded-full bg-white/20 ${avatarRingClass(user.level)}`}
+              />
+            )}
+            <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-bold text-clay-600 shadow-sm">
+              Cấp {user.level}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1 pt-1">
+            <h2 className="font-display text-xl font-bold leading-tight">
+              {user.display_name || user.username}
+            </h2>
+            <p className="text-sm text-white/70">@{user.username}</p>
+            {user.bio && (
+              <p className="mt-1 line-clamp-2 text-xs text-white/80">{user.bio}</p>
+            )}
+          </div>
         </div>
+
+        {/* Tags */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/80">
+          {user.checkin_streak > 0 && (
+            <span className="flex items-center gap-1">
+              <Icon name="fire" size={12} className="text-orange-300" />
+              {user.checkin_streak} ngày liên tiếp
+            </span>
+          )}
+          {firstProvince && (
+            <span className="flex items-center gap-1">
+              <Icon name="map-pin" size={12} />
+              {firstProvince}
+            </span>
+          )}
+          <span className="flex items-center gap-1">
+            <Icon name="calendar" size={12} />
+            Thành viên từ {formatMemberSince(user.created_at)}
+          </span>
+        </div>
+
+        {/* Stats */}
         <div className="mt-4 grid grid-cols-4 gap-2">
-          {stats.map((s) => (
+          {[
+            { label: "TỔNG XP", value: user.total_xp.toLocaleString() },
+            { label: "SỐ CỜ", value: user.checkpoint_count.toString() },
+            { label: "HÀNH TRÌNH", value: user.journey_count.toString() },
+            { label: "CẤP", value: user.level.toString() },
+          ].map((s) => (
             <div key={s.label} className="rounded-lg bg-white/10 py-2 text-center">
-              <p className="text-xs text-white/70">{s.label}</p>
-              <p className="font-display text-lg font-bold">{s.value}</p>
+              <p className="text-[10px] text-white/70">{s.label}</p>
+              <p className="font-display text-base font-bold">{s.value}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Passport stamps (provinces visited) */}
+      {/* Badges preview — horizontal scroll */}
+      <Card>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 font-display text-lg font-bold">
+            <Icon name="award" size={20} className="text-gold" /> Huy hiệu
+          </h3>
+          <button
+            type="button"
+            onClick={() => navigate("/badges")}
+            className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            Xem tất cả <Icon name="chevron-right" size={14} />
+          </button>
+        </div>
+        {unlockedBadges.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Chưa có huy hiệu nào. Hãy check-in để mở khóa!
+          </p>
+        ) : (
+          <div className="flex gap-4 overflow-x-auto pb-1">
+            {unlockedBadges.map((b) => (
+              <div
+                key={b.key}
+                className="flex w-14 shrink-0 flex-col items-center gap-0.5 text-center"
+              >
+                <BadgeMedal badge={b} awarded size="sm" showLevel={b.level} />
+                <p className="w-full truncate text-[10px] font-medium leading-tight">{b.name}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Level card */}
+      <Card>
+        <div className="flex items-center gap-4">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-md">
+            <span className="flex flex-col items-center leading-none">
+              <span className="text-[10px] font-medium opacity-80">CẤP</span>
+              <span className="font-display text-2xl font-bold">{user.level}</span>
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="font-semibold text-foreground">Cấp độ hiện tại</p>
+              <p className="text-sm text-muted-foreground">{user.total_xp.toLocaleString()} XP</p>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-green-100">
+              <div
+                className="h-full rounded-full bg-[image:var(--gradient-xp)] transition-[width] duration-500"
+                style={{
+                  width: `${Math.round(Math.min(1, Math.max(0, user.level_progress)) * 100)}%`,
+                }}
+              />
+            </div>
+            <p className="mt-1 text-xs italic text-muted-foreground">
+              {user.xp_to_next > 0
+                ? `Còn ${user.xp_to_next.toLocaleString()} XP nữa để lên cấp ${user.level + 1}`
+                : "Bạn đã đạt cấp tối đa! 🏆"}
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Journeys */}
+      <JourneysSection />
+
+      {/* Mini leaderboard */}
+      <Card>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 font-display text-lg font-bold">
+            <Icon name="trophy" size={20} className="text-gold" /> Bảng xếp hạng
+          </h3>
+          <button
+            type="button"
+            onClick={() => navigate("/leaderboard")}
+            className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            Xem tất cả <Icon name="chevron-right" size={14} />
+          </button>
+        </div>
+        {top3.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Chưa có dữ liệu bảng xếp hạng.</p>
+        ) : (
+          <div className="flex justify-around py-1">
+            {top3.map((e, i) => (
+              <PodiumMini key={e.user_id} entry={e} rank={(i + 1) as 1 | 2 | 3} />
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Provinces visited */}
       <PassportSection />
 
-      {/* Level progress */}
-      <Card>
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-semibold text-clay-600">CẤP ĐỘ HIỆN TẠI: {user.level}</span>
-          <span className="text-muted-foreground">{user.total_xp.toLocaleString()} XP</span>
-        </div>
-        <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-green-100">
-          <div
-            className="h-full rounded-full bg-[image:var(--gradient-xp)] transition-[width] duration-500"
-            style={{ width: `${Math.round(Math.min(1, Math.max(0, user.level_progress)) * 100)}%` }}
-          />
-        </div>
-        <p className="mt-2 text-xs italic text-muted-foreground">
-          {user.xp_to_next > 0
-            ? `Còn ${user.xp_to_next.toLocaleString()} XP nữa để lên cấp ${user.level + 1}`
-            : "Bạn đã đạt cấp tối đa! 🏆"}
-        </p>
-      </Card>
+      {/* Settings */}
       <Card>
         <button
           type="button"
@@ -198,7 +368,8 @@ export function ProfilePage() {
         >
           <Icon name="settings" size={18} className="text-clay-600" />
           <h3 className="flex-1 font-display text-lg font-bold">Cài đặt</h3>
-          <Icon name="chevron-down"
+          <Icon
+            name="chevron-down"
             size={18}
             className={`text-muted-foreground transition-transform ${settingsOpen ? "rotate-180" : ""}`}
           />
@@ -229,21 +400,14 @@ export function ProfilePage() {
 
       {/* Integrations */}
       <Card>
-        <div className="flex items-center gap-2 mb-1">
+        <div className="mb-1 flex items-center gap-2">
           <Icon name="sparkles" size={18} className="text-clay-600" />
           <h3 className="font-display text-lg font-bold">Tích hợp</h3>
         </div>
         <div className="divide-y divide-border">
           <DriveConnectCard />
-          {/* <GooglePhotosConnectCard /> — ẩn cho đến khi Google duyệt app */}
         </div>
       </Card>
-
-      {/* Badges */}
-      <BadgesSection />
-
-      {/* Journeys */}
-      <JourneysSection />
 
       {/* Moments */}
       <div>
@@ -263,7 +427,7 @@ export function ProfilePage() {
               <Skeleton key={i} className="h-28 w-full rounded-lg" />
             ))}
           </div>
-        ) : myCheckpoints?.length === 0 ? (
+        ) : myCheckpoints.length === 0 ? (
           <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
             Chưa có check-in nào. Mở tab Map và cắm cờ địa điểm đầu tiên!
           </p>

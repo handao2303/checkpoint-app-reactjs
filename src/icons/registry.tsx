@@ -162,6 +162,12 @@ export const icons = {
   "sad": (
     <><circle cx="12" cy="12" r="10" /><path d="M16 16s-1.5-2-4-2-4 2-4 2" /><line x1="9" x2="9.01" y1="9" y2="9" /><line x1="15" x2="15.01" y1="9" y2="9" /></>
   ),
+  "chevron-right": (
+    <><path d="m9 18 6-6-6-6" /></>
+  ),
+  "calendar": (
+    <><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></>
+  ),
 } satisfies Record<string, ReactElement>;
 
 

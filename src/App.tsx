@@ -9,6 +9,7 @@ import { CreatePage } from "./pages/CreatePage";
 import { AIPlanPage } from "./pages/AIPlanPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
+import { BadgeCollectionPage } from "./pages/BadgeCollectionPage";
 import { CheckpointLink, JourneyLink, UserProfileLink } from "./pages/LinkRoutes";
 import { MapSkeleton } from "./components/MapSkeleton";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
@@ -92,6 +93,7 @@ export default function App() {
         <Route path="ai-plan" element={<AIPlanPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="leaderboard" element={<LeaderboardPage />} />
+        <Route path="badges" element={<BadgeCollectionPage />} />
         {/* Deep links from share. URL survives login, so a recipient lands here
             right after signing in. */}
         <Route path="c/:id" element={<CheckpointLink />} />
