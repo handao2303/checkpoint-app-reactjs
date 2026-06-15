@@ -1,0 +1,41 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="rim" x1="21" y1="11" x2="108" y2="113" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#FFF7E8"/>
+    <stop offset=".45" stop-color="#9368FF"/>
+    <stop offset="1" stop-color="#5A35BC"/>
+  </linearGradient>
+  <linearGradient id="main" x1="40" y1="17" x2="92" y2="98" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#F0E5FF"/>
+    <stop offset=".55" stop-color="#9368FF"/>
+    <stop offset="1" stop-color="#5A35BC"/>
+  </linearGradient>
+  <linearGradient id="laurel" x1="26" y1="22" x2="98" y2="96" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#FFF4C8"/>
+    <stop offset=".5" stop-color="#E6B04A"/>
+    <stop offset="1" stop-color="#B86B18"/>
+  </linearGradient>
+  <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#7A2A10" flood-opacity=".18"/></filter>
+</defs>
+<g filter="url(#shadow)">
+  <path d="M64 7L109 32.5V83.5L64 109L19 83.5V32.5L64 7Z" fill="url(#rim)"/>
+  <path d="M64 15L101 36V79L64 100L27 79V36L64 15Z" fill="url(#main)"/>
+  <path d="M64 20L95.5 38V76L64 94L32.5 76V38L64 20Z" stroke="#FFF4D0" stroke-opacity=".7" stroke-width="2.5"/>
+  
+  <path d="M86 16L97 31L110 11L123 31L134 16L132 42H88L86 16Z" fill="url(#laurel)" stroke="#D89425" stroke-width="1.8"/>
+  <circle cx="97" cy="30" r="2.2" fill="#FFF6D2"/>
+  <circle cx="110" cy="18" r="2.6" fill="#FFF6D2"/>
+  <circle cx="123" cy="30" r="2.2" fill="#FFF6D2"/>
+
+  
+  <path d="M32 101C35 120 45 137 61 149" stroke="url(#laurel)" stroke-width="6.5" stroke-linecap="round"/>
+  <path d="M188 101C185 120 175 137 159 149" stroke="url(#laurel)" stroke-width="6.5" stroke-linecap="round"/>
+
+</g>
+  <path d="M70 52L72.2 56.8L77 58.3L72.2 59.8L70 64.6L67.8 59.8L63 58.3L67.8 56.8L70 52Z" fill="#FFF7D6" opacity=".95"/>
+  <path d="M90 52L92.2 56.8L97 58.3L92.2 59.8L90 64.6L87.8 59.8L83 58.3L87.8 56.8L90 52Z" fill="#FFF7D6" opacity=".95"/>
+  <path d="M110 52L112.2 56.8L117 58.3L112.2 59.8L110 64.6L107.8 59.8L103 58.3L107.8 56.8L110 52Z" fill="#FFF7D6" opacity=".95"/>
+  <path d="M130 52L132.2 56.8L137 58.3L132.2 59.8L130 64.6L127.8 59.8L123 58.3L127.8 56.8L130 52Z" fill="#FFF7D6" opacity=".95"/>
+  <path d="M150 52L152.2 56.8L157 58.3L152.2 59.8L150 64.6L147.8 59.8L143 58.3L147.8 56.8L150 52Z" fill="#FFF7D6" opacity=".95"/>
+<title>Cấp độ 41–50</title>
+</svg>
