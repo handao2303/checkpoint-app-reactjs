@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { BadgesSection } from "../components/BadgesSection";
 import { DriveConnectCard } from "../components/DriveConnectCard";
+// import { GooglePhotosConnectCard } from "../components/GooglePhotosConnectCard";
 import { EditProfileSheet } from "../components/EditProfileSheet";
 import { Toast } from "../components/ui/Toast";
 import { JourneysSection } from "../components/JourneysSection";
@@ -96,12 +97,20 @@ export function ProfilePage() {
 
   useEffect(() => {
     const drive = searchParams.get("drive");
+    const photos = searchParams.get("photos");
     if (drive === "connected") {
       setDriveToast("Đã kết nối Google Drive ✓");
       void queryClient.invalidateQueries({ queryKey: ["drive-status"] });
       setSearchParams({}, { replace: true });
     } else if (drive === "error") {
       setDriveToast("Kết nối Google Drive thất bại");
+      setSearchParams({}, { replace: true });
+    } else if (photos === "connected") {
+      setDriveToast("Đã kết nối Google Photos ✓");
+      void queryClient.invalidateQueries({ queryKey: ["photos-status"] });
+      setSearchParams({}, { replace: true });
+    } else if (photos === "error") {
+      setDriveToast("Kết nối Google Photos thất bại");
       setSearchParams({}, { replace: true });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -226,6 +235,7 @@ export function ProfilePage() {
         </div>
         <div className="divide-y divide-border">
           <DriveConnectCard />
+          {/* <GooglePhotosConnectCard /> — ẩn cho đến khi Google duyệt app */}
         </div>
       </Card>
 

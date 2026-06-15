@@ -707,3 +707,26 @@ export async function disconnectDrive(): Promise<void> {
   const res = await apiFetch("/integrations/drive/disconnect", { method: "DELETE" });
   if (!isSuccessful(res)) throw new Error("drive disconnect failed");
 }
+
+// ---- Google Photos ----
+
+export interface PhotosStatus {
+  connected: boolean;
+}
+
+export async function initPhotosConnect(): Promise<{ auth_url: string }> {
+  const res = await apiFetch("/integrations/photos/init", { method: "POST" });
+  if (!isSuccessful(res)) throw new Error("photos init failed");
+  return res.data as { auth_url: string };
+}
+
+export async function getPhotosStatus(): Promise<PhotosStatus> {
+  const res = await apiFetch("/integrations/photos/status");
+  if (!isSuccessful(res)) throw new Error("photos status failed");
+  return res.data as PhotosStatus;
+}
+
+export async function disconnectPhotos(): Promise<void> {
+  const res = await apiFetch("/integrations/photos/disconnect", { method: "DELETE" });
+  if (!isSuccessful(res)) throw new Error("photos disconnect failed");
+}
