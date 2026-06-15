@@ -25,6 +25,8 @@ export function PhotoCheckinTab({
   const [formData, setFormData] = useState<FormReady | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const isAndroid = /android/i.test(navigator.userAgent);
+
   async function handleFile(file: File) {
     setStage("reading");
     const gps = await extractGPS(file);
@@ -57,7 +59,8 @@ export function PhotoCheckinTab({
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        // On Android, we omit accept="image/*" to invoke File manager instead of Photo Picker (which strips GPS metadata).
+        accept={isAndroid ? undefined : "image/*"}
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
@@ -74,18 +77,22 @@ export function PhotoCheckinTab({
             className="flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-border p-8 text-center transition hover:border-primary/50 hover:bg-surface-muted"
           >
             <Icon name="image-up" size={36} className="text-muted-foreground" />
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full">
               <span className="font-semibold">Chọn ảnh có tọa độ GPS</span>
               <span className="text-sm text-muted-foreground">
                 Ảnh chụp khi bật vị trí sẽ mang theo tọa độ check-in
               </span>
+              {isAndroid && (
+                <span className="text-[11px] text-amber-700 bg-amber-500/5 p-2.5 rounded-xl leading-normal border border-amber-500/10 mt-3 text-left block">
+                  <strong>Mẹo Android:</strong> Khi chọn ảnh, hãy chọn mục <strong>"Tệp" (Files)</strong> hoặc <strong>"Tệp của bạn"</strong> thay vì chọn trực tiếp từ Album để giữ tọa độ GPS gốc.
+                </span>
+              )}
             </div>
           </button>
 
           {stage === "error" && (
             <p className="max-w-xs text-center text-sm text-red-500">
-              Ảnh không có thông tin vị trí. Hãy chọn ảnh chụp với GPS bật, hoặc
-              dùng tab "Cắm cờ".
+              Ảnh không có thông tin vị trí. Hãy chọn ảnh chụp với GPS bật{isAndroid ? ', chọn qua ứng dụng Tệp' : ''} hoặc dùng tab "Cắm cờ".
             </p>
           )}
 
