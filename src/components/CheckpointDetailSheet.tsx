@@ -89,7 +89,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                 <img
                   src={data.author.avatar_url}
                   alt=""
-                  className="h-7 w-7 shrink-0 rounded-full object-cover"
+                  className="h-8 w-8 shrink-0 object-contain"
                 />
               ) : (
                 <span className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />

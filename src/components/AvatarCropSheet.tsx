@@ -3,6 +3,9 @@ import Cropper, { type Area, type Point } from "react-easy-crop";
 import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
 import { Button } from "./ui/Button";
+import { AvatarFramePicker, type FrameOption } from "./AvatarFramePicker";
+import { composeAvatar } from "../lib/avatarComposite";
+import { frameById } from "../lib/avatarFrames";
 
 const CROP_SIZE = 512; // Output square edge in px
 const JPEG_QUALITY = 0.9;
@@ -99,21 +102,42 @@ async function getCroppedBlob(
 interface AvatarCropSheetProps {
   imageSrc: string;
   onClose: () => void;
-  onDone: (blob: Blob) => void;
+  /** Receives the final avatar blob (frame baked in when one is chosen) and the
+   *  selected frame id (null = no frame). */
+  onDone: (blob: Blob, frameId: string | null) => void;
+  /** Avatar frames to offer below the cropper. Omit to hide the frame picker. */
+  frameOptions?: FrameOption[];
+  /** Pre-selected frame id (e.g. the user's current frame). */
+  initialFrameId?: string | null;
 }
 
+// Live preview transform: the frame fills the box (viewBox→box), then is scaled
+// about its hole (50%, 47.27% of viewBox) so the hole matches the round crop
+// circle, and nudged down so the hole centres in the box. The decorations spill
+// past the box and are clipped by the cropper's overflow — same framing the
+// baked PNG produces. (HOLE_R 66 / 220 = 30% → scale 0.5/0.30 = 1.667.)
+const FRAME_OVERLAY_STYLE: React.CSSProperties = {
+  transformOrigin: "31% 47.27%",
+  transform: "translateY(2.73%) scale(1.7)",
+};
+
 /** Full-screen crop sheet for avatar images. 1:1 crop with circular mask,
- *  zoom slider, and drag-to-reposition. "Xong" crops → downscales to 512px
- *  JPEG → returns a Blob. */
+ *  zoom slider, optional avatar-frame picker, and drag-to-reposition. "Xong"
+ *  crops → downscales to 512px → bakes the chosen frame → returns a Blob. */
 export function AvatarCropSheet({
   imageSrc,
   onClose,
   onDone,
+  frameOptions,
+  initialFrameId = null,
 }: AvatarCropSheetProps) {
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [frameId, setFrameId] = useState<string | null>(initialFrameId);
+
+  const selectedFrame = frameById(frameId);
 
   // Reset zoom when image changes
   useEffect(() => {
@@ -131,14 +155,19 @@ export function AvatarCropSheet({
   const handleDone = async () => {
     if (!croppedAreaPixels) return;
     setProcessing(true);
+    let croppedUrl: string | null = null;
     try {
       const blob = await getCroppedBlob(imageSrc, croppedAreaPixels);
-      onDone(blob);
+      croppedUrl = URL.createObjectURL(blob);
+      // Always bake: a frame medallion, or a plain circular mask when none.
+      const baked = await composeAvatar(croppedUrl, selectedFrame?.file ?? null);
+      onDone(baked, selectedFrame?.id ?? null);
     } catch {
-      // If crop fails, pass the original image through as fallback
+      // If crop/compose fails, pass the original image through as fallback
       const res = await fetch(imageSrc);
-      onDone(await res.blob());
+      onDone(await res.blob(), null);
     } finally {
+      if (croppedUrl) URL.revokeObjectURL(croppedUrl);
       setProcessing(false);
     }
   };
@@ -159,6 +188,17 @@ export function AvatarCropSheet({
             onZoomChange={setZoom}
             onCropComplete={onCropComplete}
           />
+          {/* Live frame preview overlay */}
+          {selectedFrame && (
+            <img
+              src={selectedFrame.file}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="pointer-events-none absolute inset-0 h-full w-4/5"
+              style={FRAME_OVERLAY_STYLE}
+            />
+          )}
         </div>
 
         {/* Zoom slider */}
@@ -176,6 +216,19 @@ export function AvatarCropSheet({
           />
           <Icon name="zoom-in" size={18} className="text-muted-foreground shrink-0" />
         </div>
+
+        {/* Frame picker */}
+        {frameOptions && frameOptions.length > 0 && (
+          <div>
+            <p className="mb-1.5 text-sm font-semibold text-foreground">Khung avatar</p>
+            <AvatarFramePicker
+              options={frameOptions}
+              selectedId={frameId}
+              onSelect={setFrameId}
+              avatarUrl={imageSrc}
+            />
+          </div>
+        )}
 
         {/* Actions */}
         <Button

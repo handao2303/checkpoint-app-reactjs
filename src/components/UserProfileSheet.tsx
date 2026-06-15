@@ -89,11 +89,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
             <div className="flex items-start gap-4">
               <div className="relative shrink-0">
                 {u.avatar_url ? (
-                  <img
-                    src={u.avatar_url}
-                    alt=""
-                    className={`h-20 w-20 rounded-full object-cover ${avatarRingClass(u.level)}`}
-                  />
+                  <img src={u.avatar_url} alt="" className="h-24 w-24 object-contain" />
                 ) : (
                   <span
                     className={`block h-20 w-20 rounded-full bg-white/20 ${avatarRingClass(u.level)}`}

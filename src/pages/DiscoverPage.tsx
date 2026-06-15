@@ -410,7 +410,7 @@ function FeedCard({
           className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-80"
         >
           {item.author.avatar_url ? (
-            <img src={item.author.avatar_url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+            <img src={item.author.avatar_url} alt="" className="h-11 w-11 shrink-0 object-contain" />
           ) : (
             <span className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
           )}

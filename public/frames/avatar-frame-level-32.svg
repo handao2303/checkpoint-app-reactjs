@@ -1,0 +1,32 @@
+<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="rim" x1="30" y1="18" x2="188" y2="200" gradientUnits="userSpaceOnUse"><stop stop-color="#D8F4E0"/><stop offset=".4" stop-color="#4CAF50"/><stop offset="1" stop-color="#1B6B2A"/></linearGradient>
+  <linearGradient id="plate" x1="82" y1="165" x2="134" y2="208" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF1C9"/><stop offset=".5" stop-color="#E19B34"/><stop offset="1" stop-color="#7B3013"/></linearGradient>
+  <linearGradient id="gold" x1="82" y1="15" x2="136" y2="44" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF4C6"/><stop offset=".5" stop-color="#F2B038"/><stop offset="1" stop-color="#B76418"/></linearGradient>
+  <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#7A2A10" flood-opacity=".18"/></filter>
+</defs>
+<g filter="url(#shadow)">
+  <circle cx="110" cy="104" r="72" stroke="url(#rim)" stroke-width="10"/>
+  <circle cx="110" cy="104" r="81" stroke="#4CAF50" stroke-opacity=".18" stroke-width="3"/>
+  <circle cx="110" cy="104" r="65" stroke="#FFF1CF" stroke-width="3" opacity=".9"/>
+  
+  <path d="M58 160C39 152 26 138 20 117" stroke="#F0BE60" stroke-width="7" stroke-linecap="round"/>
+  <path d="M162 160C181 152 194 138 200 117" stroke="#F0BE60" stroke-width="7" stroke-linecap="round"/>
+
+  
+  <path d="M84 17L96 32L110 12L124 32L136 17L134 45H86L84 17Z" fill="url(#gold)" stroke="#D68B22" stroke-width="2"/>
+  <circle cx="96" cy="31" r="2.5" fill="#FFF3C1"/>
+  <circle cx="110" cy="18" r="3" fill="#FFF3C1"/>
+  <circle cx="124" cy="31" r="2.5" fill="#FFF3C1"/>
+
+</g>
+
+<g filter="url(#shadow)">
+  <path d="M90 168H130L136 200L110 212L84 200L90 168Z" fill="url(#plate)"/>
+  <path d="M93 171H127L131 196L110 206L89 196L93 171Z" fill="#8E3A17" fill-opacity=".28"/>
+  <text x="110" y="195" text-anchor="middle" font-family="Montserrat, Arial, sans-serif" font-size="24" font-weight="800" fill="#FFF7D7">32</text>
+</g>
+<circle cx="78" cy="24" r="2.3" fill="#FFF5CC" opacity="0.75"/><circle cx="90" cy="24" r="2.3" fill="#FFF5CC" opacity="0.80"/><circle cx="102" cy="24" r="2.3" fill="#FFF5CC" opacity="0.85"/><circle cx="114" cy="24" r="2.3" fill="#FFF5CC" opacity="0.90"/>
+<text x="110" y="156" text-anchor="middle" font-family="Montserrat, Arial, sans-serif" font-size="14" font-weight="700" fill="#7F5A3B">LV 32</text>
+<title>Khung avatar cấp độ 32 - yêu cầu 96100 XP</title>
+</svg>

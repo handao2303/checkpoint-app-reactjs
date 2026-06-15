@@ -1,11 +1,17 @@
 import { useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
 import { Button } from "./ui/Button";
 import { useAuth } from "../auth/AuthContext";
-import { updateProfile, uploadAvatar } from "../lib/api";
+import { getBadges, updateProfile, uploadAvatar } from "../lib/api";
 import { prepareImage } from "../lib/image";
 import { AvatarCropSheet } from "./AvatarCropSheet";
+import { buildPickerFrames } from "../lib/avatarFrames";
+
+// The selected frame is baked into the image, so the backend doesn't track it.
+// Remember the last choice locally to pre-select it next time.
+const frameStorageKey = (userId: string) => `cp_avatar_frame:${userId}`;
 
 /** Edit display name + bio, and change avatar. Updates the cached auth user on
  *  success so the profile reflects changes immediately. */
@@ -19,7 +25,14 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const { data: badges = [] } = useQuery({ queryKey: ["badges"], queryFn: getBadges });
+
   if (!user) return null;
+
+  const awardedKeys = new Set(badges.filter((b) => b.awarded).map((b) => b.key));
+  const frameOptions = buildPickerFrames(user.level, awardedKeys);
+  const rememberedFrameId =
+    (typeof localStorage !== "undefined" && localStorage.getItem(frameStorageKey(user.id))) || null;
 
   const pickAvatar = () => fileRef.current?.click();
 
@@ -41,13 +54,20 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const onCropDone = async (blob: Blob) => {
+  const onCropDone = async (blob: Blob, frameId: string | null) => {
     setCropImageSrc(null);
     setUploading(true);
     setError(null);
     try {
-      const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
+      // Baked avatars are PNG (transparent corners around the circle/medallion).
+      const file = new File([blob], "avatar.png", { type: "image/png" });
       applyUser(await uploadAvatar(file));
+      try {
+        if (frameId) localStorage.setItem(frameStorageKey(user.id), frameId);
+        else localStorage.removeItem(frameStorageKey(user.id));
+      } catch {
+        // localStorage unavailable (private mode) — harmless
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Tải ảnh thất bại.");
     } finally {
@@ -85,15 +105,11 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
             type="button"
             onClick={pickAvatar}
             disabled={uploading}
-            className="relative h-24 w-24 rounded-full disabled:opacity-60"
+            className="relative h-28 w-28 disabled:opacity-60"
             aria-label="Đổi ảnh đại diện"
           >
             {user.avatar_url ? (
-              <img
-                src={user.avatar_url}
-                alt=""
-                className="h-24 w-24 rounded-full border-4 border-border object-cover"
-              />
+              <img src={user.avatar_url} alt="" className="h-28 w-28 object-contain" />
             ) : (
               <span className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-border bg-surface-muted" />
             )}
@@ -102,7 +118,7 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
             </span>
           </button>
           <span className="text-xs text-muted-foreground">
-            {uploading ? "Đang tải ảnh..." : "Chạm để đổi ảnh đại diện"}
+            {uploading ? "Đang tải ảnh..." : "Chạm để đổi ảnh & khung avatar"}
           </span>
           <input
             ref={fileRef}
@@ -148,6 +164,8 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
       {cropImageSrc && (
         <AvatarCropSheet
           imageSrc={cropImageSrc}
+          frameOptions={frameOptions}
+          initialFrameId={rememberedFrameId}
           onClose={() => {
             URL.revokeObjectURL(cropImageSrc);
             setCropImageSrc(null);

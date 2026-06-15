@@ -124,7 +124,7 @@ function NotificationRow({
     >
       <div className="relative shrink-0">
         {notif.actor.avatar_url ? (
-          <img src={notif.actor.avatar_url} alt="" className="h-11 w-11 rounded-full object-cover" />
+          <img src={notif.actor.avatar_url} alt="" className="h-12 w-12 object-contain" />
         ) : (
           <span className="block h-11 w-11 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
         )}

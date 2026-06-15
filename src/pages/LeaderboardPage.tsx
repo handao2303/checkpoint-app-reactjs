@@ -70,11 +70,7 @@ function PodiumCard({
     >
       <div className="relative">
         {entry.avatar_url ? (
-          <img
-            src={entry.avatar_url}
-            alt=""
-            className={`rounded-full object-cover ${style.avatarSize} ${style.ring}`}
-          />
+          <img src={entry.avatar_url} alt="" className={`object-contain ${style.avatarSize}`} />
         ) : (
           <span
             className={`block rounded-full bg-gradient-to-br from-primary-300 to-clay-400 ${style.avatarSize} ${style.ring}`}
@@ -115,7 +111,7 @@ function Row({
         {rankLabel(entry.rank)}
       </span>
       {entry.avatar_url ? (
-        <img src={entry.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
+        <img src={entry.avatar_url} alt="" className="h-11 w-11 shrink-0 object-contain" />
       ) : (
         <span className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
       )}

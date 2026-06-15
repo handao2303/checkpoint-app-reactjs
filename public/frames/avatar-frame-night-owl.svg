@@ -1,0 +1,36 @@
+<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="rim" x1="28" y1="18" x2="188" y2="200" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#FFF4D0"/>
+    <stop offset=".42" stop-color="#A46CFF"/>
+    <stop offset="1" stop-color="#6C46DA"/>
+  </linearGradient>
+  <linearGradient id="accent" x1="148" y1="38" x2="190" y2="87" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#A46CFF"/>
+    <stop offset="1" stop-color="#6C46DA"/>
+  </linearGradient>
+  <linearGradient id="gold" x1="82" y1="15" x2="136" y2="44" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#FFF4C6"/><stop offset=".5" stop-color="#F2B038"/><stop offset="1" stop-color="#B76418"/>
+  </linearGradient>
+  <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#7A2A10" flood-opacity=".18"/></filter>
+</defs>
+<g filter="url(#shadow)">
+  <circle cx="110" cy="104" r="72" stroke="url(#rim)" stroke-width="10"/>
+  <circle cx="110" cy="104" r="81" stroke="#A46CFF" stroke-opacity=".22" stroke-width="3"/>
+  <circle cx="110" cy="104" r="65" stroke="#FFF1CF" stroke-width="3" opacity=".85"/>
+  <path d="M48 47C67 32 93 27 118 31" stroke="#FFFFFF" stroke-opacity=".24" stroke-width="6" stroke-linecap="round"/>
+  
+  <path d="M52 162C41 153 34 139 30 123" stroke="#6C46DA" stroke-width="6" stroke-linecap="round"/>
+  <path d="M168 162C179 153 186 139 190 123" stroke="#6C46DA" stroke-width="6" stroke-linecap="round"/>
+
+  
+</g>
+
+  <g filter="url(#shadow)">
+    <circle cx="172" cy="63" r="22" fill="url(#accent)" stroke="#FFF4CF" stroke-width="3"/>
+    <path d="M177 51C168 53 162 61 164 70C166 78 175 83 183 80C177 78 173 73 172 67C171 61 173 55 177 51Z" fill="#FFF0B3"/>
+    <path d="M183 58L184.8 62L189 63.6L184.8 65.2L183 69.4L181.2 65.2L177 63.6L181.2 62L183 58Z" fill="#FFF7D7"/>
+  </g>
+
+<title>Khung avatar - Cú đêm</title>
+</svg>

@@ -160,7 +160,7 @@ function CommentRow({
   return (
     <div className="flex items-start gap-2">
       {comment.avatar_url ? (
-        <img src={comment.avatar_url} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+        <img src={comment.avatar_url} alt="" className="h-9 w-9 shrink-0 object-contain" />
       ) : (
         <span className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
       )}

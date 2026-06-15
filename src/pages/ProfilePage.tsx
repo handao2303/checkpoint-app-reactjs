@@ -25,6 +25,7 @@ import {
   type Checkpoint,
   type LeaderboardEntry,
 } from "../lib/api";
+import { levelTierIconUrl } from "../lib/avatarFrames";
 import { categoryIcon } from "../lib/maps";
 import { quickCheckinSettings } from "../lib/settings";
 import { renderProfileCard } from "../lib/shareCard";
@@ -101,11 +102,7 @@ function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 
     <div className="flex flex-1 flex-col items-center gap-1 px-1">
       <div className="relative">
         {entry.avatar_url ? (
-          <img
-            src={entry.avatar_url}
-            alt=""
-            className={`h-10 w-10 rounded-full object-cover ring-2 ${ringClass}`}
-          />
+          <img src={entry.avatar_url} alt="" className="h-11 w-11 object-contain" />
         ) : (
           <span
             className={`block h-10 w-10 rounded-full bg-gradient-to-br from-primary-300 to-clay-400 ring-2 ${ringClass}`}
@@ -201,17 +198,13 @@ export function ProfilePage() {
         <div className="flex items-start gap-4">
           <div className="relative shrink-0">
             {user.avatar_url ? (
-              <img
-                src={user.avatar_url}
-                alt=""
-                className={`h-24 w-24 rounded-full object-cover ${avatarRingClass(user.level)}`}
-              />
+              <img src={user.avatar_url} alt="" className="h-28 w-28 object-contain" />
             ) : (
               <span
                 className={`block h-24 w-24 rounded-full bg-white/20 ${avatarRingClass(user.level)}`}
               />
             )}
-            <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-bold text-clay-600 shadow-sm">
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-bold text-clay-600 shadow-sm">
               Cấp {user.level}
             </span>
           </div>
@@ -298,10 +291,15 @@ export function ProfilePage() {
       {/* Level card */}
       <Card>
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-md">
-            <span className="flex flex-col items-center leading-none">
-              <span className="text-[10px] font-medium opacity-80">CẤP</span>
-              <span className="font-display text-2xl font-bold">{user.level}</span>
+          <div className="relative h-16 w-16 shrink-0">
+            <img
+              src={levelTierIconUrl(user.level)}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-contain"
+            />
+            <span className="absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 font-display text-xl font-bold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]">
+              {user.level}
             </span>
           </div>
           <div className="min-w-0 flex-1">

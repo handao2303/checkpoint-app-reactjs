@@ -1,0 +1,49 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+
+<linearGradient id="g-main" x1="28" y1="16" x2="100" y2="112" gradientUnits="userSpaceOnUse">
+  <stop offset="0" stop-color="#6D6AF7"/>
+  <stop offset="1" stop-color="#3934C8"/>
+</linearGradient>
+<linearGradient id="g-rim" x1="20" y1="8" x2="108" y2="120" gradientUnits="userSpaceOnUse">
+  <stop offset="0" stop-color="#FFF2C7"/>
+  <stop offset="0.45" stop-color="#A8B0FF"/>
+  <stop offset="1" stop-color="#8A4A11"/>
+</linearGradient>
+<radialGradient id="g-shine" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(43 30) rotate(54) scale(60 72)">
+  <stop stop-color="#FFFFFF" stop-opacity="0.62"/>
+  <stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0.08"/>
+  <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+</radialGradient>
+
+<filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+  <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#7A2A10" flood-opacity="0.18"/>
+</filter>
+<filter id="innerGlow" x="-20%" y="-20%" width="140%" height="140%">
+  <feGaussianBlur stdDeviation="1.2" result="blur"/>
+</filter>
+</defs>
+
+<g filter="url(#softShadow)">
+  <path d="M64 6L111.6 33.5V88.5L64 116L16.4 88.5V33.5L64 6Z" fill="url(#g-rim)"/>
+  <path d="M64 13L105.5 37V85L64 109L22.5 85V37L64 13Z" fill="url(#g-main)"/>
+  <path d="M64 17L101.8 39V83L64 105L26.2 83V39L64 17Z" stroke="#FFFFFF" stroke-opacity="0.32" stroke-width="2"/>
+  <path d="M64 13L105.5 37V85L64 109L22.5 85V37L64 13Z" fill="url(#g-shine)"/>
+  <path d="M34 35C49 22 78 19 96 42" stroke="#FFFFFF" stroke-opacity="0.24" stroke-width="5" stroke-linecap="round"/>
+</g>
+<g opacity="0.9">
+  <circle cx="31" cy="28" r="2" fill="#EEF0FF"/>
+  <circle cx="100" cy="67" r="1.8" fill="#EEF0FF"/>
+  <path d="M89 24L91 29L96 31L91 33L89 38L87 33L82 31L87 29L89 24Z" fill="#EEF0FF"/>
+</g>
+
+<g>
+  <path d="M79 81C62 89 43 76 43 57C43 44 52 32 64 29C58 37 58 49 65 58C72 68 84 70 94 65C91 72 86 78 79 81Z" fill="#FFF0B3" stroke="#FFF7D7" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M91 36L94 44L102 47L94 50L91 58L88 50L80 47L88 44L91 36Z" fill="#FFF7D7"/>
+  <path d="M70 25L72 30L77 32L72 34L70 39L68 34L63 32L68 30L70 25Z" fill="#FFE39B"/>
+  <path d="M38 83C48 75 58 79 64 87C72 78 84 77 94 86" stroke="#FFF7D7" stroke-opacity="0.6" stroke-width="5" stroke-linecap="round"/>
+</g>
+
+<title>Cú đêm</title>
+
+</svg>
