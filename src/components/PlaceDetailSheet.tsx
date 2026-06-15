@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
+import { useAuth } from "../auth/AuthContext";
 import { Icon } from "./ui/Icon";
 import { getPlace } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
@@ -11,6 +13,8 @@ import { DetailSheetSkeleton } from "./ui/Skeleton";
 import { CreateCheckpointForm } from "./CreateCheckpointForm";
 
 export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => void }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const { data, isLoading } = useQuery({ queryKey: ["place", id], queryFn: () => getPlace(id) });
   const [checkingIn, setCheckingIn] = useState(false);
 
@@ -62,8 +66,11 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
             </p>
           )}
 
-          <Button icon={<Icon name="flag" size={20} />} onClick={() => setCheckingIn(true)}>
-            Cắm cờ tại đây
+          <Button
+            icon={<Icon name="flag" size={20} />}
+            onClick={() => (user ? setCheckingIn(true) : navigate("/login"))}
+          >
+            {user ? "Cắm cờ tại đây" : "Đăng nhập để cắm cờ"}
           </Button>
 
           {data.reviews?.length > 0 && (

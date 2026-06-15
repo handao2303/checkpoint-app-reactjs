@@ -84,6 +84,10 @@ export function useCheckinQueue() {
   return ctx;
 }
 
+export function useOptionalCheckinQueue() {
+  return useContext(Ctx);
+}
+
 export function CheckinQueueProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   // Seed queue from localStorage on first render so pending jobs from a

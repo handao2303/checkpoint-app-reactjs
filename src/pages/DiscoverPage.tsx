@@ -12,7 +12,7 @@ import { XPBadge } from "../components/ui/Chip";
 import { Skeleton } from "../components/ui/Skeleton";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
-import { useCheckinQueue } from "../context/CheckinQueue";
+import { useOptionalCheckinQueue } from "../context/CheckinQueue";
 import {
   followUser,
   getFeed,
@@ -43,7 +43,7 @@ export function DiscoverPage() {
   const [query, _] = useState("");
   const [debounced, setDebounced] = useState("");
   const { user } = useAuth();
-  const { pendingCount } = useCheckinQueue();
+  const pendingCount = useOptionalCheckinQueue()?.pendingCount ?? 0;
   const queryClient = useQueryClient();
 
   // Shared ambient location from the layout provider; fall back to the default
