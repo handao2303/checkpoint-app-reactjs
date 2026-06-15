@@ -1,10 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { BadgesSection } from "../components/BadgesSection";
+import { DriveConnectCard } from "../components/DriveConnectCard";
 import { EditProfileSheet } from "../components/EditProfileSheet";
+import { Toast } from "../components/ui/Toast";
 import { JourneysSection } from "../components/JourneysSection";
 import { PassportSection } from "../components/PassportSection";
 import { ShareButton } from "../components/share/ShareButton";
@@ -87,6 +90,23 @@ export function ProfilePage() {
     queryKey: ["checkpoints", "me"],
     queryFn: () => getMyCheckpoints(4),
   });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const [driveToast, setDriveToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    const drive = searchParams.get("drive");
+    if (drive === "connected") {
+      setDriveToast("Đã kết nối Google Drive ✓");
+      void queryClient.invalidateQueries({ queryKey: ["drive-status"] });
+      setSearchParams({}, { replace: true });
+    } else if (drive === "error") {
+      setDriveToast("Kết nối Google Drive thất bại");
+      setSearchParams({}, { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!user) return null;
 
   // Gallery order = checkpoints that have an image (matches PhotoView render order).
@@ -198,6 +218,17 @@ export function ProfilePage() {
         )}
       </Card>
 
+      {/* Integrations */}
+      <Card>
+        <div className="flex items-center gap-2 mb-1">
+          <Icon name="sparkles" size={18} className="text-clay-600" />
+          <h3 className="font-display text-lg font-bold">Tích hợp</h3>
+        </div>
+        <div className="divide-y divide-border">
+          <DriveConnectCard />
+        </div>
+      </Card>
+
       {/* Badges */}
       <BadgesSection />
 
@@ -283,6 +314,7 @@ export function ProfilePage() {
 
       {editing && <EditProfileSheet onClose={() => setEditing(false)} />}
       {sheets}
+      {driveToast && <Toast message={driveToast} onDone={() => setDriveToast(null)} />}
     </div>
   );
 }

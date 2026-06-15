@@ -681,3 +681,29 @@ export async function updateJourney(
   if (!isSuccessful(res)) throw new Error("update journey failed");
   return res.data;
 }
+
+// ---- Google Drive integration ----
+
+export interface DriveStatus {
+  connected: boolean;
+  email?: string;
+  connected_at?: string;
+}
+
+/** Returns the Google OAuth2 URL the browser should navigate to. */
+export async function initDriveConnect(): Promise<{ auth_url: string }> {
+  const res = await apiFetch("/integrations/drive/init", { method: "POST" });
+  if (!isSuccessful(res)) throw new Error("drive init failed");
+  return res.data as { auth_url: string };
+}
+
+export async function getDriveStatus(): Promise<DriveStatus> {
+  const res = await apiFetch("/integrations/drive/status");
+  if (!isSuccessful(res)) throw new Error("drive status failed");
+  return res.data as DriveStatus;
+}
+
+export async function disconnectDrive(): Promise<void> {
+  const res = await apiFetch("/integrations/drive/disconnect", { method: "DELETE" });
+  if (!isSuccessful(res)) throw new Error("drive disconnect failed");
+}
