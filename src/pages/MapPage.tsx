@@ -17,11 +17,33 @@ import { useUserLocation } from "../location/LocationProvider";
 
 type MapFilter = "all" | "following" | "mine";
 
+const BOUNDS_BUFFER_RATIO = 0.5;
+
 const LABELS: Record<MapFilter, string> = {
   all: "Tất cả",
   following: "Đang follow",
   mine: "Của tôi",
 };
+
+function containsBounds(outer: Bounds, inner: Bounds): boolean {
+  return (
+    outer.minLng <= inner.minLng &&
+    outer.minLat <= inner.minLat &&
+    outer.maxLng >= inner.maxLng &&
+    outer.maxLat >= inner.maxLat
+  );
+}
+
+function expandBounds(bounds: Bounds): Bounds {
+  const lngBuffer = (bounds.maxLng - bounds.minLng) * BOUNDS_BUFFER_RATIO;
+  const latBuffer = (bounds.maxLat - bounds.minLat) * BOUNDS_BUFFER_RATIO;
+  return {
+    minLng: Math.max(-180, bounds.minLng - lngBuffer),
+    minLat: Math.max(-90, bounds.minLat - latBuffer),
+    maxLng: Math.min(180, bounds.maxLng + lngBuffer),
+    maxLat: Math.min(90, bounds.maxLat + latBuffer),
+  };
+}
 
 const getCheckpoints = (
   data: Checkpoint[],
@@ -39,7 +61,8 @@ const getCheckpoints = (
 };
 
 export function MapPage() {
-  const [bounds, setBounds] = useState<Bounds | null>(null);
+  const [viewportBounds, setViewportBounds] = useState<Bounds | null>(null);
+  const [queryBounds, setQueryBounds] = useState<Bounds | null>(null);
   const [zoom, setZoom] = useState(DEFAULT_VIEW.zoom);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [clusterLeaves, setClusterLeaves] = useState<Checkpoint[] | null>(null);
@@ -65,10 +88,11 @@ export function MapPage() {
   }, [coords, centerOnUser]);
 
   const { data = [] } = useQuery({
-    queryKey: ["checkpoints", "bbox", bounds],
-    queryFn: () => getCheckpointsInBounds(bounds!),
-    enabled: !!bounds,
+    queryKey: ["checkpoints", "bbox", queryBounds],
+    queryFn: () => getCheckpointsInBounds(queryBounds!),
+    enabled: !!queryBounds,
     placeholderData: keepPreviousData,
+    staleTime: 60_000,
   });
 
   const { data: followingIds = [] } = useQuery({
@@ -89,24 +113,33 @@ export function MapPage() {
         properties: cp,
       })),
     );
-    if (!bounds) return { clusters: [], sc };
+    if (!viewportBounds) return { clusters: [], sc };
     return {
       clusters: sc.getClusters(
-        [bounds.minLng, bounds.minLat, bounds.maxLng, bounds.maxLat],
+        [
+          viewportBounds.minLng,
+          viewportBounds.minLat,
+          viewportBounds.maxLng,
+          viewportBounds.maxLat,
+        ],
         Math.round(zoom),
       ),
       sc,
     };
-  }, [checkpoints, bounds, zoom]);
+  }, [checkpoints, viewportBounds, zoom]);
 
   const syncViewport = useCallback((map: MapLibreMap) => {
     const b = map.getBounds();
-    setBounds({
+    const nextViewport = {
       minLng: b.getWest(),
       minLat: b.getSouth(),
       maxLng: b.getEast(),
       maxLat: b.getNorth(),
-    });
+    };
+    setViewportBounds(nextViewport);
+    setQueryBounds((current) =>
+      current && containsBounds(current, nextViewport) ? current : expandBounds(nextViewport),
+    );
     setZoom(map.getZoom());
   }, []);
 
