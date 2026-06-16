@@ -44,7 +44,7 @@ export async function prepareCheckpointImage(file: File): Promise<PreparedCheckp
     CHECKPOINT_QUALITY,
     CHECKPOINT_MAX_BYTES,
   );
-  const thumbnail = await resizeJpeg(original, THUMBNAIL_MAX_EDGE, THUMBNAIL_QUALITY, "-thumb");
+  const thumbnail = await cropAndResizeJpeg(original, THUMBNAIL_MAX_EDGE, 360, THUMBNAIL_QUALITY, "-thumb");
   return { original, thumbnail };
 }
 
@@ -105,6 +105,55 @@ async function resizeJpeg(
     return file;
   }
   ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close();
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", quality),
+  );
+  if (!blob) return file;
+  const baseName = toJpegName(file.name).replace(/\.jpg$/, "");
+  return new File([blob], `${baseName}${suffix}.jpg`, { type: "image/jpeg" });
+}
+
+/** Crop an image to a target aspect ratio from the center, then resize it to target dimensions. */
+async function cropAndResizeJpeg(
+  file: File,
+  targetWidth: number,
+  targetHeight: number,
+  quality: number,
+  suffix = "",
+): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  const { width: origW, height: origH } = bitmap;
+
+  const targetRatio = targetWidth / targetHeight;
+  const origRatio = origW / origH;
+
+  let cropX = 0;
+  let cropY = 0;
+  let cropW = origW;
+  let cropH = origH;
+
+  if (origRatio > targetRatio) {
+    // Original is wider than target -> crop sides
+    cropW = Math.round(origH * targetRatio);
+    cropX = Math.round((origW - cropW) / 2);
+  } else {
+    // Original is taller than target -> crop top & bottom
+    cropH = Math.round(origW / targetRatio);
+    cropY = Math.round((origH - cropH) / 2);
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    return file;
+  }
+
+  ctx.drawImage(bitmap, cropX, cropY, cropW, cropH, 0, 0, targetWidth, targetHeight);
   bitmap.close();
 
   const blob = await new Promise<Blob | null>((resolve) =>
