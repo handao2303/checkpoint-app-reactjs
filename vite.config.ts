@@ -51,6 +51,25 @@ export default defineConfig({
         // Never answer asset requests with the SPA fallback HTML — a missing
         // chunk must fail as a real network error, not a text/html response.
         navigateFallbackDenylist: [/^\/assets\//],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) =>
+              url.origin === "https://zngdcfoeklogvjphhjkp.supabase.co" &&
+              url.pathname.startsWith("/storage/v1/object/public/checkpoint-images/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "checkpoint-supabase-images-v1",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 365 * 24 * 60 * 60,
+              },
+              cacheableResponse: {
+                // Cross-origin <img> requests can be opaque (status 0).
+                statuses: [0, 200],
+              },
+            },
+          },
+        ],
       },
       manifest: {
         id: "/",
