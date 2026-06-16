@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Webcam from "react-webcam";
 import { Icon } from "./ui/Icon";
 import { trackEvent } from "../lib/observability";
@@ -415,8 +416,8 @@ export function CameraCaptureSheet({
     // Gallery files are already reviewed by the user; stay in viewfinder.
   };
 
-  return (
-    <div className="fixed inset-0 z-[80] flex flex-col bg-black">
+  const content = (
+    <div className="fixed inset-0 z-[100] flex h-dvh w-screen flex-col bg-black">
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pb-2 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] text-white">
         <button
@@ -614,4 +615,6 @@ export function CameraCaptureSheet({
       />
     </div>
   );
+
+  return createPortal(content, document.body);
 }
