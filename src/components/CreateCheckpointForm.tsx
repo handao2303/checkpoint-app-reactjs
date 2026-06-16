@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Icon } from "./ui/Icon";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCheckinQueue } from "../context/CheckinQueue";
+import { useGeocode } from "../hooks/useGeocode";
 import {
   getMyJourneys,
   getNearbyPlaces,
@@ -11,17 +12,16 @@ import {
   type UploadSlot,
   type VideoKeys,
 } from "../lib/api";
-import { useCheckinQueue } from "../context/CheckinQueue";
-import { useGeocode } from "../hooks/useGeocode";
+import { cn } from "../lib/cn";
 import { prepareCheckpointImage } from "../lib/image";
-import { prepareCheckpointVideo } from "../lib/video";
 import { CATEGORIES } from "../lib/maps";
+import { trackError, trackEvent } from "../lib/observability";
+import { quickCheckinSettings } from "../lib/settings";
+import { prepareCheckpointVideo } from "../lib/video";
+import { CameraCaptureSheet } from "./CameraCaptureSheet";
 import { MediaPreview } from "./MediaPreview";
 import { Button } from "./ui/Button";
-import { cn } from "../lib/cn";
-import { quickCheckinSettings } from "../lib/settings";
-import { CameraCaptureSheet } from "./CameraCaptureSheet";
-import { trackError, trackEvent } from "../lib/observability";
+import { Icon } from "./ui/Icon";
 
 interface PickedMedia {
   type: UploadMediaType;
@@ -123,7 +123,7 @@ export function CreateCheckpointForm({
   const pickedRef = useRef(picked);
   pickedRef.current = picked;
   const imageCount = picked.filter((p) => p.type === "image").length;
-  const videoCount = picked.filter((p) => p.type === "video").length;
+  // const videoCount = picked.filter((p) => p.type === "video").length;
   const processing = imageProcessing || videoProcessing;
   useEffect(
     () => () =>
@@ -252,9 +252,9 @@ export function CreateCheckpointForm({
     else imageFileRef.current?.click();
   };
 
-  const addVideo = () => {
-    videoFileRef.current?.click();
-  };
+  // const addVideo = () => {
+  //   videoFileRef.current?.click();
+  // };
 
   function removeAt(index: number) {
     setPicked((prev) => {
@@ -465,7 +465,7 @@ export function CreateCheckpointForm({
             )}
           </button>
         )}
-        {videoCount < MAX_VIDEOS && (
+        {/* {videoCount < MAX_VIDEOS && (
           <button
             type="button"
             onClick={addVideo}
@@ -481,7 +481,7 @@ export function CreateCheckpointForm({
               <Icon name="video" size={24} />
             )}
           </button>
-        )}
+        )} */}
         <input
           ref={imageFileRef}
           type="file"
