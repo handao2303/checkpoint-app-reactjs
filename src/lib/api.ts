@@ -499,6 +499,26 @@ export async function putFilesToSlots(
   if (failed) throw new Error(`R2 upload failed: ${failed.status}`);
 }
 
+export interface VideoKeys {
+  object_key: string;
+  thumbnail_key?: string;
+}
+
+/** Upload a raw (any-format) video to the backend, which transcodes it to MP4
+ *  server-side (browsers can't reliably produce MP4) and stores it with its
+ *  thumbnail. Returns the R2 keys to include in createCheckpoint. */
+export async function transcodeVideo(original: File, thumbnail: File): Promise<VideoKeys> {
+  const form = new FormData();
+  form.append("video", original, original.name || "video");
+  form.append("thumbnail", thumbnail, thumbnail.name || "thumbnail.jpg");
+  const res = await apiFetch("/checkpoints/video", { method: "POST", body: form });
+  if (!isSuccessful(res)) {
+    const msg = typeof res.data?.error === "string" ? res.data.error : `transcode video failed: ${res.status}`;
+    throw new ApiError(res.status, msg);
+  }
+  return { object_key: res.data.object_key, thumbnail_key: res.data.thumbnail_key };
+}
+
 // ---- Places / Discovery (Phase 4) ----
 
 export interface Place {

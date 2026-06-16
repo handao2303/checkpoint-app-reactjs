@@ -1,18 +1,26 @@
 import { trackError, trackEvent } from "./observability";
 
 const MAX_DURATION_SECONDS = 10;
-const MAX_VIDEO_BYTES = 12 * 1024 * 1024;
+// Input cap (advisory UX check). The raw file is uploaded as-is to the backend,
+// which transcodes it to a compressed MP4 and enforces the authoritative limit.
+// Source files (MOV/WebM/high-bitrate) are larger than the result, so the cap is
+// generous and matches the server's maxVideoInputBytes (60 MiB).
+const MAX_INPUT_VIDEO_BYTES = 60 * 1024 * 1024;
 const THUMBNAIL_MAX_EDGE = 640;
 type Rotation = 0 | 90 | 180 | 270;
 
 /**
- * Validate a short video, generate its JPEG thumbnail client-side, and output
- * an MP4 file. Non-MP4 inputs are converted when the browser supports MP4
- * MediaRecorder output.
+ * Validate a short video and generate its JPEG thumbnail client-side. The video
+ * itself is returned untouched as `original` — conversion to MP4 now happens on
+ * the backend (via ffmpeg), because many browsers cannot produce MP4 themselves.
+ * The caller uploads `original` to the backend transcode endpoint.
  */
 export async function prepareCheckpointVideo(file: File): Promise<{ original: File; thumbnail: File }> {
   if (!isProbablyVideo(file)) {
     throw new Error("File không phải video.");
+  }
+  if (file.size > MAX_INPUT_VIDEO_BYTES) {
+    throw new Error(`Video quá lớn. Tối đa ${Math.round(MAX_INPUT_VIDEO_BYTES / (1024 * 1024))}MB.`);
   }
   const video = document.createElement("video");
   video.preload = "metadata";
@@ -48,10 +56,8 @@ export async function prepareCheckpointVideo(file: File): Promise<{ original: Fi
       type: "image/jpeg",
       lastModified: Date.now(),
     });
-    const needsConvert = !isMP4(file) || file.size > MAX_VIDEO_BYTES || rotation !== 0;
-    const original = needsConvert ? await convertToMP4(video, file, rotation) : normalizeMP4File(file);
-    trackEvent("video_prepare_success", { video_size: original.size, thumbnail_size: thumbnail.size });
-    return { original, thumbnail };
+    trackEvent("video_prepare_success", { video_size: file.size, thumbnail_size: thumbnail.size });
+    return { original: file, thumbnail };
   } catch (e) {
     trackError(e, { feature: "checkin", action: "video_prepare" });
     trackEvent("video_prepare_failed");
@@ -81,77 +87,6 @@ function waitForEvent(video: HTMLVideoElement, event: "loadedmetadata" | "seeked
 
 function isProbablyVideo(file: File): boolean {
   return file.type.startsWith("video/") || /\.(mp4|mov|m4v|webm|mkv|avi|3gp|3gpp)$/i.test(file.name);
-}
-
-function isMP4(file: File): boolean {
-  return file.type === "video/mp4" || /\.(mp4|m4v)$/i.test(file.name);
-}
-
-function normalizeMP4File(file: File): File {
-  if (file.type === "video/mp4" && /\.mp4$/i.test(file.name)) return file;
-  const name = file.name.replace(/\.\w+$/, "") + ".mp4";
-  return new File([file], name, { type: "video/mp4", lastModified: file.lastModified });
-}
-
-async function convertToMP4(video: HTMLVideoElement, file: File, rotation: Rotation): Promise<File> {
-  if (typeof MediaRecorder === "undefined" || !HTMLCanvasElement.prototype.captureStream) {
-    throw new Error("Trình duyệt chưa hỗ trợ chuyển video sang MP4. Hãy thử video MP4 dưới 12MB.");
-  }
-
-  const mimeType = ["video/mp4;codecs=avc1.42E01E", "video/mp4"].find((t) => MediaRecorder.isTypeSupported(t));
-  if (!mimeType) {
-    throw new Error("Trình duyệt chưa hỗ trợ xuất MP4. Hãy thử video MP4 dưới 12MB.");
-  }
-
-  const canvas = document.createElement("canvas");
-  setCanvasSize(canvas, video, 720, rotation);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Không tạo được canvas nén video.");
-
-  video.currentTime = 0;
-  await waitForEvent(video, "seeked", "Không tua được video để nén.");
-  const stream = canvas.captureStream(24);
-  const recorder = new MediaRecorder(stream, {
-    mimeType,
-    videoBitsPerSecond: 2_500_000,
-  });
-  const chunks: Blob[] = [];
-  recorder.addEventListener("dataavailable", (e) => {
-    if (e.data.size > 0) chunks.push(e.data);
-  });
-
-  let frame = 0;
-  const draw = () => {
-    if (video.paused || video.ended) return;
-    drawVideoFrame(ctx, video, rotation);
-    frame = window.requestAnimationFrame(draw);
-  };
-
-  const stopped = new Promise<void>((resolve, reject) => {
-    recorder.addEventListener("stop", () => resolve(), { once: true });
-    recorder.addEventListener("error", () => reject(new Error("Nén video thất bại.")), { once: true });
-  });
-
-  recorder.start(250);
-  await video.play();
-  draw();
-  await new Promise<void>((resolve) => {
-    video.addEventListener("ended", () => resolve(), { once: true });
-  });
-  if (frame) window.cancelAnimationFrame(frame);
-  recorder.stop();
-  await stopped;
-  stream.getTracks().forEach((track) => track.stop());
-
-  const blob = new Blob(chunks, { type: "video/mp4" });
-  if (blob.size === 0) throw new Error("Chuyển video sang MP4 thất bại.");
-  if (blob.size > MAX_VIDEO_BYTES) {
-    throw new Error("Video sau khi chuyển sang MP4 vẫn quá lớn. Hãy chọn video ngắn/nhẹ hơn.");
-  }
-  return new File([blob], file.name.replace(/\.\w+$/, "") + "-converted.mp4", {
-    type: "video/mp4",
-    lastModified: Date.now(),
-  });
 }
 
 function setCanvasSize(canvas: HTMLCanvasElement, video: HTMLVideoElement, maxEdge: number, rotation: Rotation) {

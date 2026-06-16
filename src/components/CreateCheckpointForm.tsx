@@ -1,7 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
-import { getMyJourneys, getNearbyPlaces, getUploadSlots, putFilesToSlots, type UploadMediaType } from "../lib/api";
+import {
+  getMyJourneys,
+  getNearbyPlaces,
+  getUploadSlots,
+  putFilesToSlots,
+  transcodeVideo,
+  type UploadMediaType,
+  type UploadSlot,
+  type VideoKeys,
+} from "../lib/api";
 import { useCheckinQueue } from "../context/CheckinQueue";
 import { useGeocode } from "../hooks/useGeocode";
 import { prepareCheckpointImage } from "../lib/image";
@@ -264,32 +273,57 @@ export function CreateCheckpointForm({
     setBusy(true);
     setErr(null);
 
-    // Step 1 — get presigned slots (before checkpoint exists).
-    let slots;
-    const mediaTypes = picked.map((p) => p.type);
+    // Images upload directly to R2 (presigned). The video is transcoded to MP4
+    // on the backend — many browsers can't produce MP4 — and returns its keys.
+    const imagePicks = picked.filter((p) => p.type === "image");
+    const videoPick = picked.find((p) => p.type === "video");
+
+    // Step 1 — presigned slots for the images (skipped on a video-only check-in).
+    let slots: UploadSlot[] = [];
+    if (imagePicks.length > 0) {
+      try {
+        slots = await getUploadSlots(imagePicks.map(() => "image" as const));
+        trackEvent("upload_slots_success", { media_count: imagePicks.length });
+      } catch {
+        trackEvent("upload_slots_failed", { media_count: imagePicks.length });
+        setErr("Không lấy được link upload. Vui lòng thử lại.");
+        setBusy(false);
+        return;
+      }
+    }
+
+    // Step 2 — upload images to R2 and transcode the video, in parallel.
+    let videoKeys: VideoKeys | undefined;
     try {
-      slots = await getUploadSlots(mediaTypes);
-      trackEvent("upload_slots_success", { media_count: mediaTypes.length });
-    } catch {
-      trackEvent("upload_slots_failed", { media_count: mediaTypes.length });
-      setErr("Không lấy được link upload. Vui lòng thử lại.");
+      await Promise.all([
+        imagePicks.length > 0
+          ? putFilesToSlots(slots, imagePicks.map((p) => ({ original: p.original, thumbnail: p.thumbnail })))
+          : Promise.resolve(),
+        videoPick
+          ? transcodeVideo(videoPick.original, videoPick.thumbnail).then((keys) => {
+              videoKeys = keys;
+            })
+          : Promise.resolve(),
+      ]);
+      trackEvent("r2_upload_success", { media_count: picked.length });
+    } catch (e) {
+      trackEvent("r2_upload_failed", { media_count: picked.length });
+      setErr(e instanceof Error ? e.message : "Upload ảnh/video thất bại. Vui lòng thử lại.");
       setBusy(false);
       return;
     }
 
-    // Step 2 — upload directly to R2. Fails fast if any PUT fails.
+    // Step 3 — assemble keys in the original media order, then enqueue the POST
+    // in the background and return immediately.
     try {
-      try {
-        await putFilesToSlots(slots, picked.map((p) => ({ original: p.original, thumbnail: p.thumbnail })));
-        trackEvent("r2_upload_success", { media_count: picked.length });
-      } catch {
-        trackEvent("r2_upload_failed", { media_count: picked.length });
-        setErr("Upload ảnh/video thất bại. Vui lòng thử lại.");
-        setBusy(false);
-        return;
-      }
-
-      // Step 3 — enqueue the POST in the background and return immediately.
+      let imgIdx = 0;
+      const images = picked.map((p) => {
+        if (p.type === "video") {
+          return { object_key: videoKeys!.object_key, thumbnail_key: videoKeys!.thumbnail_key, type: "video" as const };
+        }
+        const s = slots[imgIdx++];
+        return { object_key: s.object_key, thumbnail_key: s.thumbnail_key, type: "image" as const };
+      });
       enqueue({
         name,
         category,
@@ -302,11 +336,7 @@ export function CreateCheckpointForm({
         province_code: geo?.province,
         place_id: place?.id,
         journey_id: effectiveJourneyId ?? undefined,
-        images: slots.map((s, i) => ({
-          object_key: s.object_key,
-          thumbnail_key: s.thumbnail_key,
-          type: picked[i].type,
-        })),
+        images,
       });
       onUploaded();
     } catch {
