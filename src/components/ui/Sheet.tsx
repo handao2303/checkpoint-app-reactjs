@@ -1,6 +1,9 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { cn } from "../../lib/cn";
 import { Icon } from "./Icon";
+
+// Keep in sync with the slide-down-out duration in index.css.
+const CLOSE_MS = 320;
 
 /** A bottom sheet modal. Drag the header to resize.
  *  - default: floor = content height, ceiling = ~92vh, body scrolls.
@@ -20,9 +23,22 @@ export function Sheet({
   const headerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startY: number; startH: number } | null>(null);
+  const closeTimer = useRef<number | null>(null);
+  const [closing, setClosing] = useState(false);
   const [height, setHeight] = useState<number | null>(() =>
     grow ? Math.round(window.innerHeight * 0.7) : null,
   );
+
+  useEffect(() => () => {
+    if (closeTimer.current != null) window.clearTimeout(closeTimer.current);
+  }, []);
+
+  // Play the slide-down animation, then unmount via the parent's onClose.
+  function requestClose() {
+    if (closing) return;
+    setClosing(true);
+    closeTimer.current = window.setTimeout(onClose, CLOSE_MS);
+  }
 
   const maxHeight = () => Math.round(window.innerHeight * 0.92);
   const minHeight = () => {
@@ -46,16 +62,19 @@ export function Sheet({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40" />
+    <div className="fixed inset-0 z-40 flex items-end justify-center" onClick={requestClose}>
+      <div className={cn("absolute inset-0 bg-black/40", closing ? "animate-fade-out" : "animate-fade-in")} />
       <div
-        className="relative z-10 flex max-h-[92dvh] w-full max-w-md flex-col rounded-t-2xl bg-surface shadow-lg"
+        className={cn(
+          "relative z-10 flex max-h-[92dvh] w-full max-w-md flex-col rounded-t-2xl bg-surface shadow-lg",
+          closing ? "animate-slide-down-out" : "animate-slide-up-in",
+        )}
         style={height === null ? undefined : { height }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
-          onClick={onClose}
+          onClick={requestClose}
           aria-label="Đóng"
           className="absolute right-3 top-2 z-20 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
         >

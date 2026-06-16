@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { Icon } from "./ui/Icon";
 import { useAuth } from "../auth/AuthContext";
 import {
   followUser,
@@ -12,10 +11,11 @@ import {
   unfollowUser,
   type Checkpoint,
 } from "../lib/api";
-import { addFollowNotification } from "../lib/notifications";
 import { categoryIcon } from "../lib/maps";
+import { addFollowNotification } from "../lib/notifications";
 import { Button } from "./ui/Button";
 import { ImagePlaceholder } from "./ui/Card";
+import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 
@@ -89,7 +89,15 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
             <div className="flex items-start gap-4">
               <div className="relative shrink-0">
                 {u.avatar_url ? (
-                  <img src={u.avatar_url} alt="" className="h-24 w-24 object-contain" />
+                  <PhotoProvider>
+                    <PhotoView src={u.avatar_url}>
+                      <img
+                        src={u.avatar_url}
+                        alt=""
+                        className={`h-24 w-24 object-contain`}
+                      />
+                    </PhotoView>
+                  </PhotoProvider>
                 ) : (
                   <span
                     className={`block h-20 w-20 rounded-full bg-white/20 ${avatarRingClass(u.level)}`}
