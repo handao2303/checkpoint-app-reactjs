@@ -38,6 +38,7 @@ export function CommentSection({
     queryFn: ({ pageParam }) => fetchComments(checkpointId, pageParam),
     initialPageParam: undefined as Awaited<ReturnType<typeof fetchComments>>["cursor"],
     getNextPageParam: (last) => last.cursor,
+    staleTime: 30000, // cache comments for 30s to prevent redundant refetches on reopen
   });
   const comments = data?.pages.flatMap((p) => p.items) ?? [];
 
