@@ -143,6 +143,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
             checkpointId={id}
             ownerUserId={data.checkpoint.user_id}
             checkpointName={data.checkpoint.name}
+            onOpenProfile={setProfileUsername}
           />
 
           {/* Delete — owner only. Hard delete: XP is taken back, photos removed. */}

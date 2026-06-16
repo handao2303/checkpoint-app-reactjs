@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { trackError, trackEvent } from "./observability";
+import { getUsersByIDs } from "./api";
 
 export interface Comment {
   id: string;
@@ -57,15 +58,21 @@ export async function fetchComments(
   try {
     const base = [orderBy("created_at", "desc"), ...(after ? [startAfter(after)] : []), limit(PAGE)];
     const snap = await getDocs(query(commentsCol(checkpointId), ...base));
+
+    const userIds = Array.from(new Set(snap.docs.map((d) => d.data().user_id as string).filter(Boolean)));
+    const users = userIds.length > 0 ? await getUsersByIDs(userIds) : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
     const items = snap.docs.map((d): Comment => {
       const v = d.data();
+      const user = userMap.get(v.user_id);
       return {
         id: d.id,
         text: v.text,
         user_id: v.user_id,
-        username: v.username,
-        display_name: v.display_name ?? undefined,
-        avatar_url: v.avatar_url ?? undefined,
+        username: user?.username ?? "Người dùng",
+        display_name: user?.display_name ?? undefined,
+        avatar_url: user?.avatar_url ?? undefined,
         // serverTimestamp() is null until the write resolves on the server.
         created_at: v.created_at?.toDate() ?? new Date(),
       };
@@ -89,9 +96,6 @@ export async function addComment(
     await addDoc(commentsCol(checkpointId), {
       text: text.trim(),
       user_id: author.id,
-      username: author.username,
-      display_name: author.display_name ?? null,
-      avatar_url: author.avatar_url ?? null,
       created_at: serverTimestamp(),
     });
     trackEvent("comment_add_success", { checkpoint_id: checkpointId });

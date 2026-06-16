@@ -226,6 +226,14 @@ export async function getUserByUsername(username: string): Promise<User> {
   return res.data as User;
 }
 
+/** Fetch multiple user profiles by their IDs. */
+export async function getUsersByIDs(ids: string[]): Promise<User[]> {
+  if (ids.length === 0) return [];
+  const res = await apiFetch(`/users/by-ids?ids=${encodeURIComponent(ids.join(","))}`);
+  if (!isSuccessful(res)) throw new Error(`load users by ids failed: ${res.status}`);
+  return res.data as User[];
+}
+
 /** Update the caller's display name and/or bio. Returns the updated user. */
 export async function updateProfile(patch: {
   display_name?: string;

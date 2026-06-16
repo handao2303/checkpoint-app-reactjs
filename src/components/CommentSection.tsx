@@ -16,10 +16,12 @@ export function CommentSection({
   checkpointId,
   ownerUserId,
   checkpointName,
+  onOpenProfile,
 }: {
   checkpointId: string;
   ownerUserId: string;
   checkpointName: string;
+  onOpenProfile?: (username: string) => void;
 }) {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -136,6 +138,7 @@ export function CommentSection({
               comment={c}
               mine={c.user_id === user?.id}
               onDelete={() => remove(c.id)}
+              onOpenProfile={onOpenProfile}
             />
           ))}
           <div ref={sentinelRef} className="h-1" />
@@ -152,23 +155,41 @@ function CommentRow({
   comment,
   mine,
   onDelete,
+  onOpenProfile,
 }: {
   comment: Comment;
   mine: boolean;
   onDelete: () => void;
+  onOpenProfile?: (username: string) => void;
 }) {
   return (
     <div className="flex items-start gap-2">
       {comment.avatar_url ? (
-        <img src={comment.avatar_url} alt="" className="h-9 w-9 shrink-0 object-contain" />
+        <button
+          onClick={() => onOpenProfile?.(comment.username)}
+          className="shrink-0 transition hover:opacity-80"
+          type="button"
+        >
+          <img src={comment.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+        </button>
       ) : (
-        <span className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
+        <button
+          onClick={() => onOpenProfile?.(comment.username)}
+          className="shrink-0 transition hover:opacity-80"
+          type="button"
+        >
+          <span className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400 block" />
+        </button>
       )}
       <div className="min-w-0 flex-1">
         <p className="text-sm">
-          <span className="font-semibold text-foreground">
+          <button
+            onClick={() => onOpenProfile?.(comment.username)}
+            className="font-semibold text-foreground hover:underline mr-1 text-left inline-block"
+            type="button"
+          >
             {comment.display_name || comment.username}
-          </span>{" "}
+          </button>
           <span className="break-words text-foreground">{comment.text}</span>
         </p>
         <p className="text-xs text-subtle-foreground">
