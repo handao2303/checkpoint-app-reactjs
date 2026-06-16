@@ -1,6 +1,7 @@
 import { Icon, type IconName } from "./ui/Icon";
 import type { Badge } from "../lib/api";
 import { cn } from "../lib/cn";
+import { checkpointImageUrl } from "../lib/checkpointImages";
 
 // Warm-earth palette tokens matching the backend badge catalog.
 const PALETTES: Record<string, { bg: string; ring: string }> = {
@@ -12,15 +13,15 @@ const PALETTES: Record<string, { bg: string; ring: string }> = {
   emerald: { bg: "bg-emerald-600", ring: "ring-emerald-200" },
 };
 
-// Designed badge artwork (web/public/badges) keyed by the backend badge key.
+// Designed badge artwork keyed by the backend badge key.
 // When present and awarded, the medallion shows the artwork instead of the
 // generic hexagon + glyph.
 const BADGE_ART: Record<string, string> = {
-  first_checkin: "/badges/badge-first-step.svg",
-  explorer_10: "/badges/badge-explorer.svg",
-  provinces_5: "/badges/badge-country.svg",
-  night_owl: "/badges/badge-night-owl.svg",
-  journey_starter: "/badges/badge-traveler.svg",
+  first_checkin: checkpointImageUrl("badges/badge-first-step.svg"),
+  explorer_10: checkpointImageUrl("badges/badge-explorer.svg"),
+  provinces_5: checkpointImageUrl("badges/badge-country.svg"),
+  night_owl: checkpointImageUrl("badges/badge-night-owl.svg"),
+  journey_starter: checkpointImageUrl("badges/badge-traveler.svg"),
 };
 
 const SIZES = {
