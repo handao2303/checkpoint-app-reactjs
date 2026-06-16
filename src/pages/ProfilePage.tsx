@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
@@ -120,6 +121,7 @@ function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 
 }
 
 export function ProfilePage() {
+  const { t, i18n } = useTranslation();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
@@ -198,7 +200,7 @@ export function ProfilePage() {
             setEditing(true);
           }}
           className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
-          aria-label="Sửa hồ sơ"
+          aria-label={t("profile.editProfile")}
         >
           <Icon name="pencil" size={16} />
         </button>
@@ -251,10 +253,10 @@ export function ProfilePage() {
         {/* Stats */}
         <div className="mt-4 grid grid-cols-4 gap-2">
           {[
-            { label: "TỔNG XP", value: user.total_xp.toLocaleString() },
-            { label: "SỐ CỜ", value: user.checkpoint_count.toString() },
-            { label: "HÀNH TRÌNH", value: user.journey_count.toString() },
-            { label: "CẤP", value: user.level.toString() },
+            { label: t("profile.totalXpLabel", "TỔNG XP"), value: user.total_xp.toLocaleString() },
+            { label: t("profile.checkpointCountLabel", "SỐ CỜ"), value: user.checkpoint_count.toString() },
+            { label: t("profile.journeyCountLabel", "HÀNH TRÌNH"), value: user.journey_count.toString() },
+            { label: t("profile.levelLabel", "CẤP"), value: user.level.toString() },
           ].map((s) => (
             <div key={s.label} className="rounded-lg bg-white/10 py-2 text-center">
               <p className="text-[10px] text-white/70">{s.label}</p>
@@ -316,7 +318,7 @@ export function ProfilePage() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center justify-between">
-              <p className="font-semibold text-foreground">Cấp độ hiện tại</p>
+              <p className="font-semibold text-foreground">{t("profile.level")}</p>
               <p className="text-sm text-muted-foreground">{user.total_xp.toLocaleString()} XP</p>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-green-100">
@@ -329,8 +331,8 @@ export function ProfilePage() {
             </div>
             <p className="mt-1 text-xs italic text-muted-foreground">
               {user.xp_to_next > 0
-                ? `Còn ${user.xp_to_next.toLocaleString()} XP nữa để lên cấp ${user.level + 1}`
-                : "Bạn đã đạt cấp tối đa! 🏆"}
+                ? t("profile.xpToNext", { count: user.xp_to_next.toLocaleString(), level: user.level + 1 })
+                : t("profile.maxLevel")}
             </p>
           </div>
         </div>
@@ -380,7 +382,7 @@ export function ProfilePage() {
           className="flex w-full items-center gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Icon name="settings" size={18} className="text-clay-600" />
-          <h3 className="flex-1 font-display text-lg font-bold">Cài đặt</h3>
+          <h3 className="flex-1 font-display text-lg font-bold">{t("profile.settings")}</h3>
           <Icon
             name="chevron-down"
             size={18}
@@ -391,8 +393,8 @@ export function ProfilePage() {
           <div id="profile-settings" className="mt-2 divide-y divide-border">
             <SettingSwitch
               checked={openCreateOnLaunch}
-              label="Check-in luôn khi mở app"
-              description="Đi thẳng đến màn hình cắm cờ mỗi khi tải lại hoặc mở app."
+              label={t("profile.openCreateOnLaunch")}
+              description={t("profile.openCreateOnLaunchDesc")}
               onChange={(checked) => {
                 quickCheckinSettings.openCreateOnLaunch = checked;
                 setOpenCreateOnLaunch(checked);
@@ -401,14 +403,28 @@ export function ProfilePage() {
             />
             <SettingSwitch
               checked={preferCameraOnCheckin}
-              label="Ưu tiên chụp ảnh khi check-in"
-              description="Tự mở camera một lần khi bắt đầu check-in."
+              label={t("profile.preferCameraOnCheckin")}
+              description={t("profile.preferCameraOnCheckinDesc")}
               onChange={(checked) => {
                 quickCheckinSettings.preferCameraOnCheckin = checked;
                 setPreferCameraOnCheckin(checked);
                 trackEvent("profile_setting_change", { setting: "prefer_camera_on_checkin", enabled: checked });
               }}
             />
+            <div className="flex w-full items-center justify-between py-3">
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-foreground">{t("profile.language")}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{t("profile.languageDesc")}</span>
+              </span>
+              <select
+                value={i18n.language.startsWith("vi") ? "vi" : "en"}
+                onChange={(e) => i18n.changeLanguage(e.target.value)}
+                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground"
+              >
+                <option value="vi">{t("profile.vi")}</option>
+                <option value="en">{t("profile.en")}</option>
+              </select>
+            </div>
           </div>
         )}
       </Card>
@@ -494,7 +510,7 @@ export function ProfilePage() {
         }
       />
       <Button size="lg" variant="outline" icon={<Icon name="log-out" size={20} />} onClick={signOut}>
-        Đăng xuất
+        {t("profile.logout")}
       </Button>
 
       <p className="text-center text-xs text-muted-foreground opacity-40">

@@ -8,6 +8,7 @@ import { RouteTracker } from "./components/RouteTracker.tsx";
 import { trackError } from "./lib/observability.ts";
 import App from "./App.tsx";
 import "./index.css";
+import "./lib/i18n";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
