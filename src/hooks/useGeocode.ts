@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { reverseGeocode, type GeoResult } from "../lib/photon";
+import { reverseGeocode, type GeoResult } from "../lib/bigdatacloud";
 
-// Module-level cache — survives component remounts, avoids duplicate Photon
+// Module-level cache — survives component remounts, avoids duplicate API
 // calls for the same coordinates. Key is rounded to 4dp (~11m precision) so
 // micro-GPS drift doesn't cause unnecessary refetches.
 const cache = new Map<string, GeoResult | null>();
