@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Icon, type IconName } from "./ui/Icon";
 import type { Badge } from "../lib/api";
 import { cn } from "../lib/cn";
 import { checkpointImageUrl } from "../lib/checkpointImages";
+import { Skeleton } from "./ui/Skeleton";
 
 // Warm-earth palette tokens matching the backend badge catalog.
 const PALETTES: Record<string, { bg: string; ring: string }> = {
@@ -54,11 +56,29 @@ export function BadgeMedal({
   const palette = PALETTES[badge.color] ?? PALETTES.gold;
   const { box, icon } = SIZES[size];
   const art = awarded ? BADGE_ART[badge.key] : undefined;
+  const [loaded, setLoaded] = useState(false);
 
   return (
     <span className={cn("flex flex-col items-center gap-0.5", className)}>
       {art ? (
-        <img src={art} alt="" className={cn("shrink-0 object-contain", box)} draggable={false} />
+        <span className="relative flex shrink-0 items-center justify-center">
+          {!loaded && (
+            <span className={cn("absolute inset-0 shrink-0", box)} style={{ clipPath: HEXAGON }}>
+              <Skeleton className="h-full w-full rounded-none" />
+            </span>
+          )}
+          <img
+            src={art}
+            alt=""
+            onLoad={() => setLoaded(true)}
+            className={cn(
+              "shrink-0 object-contain transition-opacity duration-200",
+              box,
+              loaded ? "opacity-100" : "opacity-0",
+            )}
+            draggable={false}
+          />
+        </span>
       ) : (
         <span
           className={cn(

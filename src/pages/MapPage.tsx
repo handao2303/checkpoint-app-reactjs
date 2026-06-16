@@ -248,11 +248,18 @@ export function MapPage() {
               }}
             >
               {cp.thumbnail_url ? (
-                <img
-                  src={cp.thumbnail_url}
-                  alt=""
-                  className="h-10 w-10 -translate-y-1 cursor-pointer rounded-full object-cover shadow-md ring-2 ring-white transition-transform hover:scale-110 active:scale-95"
-                />
+                <span className="relative block h-10 w-10 -translate-y-1 cursor-pointer rounded-full shadow-md ring-2 ring-white transition-transform hover:scale-110 active:scale-95">
+                  <img
+                    src={cp.thumbnail_url}
+                    alt=""
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                  {cp.media_type === "video" && (
+                    <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/25 text-white">
+                      <Icon name="play" size={16} className="ml-0.5 fill-white" />
+                    </span>
+                  )}
+                </span>
               ) : (
                 <div className="flex h-9 w-9 -translate-y-1 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-white transition-transform hover:scale-110 active:scale-95">
                   <Icon name={categoryIcon(cp.category)} size={18} />
@@ -358,11 +365,18 @@ function ClusterSheet({
                 className="flex items-center gap-3 py-3 text-left"
               >
                 {cp.thumbnail_url || cp.image_url ? (
-                  <img
-                    src={cp.thumbnail_url ?? cp.image_url}
-                    alt=""
-                    className="h-14 w-14 shrink-0 rounded-xl object-cover"
-                  />
+                  <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl">
+                    <img
+                      src={cp.thumbnail_url ?? cp.image_url}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                    {cp.media_type === "video" && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-white">
+                        <Icon name="play" size={18} className="ml-0.5 fill-white" />
+                      </span>
+                    )}
+                  </span>
                 ) : (
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-surface-muted text-muted-foreground">
                     <Icon name={categoryIcon(cp.category)} size={24} />

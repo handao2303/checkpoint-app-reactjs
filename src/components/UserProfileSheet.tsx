@@ -16,6 +16,7 @@ import { addFollowNotification } from "../lib/notifications";
 import { Button } from "./ui/Button";
 import { ImagePlaceholder } from "./ui/Card";
 import { Icon } from "./ui/Icon";
+import { MediaPreview } from "./MediaPreview";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 import { trackEvent } from "../lib/observability";
@@ -183,24 +184,18 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                 Chưa có check-in nào.
               </p>
             ) : (
-              <PhotoProvider
-                overlayRender={({ index }) => (
-                  <MomentCaption cp={withImages(checkpoints)[index]} />
-                )}
-              >
-                <div className="grid grid-cols-2 gap-3">
-                  {checkpoints.map((cp) =>
-                    cp.image_url ? (
-                      <PhotoView key={cp.id} src={cp.image_url}>
-                        <img
-                          src={cp.thumbnail_url ?? cp.image_url}
-                          alt={cp.name}
-                          className="h-28 w-full cursor-zoom-in rounded-lg object-cover"
-                        />
-                      </PhotoView>
-                    ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {checkpoints.map((cp) => (
+                  <MediaPreview
+                    key={cp.id}
+                    url={cp.image_url}
+                    thumbnailUrl={cp.thumbnail_url}
+                    mediaType={cp.media_type}
+                    alt={cp.name}
+                    caption={<MomentCaption cp={cp} />}
+                    className="h-28 w-full rounded-lg object-cover"
+                    fallback={
                       <ImagePlaceholder
-                        key={cp.id}
                         className="h-28"
                         label={
                           <span className="flex items-center gap-1">
@@ -208,10 +203,10 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                           </span>
                         }
                       />
-                    ),
-                  )}
-                </div>
-              </PhotoProvider>
+                    }
+                  />
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -252,10 +247,6 @@ function MomentGridSkeleton() {
       ))}
     </div>
   );
-}
-
-function withImages(checkpoints: Checkpoint[]): Checkpoint[] {
-  return checkpoints.filter((cp) => cp.image_url);
 }
 
 function MomentCaption({ cp }: { cp?: Checkpoint }) {

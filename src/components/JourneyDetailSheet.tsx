@@ -2,11 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import Map, { Source, Layer, Marker } from "react-map-gl/maplibre";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { PhotoProvider, PhotoView } from "react-photo-view";
-import "react-photo-view/dist/react-photo-view.css";
 import { getJourney, type JourneyStop, API_URL } from "../lib/api";
 import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { Icon } from "./ui/Icon";
+import { MediaPreview } from "./MediaPreview";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 import { ShareButton } from "./share/ShareButton";
@@ -181,17 +180,16 @@ function StopPhotoStack({ stop }: { stop: JourneyStop }) {
   );
 
   return (
-    <PhotoProvider overlayRender={() => caption}>
-      <div className="relative h-12 w-12 translate-y-1.5">
-        <PhotoView src={stop.image_url}>
-          <img
-            src={stop.thumbnail_url ?? stop.image_url}
-            alt=""
-            className="absolute h-10 w-10 -rotate-6 cursor-zoom-in rounded-md border-2 border-white object-cover shadow-md"
-          />
-        </PhotoView>
-      </div>
-    </PhotoProvider>
+    <div className="relative h-12 w-12 translate-y-1.5">
+      <MediaPreview
+        url={stop.image_url}
+        thumbnailUrl={stop.thumbnail_url}
+        mediaType={stop.media_type}
+        alt={stop.name}
+        caption={caption}
+        className="absolute h-10 w-10 -rotate-6 rounded-md border-2 border-white object-cover shadow-md"
+      />
+    </div>
   );
 }
 

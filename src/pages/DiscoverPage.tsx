@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useScrollContainer } from "../components/AppLayout";
 import { useAuth } from "../auth/AuthContext";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
+import { MediaPreview } from "../components/MediaPreview";
 import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
 import { UserProfileSheet } from "../components/UserProfileSheet";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
@@ -490,35 +491,44 @@ function FeedCard({
 
       {confirming && <div className="mx-4">{confirmBox}</div>}
 
-      <button onClick={onOpen} className="relative block w-full text-left">
-        {item.image_url ? (
-          <img src={item.thumbnail_url ?? item.image_url} alt="" className="h-56 w-full object-cover" />
-        ) : (
-          <ImagePlaceholder className="h-56 w-full rounded-none" label={item.name} />
-        )}
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-surface/90 px-3 py-1 text-xs font-semibold text-clay-600">
+      <div className="relative">
+        <MediaPreview
+          url={item.image_url}
+          thumbnailUrl={item.thumbnail_url}
+          mediaType={item.media_type}
+          alt={item.name}
+          className="h-56 w-full rounded-none object-cover"
+          fallback={<ImagePlaceholder className="h-56 w-full rounded-none" label={item.name} />}
+        />
+         <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-surface/90 px-3 py-1 text-xs font-semibold text-clay-600">
           <Icon name={categoryIcon(item.category)} size={14} /> {item.name}
         </span>
         <span className="absolute bottom-3 right-3">
           <XPBadge xp={item.xp_awarded} />
         </span>
-      </button>
-
-      <div className="flex items-center gap-3 px-4 text-sm text-muted-foreground">
-        {item.rating != null && (
-          <span className="flex items-center gap-1">
-            <Icon name="star" size={16} className="fill-gold text-gold" /> {item.rating}/5
-          </span>
-        )}
-        {distance && (
-          <span className="flex items-center gap-1">
-            <Icon name="map-pin" size={14} /> cách {distance}
-          </span>
-        )}
-        <span className="ml-auto text-xs">{new Date(item.created_at).toLocaleDateString("vi-VN")}</span>
       </div>
 
-      {item.note && <p className="px-4 pb-4 text-sm text-foreground">{item.note}</p>}
+      <button type="button" onClick={onOpen} className="w-full text-left">
+        <div className="flex items-center gap-3 px-4 text-sm text-muted-foreground">
+          {item.rating != null && (
+            <span className="flex items-center gap-1">
+              <Icon name="star" size={16} className="fill-gold text-gold" /> {item.rating}/5
+            </span>
+          )}
+          {distance && (
+            <span className="flex items-center gap-1">
+              <Icon name="map-pin" size={14} /> cách {distance}
+            </span>
+          )}
+          <span className="ml-auto text-xs">{new Date(item.created_at).toLocaleDateString("vi-VN")}</span>
+        </div>
+
+        {item.note && (
+          <span className="block px-4 pb-1 text-sm text-foreground mt-4">
+            {item.note}
+          </span>
+        )}
+      </button>
     </Card>
   );
 }

@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { getMyJourneys, getNearbyPlaces, getUploadSlots, putFilesToSlots } from "../lib/api";
+import { getMyJourneys, getNearbyPlaces, getUploadSlots, putFilesToSlots, type UploadMediaType } from "../lib/api";
 import { useCheckinQueue } from "../context/CheckinQueue";
 import { useGeocode } from "../hooks/useGeocode";
 import { prepareCheckpointImage } from "../lib/image";
+import { prepareCheckpointVideo } from "../lib/video";
 import { CATEGORIES } from "../lib/maps";
 import { Button } from "./ui/Button";
 import { cn } from "../lib/cn";
@@ -14,7 +15,8 @@ import { quickCheckinSettings } from "../lib/settings";
 import { CameraCaptureSheet } from "./CameraCaptureSheet";
 import { trackError, trackEvent } from "../lib/observability";
 
-interface PickedImage {
+interface PickedMedia {
+  type: UploadMediaType;
   original: File;
   thumbnail: File;
   url: string;
@@ -22,6 +24,7 @@ interface PickedImage {
 }
 
 const MAX_IMAGES = 3;
+const MAX_VIDEOS = 1;
 
 /** Prefer the in-app camera on touch devices with a usable camera + secure
  *  context; desktop keeps the plain file picker. */
@@ -83,7 +86,7 @@ export function CreateCheckpointForm({
   const [suggestionApplied, setSuggestionApplied] = useState(false);
   const [note, setNote] = useState("");
   const [rating, setRating] = useState<number | undefined>(undefined);
-  const [picked, setPicked] = useState<PickedImage[]>([]);
+  const [picked, setPicked] = useState<PickedMedia[]>([]);
   const geo = useGeocode(at.lat, at.lng);
   const { data: placeSuggestions = [], isFetched: placeSuggestionsFetched } = useQuery({
     queryKey: ["places-suggest", at.lat, at.lng],
@@ -96,7 +99,8 @@ export function CreateCheckpointForm({
   const [processing, setProcessing] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const imageFileRef = useRef<HTMLInputElement>(null);
+  const videoFileRef = useRef<HTMLInputElement>(null);
   const cameraAvailable = canUseCamera();
   const phonePwa = isPhonePwa();
   const usePwaCamera = phonePwa && cameraAvailable;
@@ -105,6 +109,8 @@ export function CreateCheckpointForm({
   // Revoke object URLs on unmount (read latest via ref to avoid stale closure).
   const pickedRef = useRef(picked);
   pickedRef.current = picked;
+  const imageCount = picked.filter((p) => p.type === "image").length;
+  const videoCount = picked.filter((p) => p.type === "video").length;
   useEffect(
     () => () =>
       pickedRef.current.forEach((p) => {
@@ -118,9 +124,9 @@ export function CreateCheckpointForm({
   const prevPickedLen = useRef(0);
   useEffect(() => {
     const prev = prevPickedLen.current;
-    prevPickedLen.current = picked?.length;
-    if (picked?.length === 0 && prev > 0) onReset?.();
-  }, [picked?.length, onReset]);
+    prevPickedLen.current = picked.length;
+    if (picked.length === 0 && prev > 0) onReset?.();
+  }, [picked.length, onReset]);
 
   // Prefer the top Places suggestion; only fall back to Photon after the Places
   // request has completed without a usable result.
@@ -168,28 +174,56 @@ export function CreateCheckpointForm({
   // Convert HEIC + downscale so uploads are always a modest JPEG. Shared by the
   // file picker and the in-app camera.
   async function addFileArray(files: File[]) {
-    const remainingSlots = maxImages - pickedRef.current?.length;
-    if (remainingSlots <= 0 || files?.length === 0) return;
+    if (files.length === 0) return;
 
     setProcessing(true);
     setErr(null);
     try {
-      const prepared = await Promise.all(files.slice(0, remainingSlots).map(prepareCheckpointImage));
-      setPicked((prev) => [
-        ...prev,
-        ...prepared.map(({ original, thumbnail }) => ({
+      let nextImageCount = pickedRef.current.filter((p) => p.type === "image").length;
+      let nextVideoCount = pickedRef.current.filter((p) => p.type === "video").length;
+      const prepared: PickedMedia[] = [];
+      for (const file of files) {
+        const isVideo = file.type.startsWith("video/") || /\.mp4$/i.test(file.name);
+        if (isVideo) {
+          if (nextVideoCount >= MAX_VIDEOS) {
+            setErr("Tối đa 1 video/check-in.");
+            continue;
+          }
+          const { original, thumbnail } = await prepareCheckpointVideo(file);
+          prepared.push({
+            type: "video",
+            original,
+            thumbnail,
+            url: URL.createObjectURL(original),
+            thumbnailUrl: URL.createObjectURL(thumbnail),
+          });
+          nextVideoCount += 1;
+          continue;
+        }
+
+        if (nextImageCount >= maxImages) {
+          setErr(`Tối đa ${maxImages} ảnh/check-in.`);
+          continue;
+        }
+        const { original, thumbnail } = await prepareCheckpointImage(file);
+        prepared.push({
+          type: "image",
           original,
           thumbnail,
           url: URL.createObjectURL(original),
           thumbnailUrl: URL.createObjectURL(thumbnail),
-        })),
-      ]);
-      trackEvent("image_prepare_success", { image_count: prepared.length });
+        });
+        nextImageCount += 1;
+      }
+      if (prepared.length > 0) {
+        setPicked((prev) => [...prev, ...prepared]);
+      }
+      trackEvent("media_prepare_success", { media_count: prepared.length });
     } catch (e) {
-      console.error("image prepare failed:", e);
-      trackError(e, { feature: "checkin", action: "image_prepare" });
-      trackEvent("image_prepare_failed");
-      setErr("Không xử lý được ảnh. Vui lòng thử ảnh khác.");
+      console.error("media prepare failed:", e);
+      trackError(e, { feature: "checkin", action: "media_prepare" });
+      trackEvent("media_prepare_failed");
+      setErr(e instanceof Error ? e.message : "Không xử lý được media. Vui lòng thử file khác.");
     } finally {
       setProcessing(false);
     }
@@ -197,7 +231,11 @@ export function CreateCheckpointForm({
 
   const addPhotos = () => {
     if (usePwaCamera) setCameraOpen(true);
-    else fileRef.current?.click();
+    else imageFileRef.current?.click();
+  };
+
+  const addVideo = () => {
+    videoFileRef.current?.click();
   };
 
   function removeAt(index: number) {
@@ -210,8 +248,8 @@ export function CreateCheckpointForm({
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!picked?.length) {
-      setErr("Bắt buộc phải có ít nhất 1 ảnh.");
+    if (picked.length === 0) {
+      setErr("Bắt buộc phải có ít nhất 1 ảnh hoặc video.");
       return;
     }
     setBusy(true);
@@ -219,11 +257,12 @@ export function CreateCheckpointForm({
 
     // Step 1 — get presigned slots (before checkpoint exists).
     let slots;
+    const mediaTypes = picked.map((p) => p.type);
     try {
-      slots = await getUploadSlots(picked?.length);
-      trackEvent("upload_slots_success", { image_count: picked.length });
+      slots = await getUploadSlots(mediaTypes);
+      trackEvent("upload_slots_success", { media_count: mediaTypes.length });
     } catch {
-      trackEvent("upload_slots_failed", { image_count: picked.length });
+      trackEvent("upload_slots_failed", { media_count: mediaTypes.length });
       setErr("Không lấy được link upload. Vui lòng thử lại.");
       setBusy(false);
       return;
@@ -231,31 +270,39 @@ export function CreateCheckpointForm({
 
     // Step 2 — upload directly to R2. Fails fast if any PUT fails.
     try {
-      await putFilesToSlots(slots, picked.map((p) => ({ original: p.original, thumbnail: p.thumbnail })));
-      trackEvent("r2_upload_success", { image_count: picked.length });
-    } catch {
-      trackEvent("r2_upload_failed", { image_count: picked.length });
-      setErr("Upload ảnh thất bại. Vui lòng thử lại.");
-      setBusy(false);
-      return;
-    }
+      try {
+        await putFilesToSlots(slots, picked.map((p) => ({ original: p.original, thumbnail: p.thumbnail })));
+        trackEvent("r2_upload_success", { media_count: picked.length });
+      } catch {
+        trackEvent("r2_upload_failed", { media_count: picked.length });
+        setErr("Upload ảnh/video thất bại. Vui lòng thử lại.");
+        setBusy(false);
+        return;
+      }
 
-    // Step 3 — enqueue the POST in the background and return immediately.
-    enqueue({
-      name,
-      category,
-      note: note || undefined,
-      rating,
-      lat: at.lat,
-      lng: at.lng,
-      address: geo?.address,
-      province: geo?.provinceName,
-      province_code: geo?.province,
-      place_id: place?.id,
-      journey_id: effectiveJourneyId ?? undefined,
-      images: slots.map((s) => ({ object_key: s.object_key, thumbnail_key: s.thumbnail_key })),
-    });
-    onUploaded();
+      // Step 3 — enqueue the POST in the background and return immediately.
+      enqueue({
+        name,
+        category,
+        note: note || undefined,
+        rating,
+        lat: at.lat,
+        lng: at.lng,
+        address: geo?.address,
+        province: geo?.provinceName,
+        province_code: geo?.province,
+        place_id: place?.id,
+        journey_id: effectiveJourneyId ?? undefined,
+        images: slots.map((s, i) => ({
+          object_key: s.object_key,
+          thumbnail_key: s.thumbnail_key,
+          type: picked[i].type,
+        })),
+      });
+      onUploaded();
+    } catch {
+      setBusy(false);
+    }
   }
 
   return (
@@ -337,21 +384,30 @@ export function CreateCheckpointForm({
         <PhotoProvider>
           {picked.map((p, i) => (
             <div key={p.url} className="relative h-20 w-20">
-              <PhotoView src={p.url}>
-                <img src={p.thumbnailUrl} alt="" className="h-20 w-20 cursor-zoom-in rounded-lg object-cover" />
-              </PhotoView>
+              {p.type === "image" ? (
+                <PhotoView src={p.url}>
+                  <img src={p.thumbnailUrl} alt="" className="h-20 w-20 cursor-zoom-in rounded-lg object-cover" />
+                </PhotoView>
+              ) : (
+                <>
+                  <img src={p.thumbnailUrl} alt="" className="h-20 w-20 rounded-lg object-cover" />
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-black/20">
+                    <Icon name="play" size={24} className="text-white" />
+                  </div>
+                </>
+              )}
               <button
                 type="button"
                 onClick={() => removeAt(i)}
                 className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent-500 text-white shadow"
-                aria-label="Xóa ảnh"
+                aria-label={p.type === "video" ? "Xóa video" : "Xóa ảnh"}
               >
                 <Icon name="x" size={14} />
               </button>
             </div>
           ))}
         </PhotoProvider>
-        {picked?.length < maxImages && (
+        {imageCount < maxImages && (
           <button
             type="button"
             onClick={addPhotos}
@@ -368,17 +424,42 @@ export function CreateCheckpointForm({
             ) : (
               <>
                 <Icon name="image" size={22} />
-                <span className="text-xs font-medium">Chọn ảnh</span>
               </>
             )}
           </button>
         )}
-        {/* Hidden picker — used directly on desktop / camera-unavailable. */}
+        {videoCount < MAX_VIDEOS && (
+          <button
+            type="button"
+            onClick={addVideo}
+            disabled={processing}
+            className={cn(
+              "flex h-20 w-20 flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed border-border text-muted-foreground",
+              processing ? "cursor-wait opacity-60" : "cursor-pointer",
+            )}
+          >
+            {processing ? (
+              <span className="text-xs">Đang xử lý…</span>
+            ) : (
+              <Icon name="video" size={24} />
+            )}
+          </button>
+        )}
         <input
-          ref={fileRef}
+          ref={imageFileRef}
           type="file"
           accept="image/*,.heic,.heif"
           multiple
+          className="hidden"
+          onChange={(e) => {
+            void addFileArray(Array.from(e.target.files ?? []));
+            e.target.value = ""; // allow re-picking the same file
+          }}
+        />
+        <input
+          ref={videoFileRef}
+          type="file"
+          accept="video/mp4"
           className="hidden"
           onChange={(e) => {
             void addFileArray(Array.from(e.target.files ?? []));
@@ -389,12 +470,12 @@ export function CreateCheckpointForm({
 
       {err && <p className="text-sm text-accent-600">{err}</p>}
 
-      <Button type="submit" variant="accent" disabled={busy || processing || !picked?.length} icon={<Icon name="flag" size={20} />}>
+      <Button type="submit" variant="accent" disabled={busy || processing || picked.length === 0} icon={<Icon name="flag" size={20} />}>
         {busy ? "Đang lưu..." : "CẮM CỜ"}
       </Button>
       {cameraOpen && (
         <CameraCaptureSheet
-          maxCount={maxImages - picked?.length}
+          maxCount={maxImages - imageCount}
           onClose={() => setCameraOpen(false)}
           onDone={(files) => void addFileArray(files)}
         />

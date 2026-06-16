@@ -341,6 +341,7 @@ export interface Checkpoint {
   address?: string;
   image_url?: string;
   thumbnail_url?: string;
+  media_type?: "image" | "video";
   xp_awarded: number;
   view_count: number;
   created_at: string;
@@ -351,6 +352,7 @@ export interface CheckpointImage {
   id: string;
   url: string;
   thumbnail_url?: string;
+  type: "image" | "video";
   sort_order: number;
 }
 
@@ -403,8 +405,8 @@ export interface CheckinInput {
   place_id?: string;
   /** Attach to one of the user's active journeys (chosen in the form). */
   journey_id?: string;
-  /** Keys for images already uploaded directly to R2 (required ≥ 1). */
-  images: { object_key: string; thumbnail_key?: string }[];
+  /** Keys for media already uploaded directly to R2 (required ≥ 1). */
+  images: { object_key: string; thumbnail_key?: string; type?: "image" | "video" }[];
 }
 
 export async function getCheckpointsInBounds(b: Bounds): Promise<Checkpoint[]> {
@@ -457,13 +459,19 @@ export interface UploadSlot {
   thumbnail_key: string;
 }
 
+export type UploadMediaType = "image" | "video";
+
 /** Request presigned R2 PUT URLs before the checkpoint is created.
  *  Upload files directly to R2, then pass the returned keys in createCheckpoint. */
-export async function getUploadSlots(count: number): Promise<UploadSlot[]> {
+export async function getUploadSlots(media: UploadMediaType[] | number): Promise<UploadSlot[]> {
+  const body =
+    typeof media === "number"
+      ? { count: media }
+      : { media: media.map((type) => ({ type })) };
   const res = await apiFetch("/checkpoints/upload-slots", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ count }),
+    body: JSON.stringify(body),
   });
   if (!isSuccessful(res)) throw new Error(`get upload slots failed: ${res.status}`);
   return res.data.slots as UploadSlot[];
@@ -535,6 +543,7 @@ export interface FeedItem {
   author: { username: string; display_name?: string; avatar_url?: string };
   image_url?: string;
   thumbnail_url?: string;
+  media_type?: "image" | "video";
   distance_m: number;
 }
 
@@ -700,6 +709,7 @@ export interface JourneyStop {
   place_id?: string;
   image_url?: string;
   thumbnail_url?: string;
+  media_type?: "image" | "video";
   created_at: string;
 }
 

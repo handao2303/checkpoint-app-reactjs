@@ -1,13 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { PhotoProvider, PhotoView } from "react-photo-view";
-import "react-photo-view/dist/react-photo-view.css";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { BadgeMedal } from "../components/BadgeMedal";
 import { DriveConnectCard } from "../components/DriveConnectCard";
 import { EditProfileSheet } from "../components/EditProfileSheet";
 import { JourneysSection } from "../components/JourneysSection";
+import { MediaPreview } from "../components/MediaPreview";
 import { PassportSection } from "../components/PassportSection";
 import { ShareButton } from "../components/share/ShareButton";
 import { Toast } from "../components/ui/Toast";
@@ -16,6 +15,7 @@ import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
 import { UpgradeBanner } from "../components/UpgradeBanner";
+import { cn } from "../lib/cn";
 import { useCheckin } from "../hooks/useCheckin";
 import {
   getBadges,
@@ -141,7 +141,7 @@ export function ProfilePage() {
     queryKey: ["passport"],
     queryFn: getPassport,
   });
-  const { data: badges = [] } = useQuery({
+  const { data: badges = [], isLoading: badgesLoading } = useQuery({
     queryKey: ["badges"],
     queryFn: getBadges,
   });
@@ -153,6 +153,7 @@ export function ProfilePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [driveToast, setDriveToast] = useState<string | null>(null);
+  const [levelIconLoaded, setLevelIconLoaded] = useState(false);
 
   useEffect(() => {
     trackEvent("profile_open");
@@ -182,7 +183,6 @@ export function ProfilePage() {
 
   if (!user) return null;
 
-  const withImages = myCheckpoints.filter((cp) => cp.image_url);
   const unlockedBadges = badges.filter((b) => b.awarded);
   const top3 = leaderboard?.entries.slice(0, 3) ?? [];
   const firstProvince = passport?.stamps?.[0]?.province;
@@ -282,7 +282,21 @@ export function ProfilePage() {
             Xem tất cả <Icon name="chevron-right" size={14} />
           </button>
         </div>
-        {unlockedBadges.length === 0 ? (
+        {badgesLoading ? (
+          <div className="flex gap-4 overflow-x-auto pb-1">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex w-14 shrink-0 flex-col items-center gap-0.5">
+                <span
+                  className="h-10 w-10 shrink-0"
+                  style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }}
+                >
+                  <Skeleton className="h-full w-full rounded-none" />
+                </span>
+                <Skeleton className="mt-1 h-3 w-10" />
+              </div>
+            ))}
+          </div>
+        ) : unlockedBadges.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Chưa có huy hiệu nào. Hãy check-in để mở khóa!
           </p>
@@ -305,15 +319,29 @@ export function ProfilePage() {
       <Card>
         <div className="flex items-center gap-4">
           <div className="relative h-16 w-16 shrink-0">
+            {!levelIconLoaded && (
+              <span
+                className="absolute inset-0 h-full w-full shrink-0"
+                style={{ clipPath: "polygon(50% 5.47%, 85.16% 25.39%, 85.16% 65.23%, 50% 85.16%, 14.84% 65.23%, 14.84% 25.39%)" }}
+              >
+                <Skeleton className="h-full w-full rounded-none" />
+              </span>
+            )}
             <img
               src={levelTierIconUrl(user.level)}
               alt=""
               aria-hidden="true"
-              className="absolute inset-0 h-full w-full object-contain"
+              onLoad={() => setLevelIconLoaded(true)}
+              className={cn(
+                "absolute inset-0 h-full w-full object-contain transition-opacity duration-200",
+                levelIconLoaded ? "opacity-100" : "opacity-0",
+              )}
             />
-            <span className="absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 font-display text-xl font-bold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]">
-              {user.level}
-            </span>
+            {levelIconLoaded && (
+              <span className="absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 font-display text-xl font-bold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]">
+                {user.level}
+              </span>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center justify-between">
@@ -448,20 +476,18 @@ export function ProfilePage() {
             Chưa có check-in nào. Mở tab Map và cắm cờ địa điểm đầu tiên!
           </p>
         ) : (
-          <PhotoProvider overlayRender={({ index }) => <MomentCaption cp={withImages[index]} />}>
-            <div className="grid grid-cols-2 gap-3">
-              {myCheckpoints.map((cp) =>
-                cp.image_url ? (
-                  <PhotoView key={cp.id} src={cp.image_url}>
-                    <img
-                      src={cp.thumbnail_url ?? cp.image_url}
-                      alt={cp.name}
-                      className="h-28 w-full cursor-zoom-in rounded-lg object-cover"
-                    />
-                  </PhotoView>
-                ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {myCheckpoints.map((cp) => (
+              <MediaPreview
+                key={cp.id}
+                url={cp.image_url}
+                thumbnailUrl={cp.thumbnail_url}
+                mediaType={cp.media_type}
+                alt={cp.name}
+                caption={<MomentCaption cp={cp} />}
+                className="h-28 w-full rounded-lg object-cover"
+                fallback={
                   <ImagePlaceholder
-                    key={cp.id}
                     className="h-28"
                     label={
                       <span className="flex items-center gap-1">
@@ -469,10 +495,10 @@ export function ProfilePage() {
                       </span>
                     }
                   />
-                ),
-              )}
-            </div>
-          </PhotoProvider>
+                }
+              />
+            ))}
+          </div>
         )}
       </div>
 

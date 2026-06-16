@@ -87,7 +87,12 @@ export function BadgeCollectionPage() {
         <div className="grid grid-cols-2 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i} className="flex flex-col items-center gap-2 py-4">
-              <Skeleton className="h-14 w-14 rounded-full" />
+              <span
+                className="h-14 w-14 shrink-0"
+                style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }}
+              >
+                <Skeleton className="h-full w-full rounded-none" />
+              </span>
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-3 w-32" />
               <Skeleton className="h-5 w-20 rounded-full" />

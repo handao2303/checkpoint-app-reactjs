@@ -1,7 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { PhotoProvider, PhotoView } from "react-photo-view";
-import "react-photo-view/dist/react-photo-view.css";
 import { Icon } from "./ui/Icon";
 import { getCheckpointDetail, viewCheckpoint, API_URL } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
@@ -14,6 +12,7 @@ import { Sheet } from "./ui/Sheet";
 import { XPBadge } from "./ui/Chip";
 import { DetailSheetSkeleton } from "./ui/Skeleton";
 import { ShareButton } from "./share/ShareButton";
+import { MediaPreview } from "./MediaPreview";
 import { renderCheckpointCard } from "../lib/shareCard";
 import { trackEvent } from "../lib/observability";
 
@@ -51,19 +50,17 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
       ) : (
         <div className="flex flex-col gap-3">
           {data.images?.length > 0 && (
-            <PhotoProvider>
-              <div className="flex gap-2 overflow-x-auto">
-                {data.images.map((im) => (
-                  <PhotoView key={im.id} src={im.url}>
-                    <img
-                      src={im.url}
-                      alt=""
-                      className="h-44 w-60 shrink-0 cursor-zoom-in rounded-lg object-cover"
-                    />
-                  </PhotoView>
-                ))}
-              </div>
-            </PhotoProvider>
+            <div className="flex gap-2 overflow-x-auto">
+              {data.images.map((im) => (
+                <MediaPreview
+                  key={im.id}
+                  url={im.url}
+                  thumbnailUrl={im.thumbnail_url}
+                  mediaType={im.type}
+                  className="h-44 w-60 shrink-0 rounded-lg object-cover"
+                />
+              ))}
+            </div>
           )}
 
           <div className="flex items-center gap-2">
@@ -127,7 +124,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                 xp: data.checkpoint.xp_awarded,
                 author: data.author.display_name || data.author.username,
                 date: new Date(data.checkpoint.created_at).toLocaleDateString("vi-VN"),
-                imageUrls: data.images?.map((im) => im.url),
+                imageUrls: data.images?.map((im) => im.thumbnail_url ?? im.url) ?? [],
                 url: `${API_URL}/share/checkpoint/${data.checkpoint.id}`,
               })
             }
