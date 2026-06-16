@@ -98,7 +98,7 @@ export function JourneyDetailSheet({
                 {stops.map((s, i) => (
                   <Marker key={s.id} longitude={s.lng} latitude={s.lat} anchor="center">
                     {s.image_url ? (
-                      <StopPhotoStack stop={s} />
+                      <StopPhotoStack stop={s} stops={stops} />
                     ) : (
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground ring-2 ring-white">
                         {i + 1}
@@ -164,20 +164,8 @@ export function JourneyDetailSheet({
 }
 
 /** Cover photo for one journey stop, shown as a small rotated card. */
-function StopPhotoStack({ stop }: { stop: JourneyStop }) {
+function StopPhotoStack({ stop, stops }: { stop: JourneyStop; stops: JourneyStop[] }) {
   if (!stop.image_url) return null;
-
-  const caption = (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] bg-gradient-to-t from-black/80 to-transparent p-4 pb-8 text-center text-white">
-      <p className="font-display text-lg font-bold">{stop.name}</p>
-      {stop.note && <p className="text-sm">{stop.note}</p>}
-      {stop.address && (
-        <p className="mt-0.5 flex items-center justify-center gap-1 text-xs opacity-80">
-          <Icon name="map-pin" size={12} /> {stop.address}
-        </p>
-      )}
-    </div>
-  );
 
   return (
     <div className="relative h-12 w-12 translate-y-1.5">
@@ -186,9 +174,33 @@ function StopPhotoStack({ stop }: { stop: JourneyStop }) {
         thumbnailUrl={stop.thumbnail_url}
         mediaType={stop.media_type}
         alt={stop.name}
-        caption={caption}
+        caption={<StopCaption stop={stop} />}
+        galleryItems={stops
+          .filter((item) => item.image_url)
+          .map((item) => ({
+            url: item.image_url,
+            thumbnailUrl: item.thumbnail_url,
+            mediaType: item.media_type,
+            alt: item.name,
+            caption: <StopCaption stop={item} />,
+          }))}
+        galleryIndex={stops.filter((item) => item.image_url).findIndex((item) => item.id === stop.id)}
         className="absolute h-10 w-10 -rotate-6 rounded-md border-2 border-white object-cover shadow-md"
       />
+    </div>
+  );
+}
+
+function StopCaption({ stop }: { stop: JourneyStop }) {
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] bg-gradient-to-t from-black/80 to-transparent p-4 pb-8 text-center text-white">
+      <p className="font-display text-lg font-bold">{stop.name}</p>
+      {stop.note && <p className="text-sm">{stop.note}</p>}
+      {stop.address && (
+        <p className="mt-0.5 flex items-center justify-center gap-1 text-xs opacity-80">
+          <Icon name="map-pin" size={12} /> {stop.address}
+        </p>
+      )}
     </div>
   );
 }

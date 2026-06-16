@@ -485,6 +485,16 @@ export function ProfilePage() {
                 mediaType={cp.media_type}
                 alt={cp.name}
                 caption={<MomentCaption cp={cp} />}
+                galleryItems={myCheckpoints
+                  .filter((item) => item.image_url)
+                  .map((item) => ({
+                    url: item.image_url,
+                    thumbnailUrl: item.thumbnail_url,
+                    mediaType: item.media_type,
+                    alt: item.name,
+                    caption: <MomentCaption cp={item} />,
+                  }))}
+                galleryIndex={myCheckpoints.filter((item) => item.image_url).findIndex((item) => item.id === cp.id)}
                 className="h-28 w-full rounded-lg object-cover"
                 fallback={
                   <ImagePlaceholder

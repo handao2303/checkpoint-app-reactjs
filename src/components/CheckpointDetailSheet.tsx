@@ -57,6 +57,12 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                   url={im.url}
                   thumbnailUrl={im.thumbnail_url}
                   mediaType={im.type}
+                  galleryItems={data.images.map((item) => ({
+                    url: item.url,
+                    thumbnailUrl: item.thumbnail_url,
+                    mediaType: item.type,
+                  }))}
+                  galleryIndex={data.images.findIndex((item) => item.id === im.id)}
                   className="h-44 w-60 shrink-0 rounded-lg object-cover"
                 />
               ))}

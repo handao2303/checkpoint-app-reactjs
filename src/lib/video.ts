@@ -1,16 +1,17 @@
 import { trackError, trackEvent } from "./observability";
 
-const MAX_DURATION_SECONDS = 12;
+const MAX_DURATION_SECONDS = 10;
 const MAX_VIDEO_BYTES = 12 * 1024 * 1024;
 const THUMBNAIL_MAX_EDGE = 640;
 
 /**
- * Validate a short MP4 video, generate its JPEG thumbnail client-side, and
- * compress oversized videos when the browser supports MP4 MediaRecorder output.
+ * Validate a short video, generate its JPEG thumbnail client-side, and output
+ * an MP4 file. Non-MP4 inputs are converted when the browser supports MP4
+ * MediaRecorder output.
  */
 export async function prepareCheckpointVideo(file: File): Promise<{ original: File; thumbnail: File }> {
-  if (file.type !== "video/mp4" && !/\.mp4$/i.test(file.name)) {
-    throw new Error("Video phải là MP4.");
+  if (!isProbablyVideo(file)) {
+    throw new Error("File không phải video.");
   }
   const video = document.createElement("video");
   video.preload = "metadata";
@@ -47,7 +48,8 @@ export async function prepareCheckpointVideo(file: File): Promise<{ original: Fi
       type: "image/jpeg",
       lastModified: Date.now(),
     });
-    const original = file.size > MAX_VIDEO_BYTES ? await compressVideo(video, file) : file;
+    const needsConvert = !isMP4(file) || file.size > MAX_VIDEO_BYTES;
+    const original = needsConvert ? await convertToMP4(video, file) : normalizeMP4File(file);
     trackEvent("video_prepare_success", { video_size: original.size, thumbnail_size: thumbnail.size });
     return { original, thumbnail };
   } catch (e) {
@@ -77,14 +79,28 @@ function waitForEvent(video: HTMLVideoElement, event: "loadedmetadata" | "seeked
   });
 }
 
-async function compressVideo(video: HTMLVideoElement, file: File): Promise<File> {
+function isProbablyVideo(file: File): boolean {
+  return file.type.startsWith("video/") || /\.(mp4|mov|m4v|webm|mkv|avi|3gp|3gpp)$/i.test(file.name);
+}
+
+function isMP4(file: File): boolean {
+  return file.type === "video/mp4" || /\.(mp4|m4v)$/i.test(file.name);
+}
+
+function normalizeMP4File(file: File): File {
+  if (file.type === "video/mp4" && /\.mp4$/i.test(file.name)) return file;
+  const name = file.name.replace(/\.\w+$/, "") + ".mp4";
+  return new File([file], name, { type: "video/mp4", lastModified: file.lastModified });
+}
+
+async function convertToMP4(video: HTMLVideoElement, file: File): Promise<File> {
   if (typeof MediaRecorder === "undefined" || !HTMLCanvasElement.prototype.captureStream) {
-    throw new Error("Trình duyệt chưa hỗ trợ nén video. Hãy chọn MP4 dưới 12MB.");
+    throw new Error("Trình duyệt chưa hỗ trợ chuyển video sang MP4. Hãy thử video MP4 dưới 12MB.");
   }
 
   const mimeType = ["video/mp4;codecs=avc1.42E01E", "video/mp4"].find((t) => MediaRecorder.isTypeSupported(t));
   if (!mimeType) {
-    throw new Error("Trình duyệt chưa hỗ trợ nén MP4. Hãy chọn MP4 dưới 12MB.");
+    throw new Error("Trình duyệt chưa hỗ trợ xuất MP4. Hãy thử video MP4 dưới 12MB.");
   }
 
   const canvas = document.createElement("canvas");
@@ -130,11 +146,11 @@ async function compressVideo(video: HTMLVideoElement, file: File): Promise<File>
   stream.getTracks().forEach((track) => track.stop());
 
   const blob = new Blob(chunks, { type: "video/mp4" });
-  if (blob.size === 0) throw new Error("Nén video thất bại.");
+  if (blob.size === 0) throw new Error("Chuyển video sang MP4 thất bại.");
   if (blob.size > MAX_VIDEO_BYTES) {
-    throw new Error("Video sau khi nén vẫn quá lớn. Hãy chọn video ngắn/nhẹ hơn.");
+    throw new Error("Video sau khi chuyển sang MP4 vẫn quá lớn. Hãy chọn video ngắn/nhẹ hơn.");
   }
-  return new File([blob], file.name.replace(/\.\w+$/, "") + "-compressed.mp4", {
+  return new File([blob], file.name.replace(/\.\w+$/, "") + "-converted.mp4", {
     type: "video/mp4",
     lastModified: Date.now(),
   });

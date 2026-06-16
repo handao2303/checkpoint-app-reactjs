@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
-import { PhotoProvider, PhotoView } from "react-photo-view";
-import "react-photo-view/dist/react-photo-view.css";
 import { getMyJourneys, getNearbyPlaces, getUploadSlots, putFilesToSlots, type UploadMediaType } from "../lib/api";
 import { useCheckinQueue } from "../context/CheckinQueue";
 import { useGeocode } from "../hooks/useGeocode";
 import { prepareCheckpointImage } from "../lib/image";
 import { prepareCheckpointVideo } from "../lib/video";
 import { CATEGORIES } from "../lib/maps";
+import { MediaPreview } from "./MediaPreview";
 import { Button } from "./ui/Button";
 import { cn } from "../lib/cn";
 import { quickCheckinSettings } from "../lib/settings";
@@ -25,6 +24,10 @@ interface PickedMedia {
 
 const MAX_IMAGES = 3;
 const MAX_VIDEOS = 1;
+
+function isProbablyVideoFile(file: File): boolean {
+  return file.type.startsWith("video/") || /\.(mp4|mov|m4v|webm|mkv|avi|3gp|3gpp)$/i.test(file.name);
+}
 
 /** Prefer the in-app camera on touch devices with a usable camera + secure
  *  context; desktop keeps the plain file picker. */
@@ -96,7 +99,8 @@ export function CreateCheckpointForm({
     enabled: !place, // skip for existing-place check-ins
   });
   const [busy, setBusy] = useState(false);
-  const [processing, setProcessing] = useState(false);
+  const [imageProcessing, setImageProcessing] = useState(false);
+  const [videoProcessing, setVideoProcessing] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const imageFileRef = useRef<HTMLInputElement>(null);
@@ -111,6 +115,7 @@ export function CreateCheckpointForm({
   pickedRef.current = picked;
   const imageCount = picked.filter((p) => p.type === "image").length;
   const videoCount = picked.filter((p) => p.type === "video").length;
+  const processing = imageProcessing || videoProcessing;
   useEffect(
     () => () =>
       pickedRef.current.forEach((p) => {
@@ -176,14 +181,17 @@ export function CreateCheckpointForm({
   async function addFileArray(files: File[]) {
     if (files.length === 0) return;
 
-    setProcessing(true);
+    const hasVideo = files.some(isProbablyVideoFile);
+    const hasImage = files.some((file) => !isProbablyVideoFile(file));
+    if (hasImage) setImageProcessing(true);
+    if (hasVideo) setVideoProcessing(true);
     setErr(null);
     try {
       let nextImageCount = pickedRef.current.filter((p) => p.type === "image").length;
       let nextVideoCount = pickedRef.current.filter((p) => p.type === "video").length;
       const prepared: PickedMedia[] = [];
       for (const file of files) {
-        const isVideo = file.type.startsWith("video/") || /\.mp4$/i.test(file.name);
+        const isVideo = isProbablyVideoFile(file);
         if (isVideo) {
           if (nextVideoCount >= MAX_VIDEOS) {
             setErr("Tối đa 1 video/check-in.");
@@ -225,7 +233,8 @@ export function CreateCheckpointForm({
       trackEvent("media_prepare_failed");
       setErr(e instanceof Error ? e.message : "Không xử lý được media. Vui lòng thử file khác.");
     } finally {
-      setProcessing(false);
+      if (hasImage) setImageProcessing(false);
+      if (hasVideo) setVideoProcessing(false);
     }
   }
 
@@ -381,21 +390,20 @@ export function CreateCheckpointForm({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <PhotoProvider>
-          {picked.map((p, i) => (
-            <div key={p.url} className="relative h-20 w-20">
-              {p.type === "image" ? (
-                <PhotoView src={p.url}>
-                  <img src={p.thumbnailUrl} alt="" className="h-20 w-20 cursor-zoom-in rounded-lg object-cover" />
-                </PhotoView>
-              ) : (
-                <>
-                  <img src={p.thumbnailUrl} alt="" className="h-20 w-20 rounded-lg object-cover" />
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-black/20">
-                    <Icon name="play" size={24} className="text-white" />
-                  </div>
-                </>
-              )}
+        {picked.map((p, i) => (
+          <div key={p.url} className="relative h-20 w-20">
+            <MediaPreview
+              url={p.url}
+              thumbnailUrl={p.thumbnailUrl}
+              mediaType={p.type}
+              galleryItems={picked.map((item) => ({
+                url: item.url,
+                thumbnailUrl: item.thumbnailUrl,
+                mediaType: item.type,
+              }))}
+              galleryIndex={i}
+              className="h-20 w-20 rounded-lg object-cover"
+            />
               <button
                 type="button"
                 onClick={() => removeAt(i)}
@@ -406,18 +414,17 @@ export function CreateCheckpointForm({
               </button>
             </div>
           ))}
-        </PhotoProvider>
         {imageCount < maxImages && (
           <button
             type="button"
             onClick={addPhotos}
-            disabled={processing}
+            disabled={imageProcessing}
             className={cn(
               "flex h-20 w-20 flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed border-border text-muted-foreground",
-              processing ? "cursor-wait opacity-60" : "cursor-pointer",
+              imageProcessing ? "cursor-wait opacity-60" : "cursor-pointer",
             )}
           >
-            {processing ? (
+            {imageProcessing ? (
               <span className="text-xs">Đang xử lý…</span>
             ) : usePwaCamera ? (
               <Icon name="camera" size={24} />
@@ -432,13 +439,13 @@ export function CreateCheckpointForm({
           <button
             type="button"
             onClick={addVideo}
-            disabled={processing}
+            disabled={videoProcessing}
             className={cn(
               "flex h-20 w-20 flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed border-border text-muted-foreground",
-              processing ? "cursor-wait opacity-60" : "cursor-pointer",
+              videoProcessing ? "cursor-wait opacity-60" : "cursor-pointer",
             )}
           >
-            {processing ? (
+            {videoProcessing ? (
               <span className="text-xs">Đang xử lý…</span>
             ) : (
               <Icon name="video" size={24} />
@@ -459,7 +466,7 @@ export function CreateCheckpointForm({
         <input
           ref={videoFileRef}
           type="file"
-          accept="video/mp4"
+          accept="video/*,.mp4,.mov,.m4v,.webm,.mkv,.avi,.3gp,.3gpp"
           className="hidden"
           onChange={(e) => {
             void addFileArray(Array.from(e.target.files ?? []));

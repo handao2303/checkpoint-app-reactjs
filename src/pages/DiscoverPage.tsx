@@ -497,10 +497,10 @@ function FeedCard({
           thumbnailUrl={item.thumbnail_url}
           mediaType={item.media_type}
           alt={item.name}
-          className="h-56 w-full rounded-none object-cover"
+          className="block h-56 w-full rounded-none object-cover"
           fallback={<ImagePlaceholder className="h-56 w-full rounded-none" label={item.name} />}
         />
-         <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-surface/90 px-3 py-1 text-xs font-semibold text-clay-600">
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-surface/90 px-3 py-1 text-xs font-semibold text-clay-600">
           <Icon name={categoryIcon(item.category)} size={14} /> {item.name}
         </span>
         <span className="absolute bottom-3 right-3">
