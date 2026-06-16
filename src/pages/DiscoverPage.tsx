@@ -40,7 +40,6 @@ export function DiscoverPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placeId, setPlaceId] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
   const [query, _] = useState("");
   const [debounced, setDebounced] = useState("");
   const { user } = useAuth();
@@ -156,11 +155,13 @@ export function DiscoverPage() {
   }, [tab, scrollEl]);
 
   useEffect(() => {
-    if (!scrollEl) return;
-    const onScroll = () => setShowScrollTop(scrollEl.scrollTop > 600);
-    onScroll();
-    scrollEl.addEventListener("scroll", onScroll, { passive: true });
-    return () => scrollEl.removeEventListener("scroll", onScroll);
+    const handleScrollToTop = () => {
+      scrollEl?.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    window.addEventListener("scroll-discover-to-top", handleScrollToTop);
+    return () => {
+      window.removeEventListener("scroll-discover-to-top", handleScrollToTop);
+    };
   }, [scrollEl]);
 
   return (
@@ -327,23 +328,6 @@ export function DiscoverPage() {
         <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
       )}
 
-      {showScrollTop && (
-        <button
-          type="button"
-          onClick={() => {
-            trackEvent("feed_scroll_top_click");
-            scrollEl?.scrollTo({ top: 0, behavior: "smooth" });
-          }}
-          aria-label="Cuộn lên đầu"
-          className={`fixed right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition hover:brightness-105 md:right-[calc(50%-13rem)] ${
-            user
-              ? "bottom-[calc(5rem+env(safe-area-inset-bottom,0px))]"
-              : "bottom-[calc(1rem+env(safe-area-inset-bottom,0px))]"
-          }`}
-        >
-          <Icon name="chevron-down" size={22} className="rotate-180" />
-        </button>
-      )}
     </>
   );
 }

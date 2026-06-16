@@ -29,7 +29,12 @@ export function BottomNav() {
               end={to === "/"}
               className="block"
               aria-label={label}
-              onClick={() => trackEvent("nav_tab_click", { tab: label, target_route: to })}
+              onClick={() => {
+                trackEvent("nav_tab_click", { tab: label, target_route: to });
+                if (window.location.pathname === to && to === "/discover") {
+                  window.dispatchEvent(new CustomEvent("scroll-discover-to-top"));
+                }
+              }}
             >
               {({ isActive }) => (
                 <span
