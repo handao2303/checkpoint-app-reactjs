@@ -3,6 +3,7 @@ import { trackError, trackEvent } from "./observability";
 const MAX_DURATION_SECONDS = 10;
 const MAX_VIDEO_BYTES = 12 * 1024 * 1024;
 const THUMBNAIL_MAX_EDGE = 640;
+type Rotation = 0 | 90 | 180 | 270;
 
 /**
  * Validate a short video, generate its JPEG thumbnail client-side, and output
@@ -29,17 +30,16 @@ export async function prepareCheckpointVideo(file: File): Promise<{ original: Fi
     if (video.duration > MAX_DURATION_SECONDS) {
       throw new Error("Video quá dài. Tối đa 10 giây.");
     }
+    const rotation = normalizeRotationForCanvas(await readMP4Rotation(file), video);
 
     video.currentTime = Math.min(1, Math.max(0, video.duration / 2));
     await waitForEvent(video, "seeked", "Không lấy được khung hình video.");
 
     const canvas = document.createElement("canvas");
-    const scale = Math.min(1, THUMBNAIL_MAX_EDGE / Math.max(video.videoWidth, video.videoHeight));
-    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    setCanvasSize(canvas, video, THUMBNAIL_MAX_EDGE, rotation);
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Không tạo được canvas thumbnail.");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    drawVideoFrame(ctx, video, rotation);
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Không tạo được ảnh thumbnail."))), "image/jpeg", 0.85);
@@ -48,8 +48,8 @@ export async function prepareCheckpointVideo(file: File): Promise<{ original: Fi
       type: "image/jpeg",
       lastModified: Date.now(),
     });
-    const needsConvert = !isMP4(file) || file.size > MAX_VIDEO_BYTES;
-    const original = needsConvert ? await convertToMP4(video, file) : normalizeMP4File(file);
+    const needsConvert = !isMP4(file) || file.size > MAX_VIDEO_BYTES || rotation !== 0;
+    const original = needsConvert ? await convertToMP4(video, file, rotation) : normalizeMP4File(file);
     trackEvent("video_prepare_success", { video_size: original.size, thumbnail_size: thumbnail.size });
     return { original, thumbnail };
   } catch (e) {
@@ -93,7 +93,7 @@ function normalizeMP4File(file: File): File {
   return new File([file], name, { type: "video/mp4", lastModified: file.lastModified });
 }
 
-async function convertToMP4(video: HTMLVideoElement, file: File): Promise<File> {
+async function convertToMP4(video: HTMLVideoElement, file: File, rotation: Rotation): Promise<File> {
   if (typeof MediaRecorder === "undefined" || !HTMLCanvasElement.prototype.captureStream) {
     throw new Error("Trình duyệt chưa hỗ trợ chuyển video sang MP4. Hãy thử video MP4 dưới 12MB.");
   }
@@ -104,9 +104,7 @@ async function convertToMP4(video: HTMLVideoElement, file: File): Promise<File> 
   }
 
   const canvas = document.createElement("canvas");
-  const scale = Math.min(1, 720 / Math.max(video.videoWidth, video.videoHeight));
-  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+  setCanvasSize(canvas, video, 720, rotation);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Không tạo được canvas nén video.");
 
@@ -125,7 +123,7 @@ async function convertToMP4(video: HTMLVideoElement, file: File): Promise<File> 
   let frame = 0;
   const draw = () => {
     if (video.paused || video.ended) return;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    drawVideoFrame(ctx, video, rotation);
     frame = window.requestAnimationFrame(draw);
   };
 
@@ -154,4 +152,76 @@ async function convertToMP4(video: HTMLVideoElement, file: File): Promise<File> 
     type: "video/mp4",
     lastModified: Date.now(),
   });
+}
+
+function setCanvasSize(canvas: HTMLCanvasElement, video: HTMLVideoElement, maxEdge: number, rotation: Rotation) {
+  const rotated = rotation === 90 || rotation === 270;
+  const displayWidth = rotated ? video.videoHeight : video.videoWidth;
+  const displayHeight = rotated ? video.videoWidth : video.videoHeight;
+  const scale = Math.min(1, maxEdge / Math.max(displayWidth, displayHeight));
+  canvas.width = Math.max(1, Math.round(displayWidth * scale));
+  canvas.height = Math.max(1, Math.round(displayHeight * scale));
+}
+
+function drawVideoFrame(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, rotation: Rotation) {
+  const { canvas } = ctx;
+  ctx.save();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (rotation === 90) {
+    ctx.translate(canvas.width, 0);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(video, 0, 0, canvas.height, canvas.width);
+  } else if (rotation === 270) {
+    ctx.translate(0, canvas.height);
+    ctx.rotate(-Math.PI / 2);
+    ctx.drawImage(video, 0, 0, canvas.height, canvas.width);
+  } else if (rotation === 180) {
+    ctx.translate(canvas.width, canvas.height);
+    ctx.rotate(Math.PI);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  }
+  ctx.restore();
+}
+
+function normalizeRotationForCanvas(rotation: Rotation, video: HTMLVideoElement): Rotation {
+  if ((rotation === 90 || rotation === 270) && video.videoWidth < video.videoHeight) {
+    return 0;
+  }
+  return rotation;
+}
+
+async function readMP4Rotation(file: File): Promise<Rotation> {
+  if (!/\.(mp4|m4v|mov|3gp|3gpp)$/i.test(file.name)) return 0;
+  try {
+    const data = new DataView(await file.arrayBuffer());
+    for (let offset = 4; offset < data.byteLength - 64; offset++) {
+      if (
+        data.getUint8(offset) !== 0x74 ||
+        data.getUint8(offset + 1) !== 0x6b ||
+        data.getUint8(offset + 2) !== 0x68 ||
+        data.getUint8(offset + 3) !== 0x64
+      ) {
+        continue;
+      }
+      const boxStart = offset - 4;
+      const size = data.getUint32(boxStart);
+      if (size < 84 || boxStart + size > data.byteLength) continue;
+      const version = data.getUint8(offset + 4);
+      const matrixOffset = boxStart + (version === 1 ? 60 : 48);
+      if (matrixOffset + 20 > data.byteLength) continue;
+      const a = Math.round(data.getInt32(matrixOffset) / 65536);
+      const b = Math.round(data.getInt32(matrixOffset + 4) / 65536);
+      const c = Math.round(data.getInt32(matrixOffset + 12) / 65536);
+      const d = Math.round(data.getInt32(matrixOffset + 16) / 65536);
+      if (a === 0 && b === 1 && c === -1 && d === 0) return 90;
+      if (a === 0 && b === -1 && c === 1 && d === 0) return 270;
+      if (a === -1 && b === 0 && c === 0 && d === -1) return 180;
+      return 0;
+    }
+  } catch {
+    return 0;
+  }
+  return 0;
 }
