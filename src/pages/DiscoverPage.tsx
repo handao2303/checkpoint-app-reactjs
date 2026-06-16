@@ -1,19 +1,19 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Icon } from "../components/ui/Icon";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useScrollContainer } from "../components/AppLayout";
 import { useAuth } from "../auth/AuthContext";
+import { useScrollContainer } from "../components/AppLayout";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { MediaPreview } from "../components/MediaPreview";
 import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
 import { UserProfileSheet } from "../components/UserProfileSheet";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { XPBadge } from "../components/ui/Chip";
+import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
+import { useOptionalCheckinQueue } from "../context/CheckinQueue";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
-import { useOptionalCheckinQueue } from "../context/CheckinQueue";
 import {
   followUser,
   getFeed,
@@ -24,10 +24,10 @@ import {
   type FeedItem,
   type LatLng,
 } from "../lib/api";
-import { addFollowNotification } from "../lib/notifications";
 import { DEFAULT_VIEW, categoryIcon } from "../lib/maps";
-import { useUserLocation } from "../location/LocationProvider";
+import { addFollowNotification } from "../lib/notifications";
 import { trackError, trackEvent } from "../lib/observability";
+import { useUserLocation } from "../location/LocationProvider";
 
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
 
@@ -430,7 +430,7 @@ function FeedCard({
 
   return (
     <Card className="flex flex-col gap-3 p-0">
-      <div className="flex items-center gap-3 px-4 pt-4">
+      <div className="flex items-center justify-between gap-3">
         <button
           onClick={() => onOpenProfile(item.author.username)}
           className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-80"
@@ -497,7 +497,7 @@ function FeedCard({
           thumbnailUrl={item.thumbnail_url}
           mediaType={item.media_type}
           alt={item.name}
-          className="block h-56 w-full rounded-none object-cover"
+          className="block h-56 w-full object-cover rounded-md"
           fallback={<ImagePlaceholder className="h-56 w-full rounded-none" label={item.name} />}
         />
         <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-surface/90 px-3 py-1 text-xs font-semibold text-clay-600">
@@ -509,7 +509,7 @@ function FeedCard({
       </div>
 
       <button type="button" onClick={onOpen} className="w-full text-left">
-        <div className="flex items-center gap-3 px-4 text-sm text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
           {item.rating != null && (
             <span className="flex items-center gap-1">
               <Icon name="star" size={16} className="fill-gold text-gold" /> {item.rating}/5
