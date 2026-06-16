@@ -51,21 +51,35 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
         <div className="flex flex-col gap-3">
           {data.images?.length > 0 && (
             <div className="flex gap-2 overflow-x-auto">
-              {data.images.map((im) => (
-                <MediaPreview
-                  key={im.id}
-                  url={im.url}
-                  thumbnailUrl={im.thumbnail_url}
-                  mediaType={im.type}
-                  galleryItems={data.images.map((item) => ({
-                    url: item.url,
-                    thumbnailUrl: item.thumbnail_url,
-                    mediaType: item.type,
-                  }))}
-                  galleryIndex={data.images.findIndex((item) => item.id === im.id)}
-                  className="h-44 w-60 shrink-0 rounded-lg object-cover"
-                />
-              ))}
+              {data.images.map((im) =>
+                im.pending ? (
+                  <div
+                    key={im.id}
+                    className="flex h-44 w-60 shrink-0 flex-col items-center justify-center gap-2 rounded-lg bg-surface-muted text-muted-foreground"
+                  >
+                    <Icon name={im.type === "video" ? "video" : "image"} size={24} />
+                    <span className="text-xs">Đang xử lý...</span>
+                  </div>
+                ) : (
+                  <MediaPreview
+                    key={im.id}
+                    url={im.url}
+                    thumbnailUrl={im.thumbnail_url}
+                    mediaType={im.type}
+                    galleryItems={data.images
+                      .filter((item) => !item.pending)
+                      .map((item) => ({
+                        url: item.url,
+                        thumbnailUrl: item.thumbnail_url,
+                        mediaType: item.type,
+                      }))}
+                    galleryIndex={data.images
+                      .filter((item) => !item.pending)
+                      .findIndex((item) => item.id === im.id)}
+                    className="h-44 w-60 shrink-0 rounded-lg object-cover"
+                  />
+                ),
+              )}
             </div>
           )}
 

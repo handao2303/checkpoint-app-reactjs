@@ -7,10 +7,8 @@ import {
   getNearbyPlaces,
   getUploadSlots,
   putFilesToSlots,
-  transcodeVideo,
   type UploadMediaType,
   type UploadSlot,
-  type VideoKeys,
 } from "../lib/api";
 import { cn } from "../lib/cn";
 import { prepareCheckpointImage } from "../lib/image";
@@ -273,57 +271,44 @@ export function CreateCheckpointForm({
     setBusy(true);
     setErr(null);
 
-    // Images upload directly to R2 (presigned). The video is transcoded to MP4
-    // on the backend — many browsers can't produce MP4 — and returns its keys.
-    const imagePicks = picked.filter((p) => p.type === "image");
-    const videoPick = picked.find((p) => p.type === "video");
-
-    // Step 1 — presigned slots for the images (skipped on a video-only check-in).
-    let slots: UploadSlot[] = [];
-    if (imagePicks.length > 0) {
-      try {
-        slots = await getUploadSlots(imagePicks.map(() => "image" as const));
-        trackEvent("upload_slots_success", { media_count: imagePicks.length });
-      } catch {
-        trackEvent("upload_slots_failed", { media_count: imagePicks.length });
-        setErr("Không lấy được link upload. Vui lòng thử lại.");
-        setBusy(false);
-        return;
-      }
-    }
-
-    // Step 2 — upload images to R2 and transcode the video, in parallel.
-    let videoKeys: VideoKeys | undefined;
+    // Step 1 — presigned slots for all media (images + the raw video).
+    let slots: UploadSlot[];
+    const mediaTypes = picked.map((p) => p.type);
     try {
-      await Promise.all([
-        imagePicks.length > 0
-          ? putFilesToSlots(slots, imagePicks.map((p) => ({ original: p.original, thumbnail: p.thumbnail })))
-          : Promise.resolve(),
-        videoPick
-          ? transcodeVideo(videoPick.original, videoPick.thumbnail).then((keys) => {
-              videoKeys = keys;
-            })
-          : Promise.resolve(),
-      ]);
-      trackEvent("r2_upload_success", { media_count: picked.length });
-    } catch (e) {
-      trackEvent("r2_upload_failed", { media_count: picked.length });
-      setErr(e instanceof Error ? e.message : "Upload ảnh/video thất bại. Vui lòng thử lại.");
+      slots = await getUploadSlots(mediaTypes);
+      trackEvent("upload_slots_success", { media_count: mediaTypes.length });
+    } catch {
+      trackEvent("upload_slots_failed", { media_count: mediaTypes.length });
+      setErr("Không lấy được link upload. Vui lòng thử lại.");
       setBusy(false);
       return;
     }
 
-    // Step 3 — assemble keys in the original media order, then enqueue the POST
-    // in the background and return immediately.
+    // Step 2 — upload raw media directly to R2. Images also upload their
+    // thumbnail; the video uploads only the raw file — the backend worker
+    // transcodes it to MP4 and cuts its thumbnail.
     try {
-      let imgIdx = 0;
-      const images = picked.map((p) => {
-        if (p.type === "video") {
-          return { object_key: videoKeys!.object_key, thumbnail_key: videoKeys!.thumbnail_key, type: "video" as const };
-        }
-        const s = slots[imgIdx++];
-        return { object_key: s.object_key, thumbnail_key: s.thumbnail_key, type: "image" as const };
-      });
+      await putFilesToSlots(
+        slots,
+        picked.map((p) => ({ original: p.original, thumbnail: p.thumbnail, type: p.type })),
+      );
+      trackEvent("r2_upload_success", { media_count: picked.length });
+    } catch {
+      trackEvent("r2_upload_failed", { media_count: picked.length });
+      setErr("Upload ảnh/video thất bại. Vui lòng thử lại.");
+      setBusy(false);
+      return;
+    }
+
+    // Step 3 — enqueue the POST in the background and return immediately. The
+    // video omits thumbnail_key, so the backend marks it pending and the worker
+    // processes it asynchronously.
+    try {
+      const images = slots.map((s, i) =>
+        picked[i].type === "video"
+          ? { object_key: s.object_key, type: "video" as const }
+          : { object_key: s.object_key, thumbnail_key: s.thumbnail_key, type: "image" as const },
+      );
       enqueue({
         name,
         category,

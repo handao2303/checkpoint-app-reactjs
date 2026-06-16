@@ -354,6 +354,9 @@ export interface CheckpointImage {
   thumbnail_url?: string;
   type: "image" | "video";
   sort_order: number;
+  /** True while the media is still being processed by the backend worker
+   *  (raw video awaiting MP4 transcode + thumbnail). */
+  pending?: boolean;
 }
 
 export interface CheckpointDetail {
@@ -477,46 +480,35 @@ export async function getUploadSlots(media: UploadMediaType[] | number): Promise
   return res.data.slots as UploadSlot[];
 }
 
-/** Upload files to the presigned URLs returned by getUploadSlots. */
+/** Upload raw media to the presigned URLs returned by getUploadSlots. Images
+ *  upload their client-made thumbnail too; videos upload only the raw file — the
+ *  backend worker transcodes it to MP4 and generates the thumbnail. */
 export async function putFilesToSlots(
   slots: UploadSlot[],
-  files: { original: File; thumbnail: File }[],
+  files: { original: File; thumbnail?: File; type: UploadMediaType }[],
 ): Promise<void> {
-  const puts = slots.flatMap((slot, i) => [
-    fetch(slot.upload_url, {
-      method: "PUT",
-      body: files[i].original,
-      headers: { "Content-Type": files[i].original.type || "image/jpeg" },
-    }),
-    fetch(slot.thumbnail_upload_url, {
-      method: "PUT",
-      body: files[i].thumbnail,
-      headers: { "Content-Type": files[i].thumbnail.type || "image/jpeg" },
-    }),
-  ]);
+  const puts = slots.flatMap((slot, i) => {
+    const arr = [
+      fetch(slot.upload_url, {
+        method: "PUT",
+        body: files[i].original,
+        headers: { "Content-Type": files[i].original.type || "application/octet-stream" },
+      }),
+    ];
+    if (files[i].type === "image" && files[i].thumbnail) {
+      arr.push(
+        fetch(slot.thumbnail_upload_url, {
+          method: "PUT",
+          body: files[i].thumbnail,
+          headers: { "Content-Type": files[i].thumbnail.type || "image/jpeg" },
+        }),
+      );
+    }
+    return arr;
+  });
   const results = await Promise.all(puts);
   const failed = results.find((r) => !r.ok);
   if (failed) throw new Error(`R2 upload failed: ${failed.status}`);
-}
-
-export interface VideoKeys {
-  object_key: string;
-  thumbnail_key?: string;
-}
-
-/** Upload a raw (any-format) video to the backend, which transcodes it to MP4
- *  server-side (browsers can't reliably produce MP4) and stores it with its
- *  thumbnail. Returns the R2 keys to include in createCheckpoint. */
-export async function transcodeVideo(original: File, thumbnail: File): Promise<VideoKeys> {
-  const form = new FormData();
-  form.append("video", original, original.name || "video");
-  form.append("thumbnail", thumbnail, thumbnail.name || "thumbnail.jpg");
-  const res = await apiFetch("/checkpoints/video", { method: "POST", body: form });
-  if (!isSuccessful(res)) {
-    const msg = typeof res.data?.error === "string" ? res.data.error : `transcode video failed: ${res.status}`;
-    throw new ApiError(res.status, msg);
-  }
-  return { object_key: res.data.object_key, thumbnail_key: res.data.thumbnail_key };
 }
 
 // ---- Places / Discovery (Phase 4) ----
