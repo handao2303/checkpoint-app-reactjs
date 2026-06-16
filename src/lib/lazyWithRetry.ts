@@ -1,4 +1,5 @@
 import { lazy, type ComponentType } from "react";
+import { trackError, trackEvent } from "./observability";
 
 /**
  * React.lazy that survives stale-chunk failures. After a deploy, a PWA can hold
@@ -20,10 +21,12 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     } catch (err) {
       if (!sessionStorage.getItem(flag)) {
         sessionStorage.setItem(flag, "1");
+        trackEvent("lazy_chunk_retry", { feature: key });
         window.location.reload();
         // Return a never-resolving promise so nothing renders before reload.
         return new Promise<{ default: T }>(() => {});
       }
+      trackError(err, { feature: key, action: "lazy_chunk_failed" });
       throw err;
     }
   });

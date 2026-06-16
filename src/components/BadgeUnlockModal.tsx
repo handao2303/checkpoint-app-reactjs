@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Badge } from "../lib/api";
 import { Icon } from "./ui/Icon";
 import { BadgeMedal } from "./BadgeMedal";
+import { trackEvent } from "../lib/observability";
 
 const CONFETTI = [
   { left: "12%", color: "#f59e0b", delay: "0s" },
@@ -45,16 +46,22 @@ export function BadgeUnlockModal({
   function dismiss() {
     if (exiting) return;
     setExiting(true);
+    trackEvent("badge_unlock_modal_done", { badge_count: badges.length });
     setTimeout(onDone, 340);
   }
 
   function advance() {
     if (idx < badges.length - 1) {
+      trackEvent("badge_unlock_modal_advance", { badge_index: idx + 1, badge_count: badges.length });
       setIdx((i) => i + 1);
     } else {
       dismiss();
     }
   }
+
+  useEffect(() => {
+    trackEvent("badge_unlock_modal_shown", { badge_count: badges.length });
+  }, [badges.length]);
 
   const badge = badges[idx];
   if (!badge) return null;

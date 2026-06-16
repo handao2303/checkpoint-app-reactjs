@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { useAuth } from "../auth/AuthContext";
@@ -18,6 +18,7 @@ import { ImagePlaceholder } from "./ui/Card";
 import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
+import { trackEvent } from "../lib/observability";
 
 function avatarRingClass(level: number) {
   if (level >= 16) return "border-4 border-yellow-400";
@@ -35,6 +36,10 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
   const { user: me } = useAuth();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    trackEvent("public_profile_open");
+  }, []);
 
   const { data: u, isLoading } = useQuery({
     queryKey: ["user", username],
@@ -60,6 +65,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
     try {
       if (isFollowing) await unfollowUser(u.username);
       else await followUser(u.username);
+      trackEvent(isFollowing ? "unfollow_success" : "follow_success", { source: "user_profile_sheet" });
       if (me) {
         void addFollowNotification(u.id, isFollowing ? "unfollow" : "follow", {
           id: me.id,
@@ -71,6 +77,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
       qc.invalidateQueries({ queryKey: ["following"] });
       qc.invalidateQueries({ queryKey: ["feed-following"] });
     } catch {
+      trackEvent(isFollowing ? "unfollow_failed" : "follow_failed", { source: "user_profile_sheet" });
       // best-effort
     } finally {
       setBusy(false);

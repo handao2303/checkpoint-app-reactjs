@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { extractGPS } from "../lib/exif";
 import { CreateCheckpointForm } from "./CreateCheckpointForm";
 import { Button } from "./ui/Button";
+import { trackEvent } from "../lib/observability";
 
 type Stage = "idle" | "reading" | "error" | "form";
 
@@ -29,10 +30,12 @@ export function PhotoCheckinTab({
     const gps = await extractGPS(file);
     if (!isValidGPS(gps)) {
       setStage("error");
+      trackEvent("photo_exif_read_failed");
       return;
     }
     setFormData({ gps, file });
     setStage("form");
+    trackEvent("photo_exif_read_success");
   }
 
   if (stage === "form" && formData) {

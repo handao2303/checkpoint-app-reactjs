@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
 import { Icon } from "./ui/Icon";
+import { trackEvent } from "../lib/observability";
 type Facing = "user" | "environment";
 type CameraDevice = { info: MediaDeviceInfo; facing?: Facing };
 
@@ -260,6 +261,7 @@ export function CameraCaptureSheet({
           : facing;
 
       setError(false);
+      trackEvent("camera_open", { facing: activeFacing, hardware_zoom: false });
       setActiveDeviceId(deviceId ?? null);
       setFacing(activeFacing);
       setMirrored(activeFacing === "user");
@@ -321,9 +323,11 @@ export function CameraCaptureSheet({
       setSelectedDeviceId(null);
       setActiveDeviceId(null);
       setMirrored(facing === "user");
+      trackEvent("camera_error", { facing, fallback: true });
       return;
     }
     setError(true);
+    trackEvent("camera_error", { facing, fallback: false });
   }, [facing, selectedDeviceId]);
 
   const switchFacing = () => {
@@ -335,6 +339,7 @@ export function CameraCaptureSheet({
     setActiveDeviceId(null);
     setMirrored(nextFacing === "user");
     resetZoom();
+    trackEvent("camera_switch", { facing: nextFacing });
   };
 
   const selectLens = (deviceId: string) => {
@@ -343,6 +348,7 @@ export function CameraCaptureSheet({
     saveDevice(facing, deviceId);
     setSelectedDeviceId(deviceId);
     resetZoom();
+    trackEvent("camera_lens_select", { facing });
   };
 
   const capture = useCallback(async () => {
@@ -376,6 +382,7 @@ export function CameraCaptureSheet({
     const url = URL.createObjectURL(file);
     setShots((prev) => [...prev, { file, url }]);
     setMode("preview");
+    trackEvent("camera_capture", { count: shotsRef.current.length + 1 });
   }, [maxCount, mirrored]);
 
   const retake = () => {
@@ -390,6 +397,7 @@ export function CameraCaptureSheet({
   const continueCapture = () => setMode("viewfinder");
 
   const finish = () => {
+    trackEvent("camera_done", { count: shotsRef.current.length });
     onDone(shotsRef.current.map((s) => s.file));
     onClose();
   };
@@ -403,6 +411,7 @@ export function CameraCaptureSheet({
       ...prev,
       ...files.map((f) => ({ file: f, url: URL.createObjectURL(f) })),
     ]);
+    trackEvent("camera_gallery_pick", { count: files.length });
     // Gallery files are already reviewed by the user; stay in viewfinder.
   };
 
@@ -410,7 +419,15 @@ export function CameraCaptureSheet({
     <div className="fixed inset-0 z-[80] flex flex-col bg-black">
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pb-2 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] text-white">
-        <button type="button" onClick={onClose} aria-label="Đóng" className="p-1">
+        <button
+          type="button"
+          onClick={() => {
+            trackEvent("camera_close", { count: shots.length });
+            onClose();
+          }}
+          aria-label="Đóng"
+          className="p-1"
+        >
           <Icon name="x" size={26} />
         </button>
         <span className="text-sm font-semibold tabular-nums text-white/80">

@@ -6,6 +6,7 @@ import { NotificationSheet } from "./NotificationSheet";
 import { LocationProvider } from "../location/LocationProvider";
 import { CheckinQueueProvider } from "../context/CheckinQueue";
 import { NotificationProvider, useNotifications } from "../context/NotificationProvider";
+import { trackEvent } from "../lib/observability";
 
 // The app's single scrolling element is the layout's <main>. Pages reach it via
 // this context (e.g. to drive a virtualizer) since they render behind <Outlet/>.
@@ -23,7 +24,10 @@ function NotificationBell() {
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          trackEvent("notification_bell_open", { unread_count: unreadCount });
+          setOpen(true);
+        }}
         className="relative rounded-full p-2 text-clay-600 hover:bg-surface-muted"
         aria-label="Thông báo"
       >

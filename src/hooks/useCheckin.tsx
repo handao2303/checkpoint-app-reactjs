@@ -3,6 +3,7 @@ import { CreateCheckpointSheet } from "../components/CreateCheckpointSheet";
 import { LocationPermissionSheet } from "../components/LocationPermissionSheet";
 import { Toast } from "../components/ui/Toast";
 import { canLocateSilently, getCurrentCoords } from "../lib/geo";
+import { trackError, trackEvent } from "../lib/observability";
 
 /**
  * Shared GPS check-in flow used by both the Map page's CHECK-IN button and the
@@ -15,7 +16,9 @@ export function useCheckin() {
   const [toast, setToast] = useState<string | null>(null);
 
   const start = useCallback(async () => {
+    trackEvent("checkin_flow_start", { source: "gps" });
     if (!navigator.geolocation) {
+      trackEvent("location_unsupported", { source: "checkin" });
       setToast("Trình duyệt không hỗ trợ định vị");
       return;
     }
@@ -26,8 +29,10 @@ export function useCheckin() {
     if (await canLocateSilently()) {
       try {
         setCreatingAt(await getCurrentCoords());
+        trackEvent("location_granted", { source: "checkin_silent" });
         return;
-      } catch {
+      } catch (error) {
+        trackError(error, { feature: "checkin", action: "silent_location" }, "warn");
         // revoked or transient failure — let the sheet guide re-enabling.
       }
     }

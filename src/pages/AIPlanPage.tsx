@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Icon } from "../components/ui/Icon";
+import { trackEvent } from "../lib/observability";
 const teasers = [
   "Lên lịch trình từ data cộng đồng",
   "Gợi ý địa điểm hợp gu bạn",
@@ -6,6 +8,10 @@ const teasers = [
 ];
 
 export function AIPlanPage() {
+  useEffect(() => {
+    trackEvent("ai_plan_open");
+  }, []);
+
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-5 px-6 text-center">
       <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-green-700 text-white shadow-card">

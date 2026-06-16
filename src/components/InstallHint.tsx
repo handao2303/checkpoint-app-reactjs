@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "./ui/Icon";
 import { isIOS, isStandalone } from "../lib/platform";
+import { trackEvent } from "../lib/observability";
 
 const DISMISSED_KEY = "cp.a2hs.dismissed";
 
@@ -18,7 +19,12 @@ function wasDismissed(): boolean {
  * still in a browser tab (not already installed).
  */
 export function InstallHint() {
-  const [show, setShow] = useState(() => isIOS() && !isStandalone() && !wasDismissed());
+  const [show, setShow] = useState(() => {
+    const initial = isIOS() && !isStandalone() && !wasDismissed();
+    if (initial) trackEvent("ios_install_hint_shown");
+    return initial;
+  });
+
   if (!show) return null;
 
   function dismiss() {
@@ -27,6 +33,7 @@ export function InstallHint() {
     } catch {
       // storage disabled — it'll just show again next visit
     }
+    trackEvent("ios_install_hint_dismiss");
     setShow(false);
   }
 

@@ -4,6 +4,7 @@
 import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
 
 import { supabase } from "./supabase";
+import { trackError, trackEvent } from "./observability";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -104,9 +105,12 @@ async function reauth(): Promise<boolean> {
       if (isSuccessful(res)) {
         const data = res.data;
         tokens.set(data.access_token, data.refresh_token);
+        trackEvent("auth_refresh_success");
         return true;
       }
+      trackEvent("auth_refresh_failed", { status_code: res.status });
     } catch {
+      trackError(new Error("refresh network failed"), { feature: "auth", action: "auth_refresh" });
       // network error — fall through to the Supabase session
     }
   }
@@ -114,12 +118,15 @@ async function reauth(): Promise<boolean> {
     const { data } = await supabase.auth.getSession();
     if (data.session) {
       await exchange(data.session.access_token); // stores fresh tokens
+      trackEvent("auth_refresh_success", { source: "supabase_session" });
       return true;
     }
   } catch {
+    trackError(new Error("supabase session exchange failed"), { feature: "auth", action: "auth_refresh" });
     // give up
   }
   tokens.clear();
+  trackEvent("auth_refresh_failed", { source: "all" });
   return false;
 }
 
@@ -134,6 +141,7 @@ export async function apiFetch(
   init: RequestInit = {},
   retry = true,
 ): Promise<AxiosResponse> {
+  const started = performance.now();
   const headers = new Headers(init.headers);
   if (tokens.access) headers.set("Authorization", `Bearer ${tokens.access}`);
   const axiosHeaders: Record<string, string> = {};
@@ -146,20 +154,62 @@ export async function apiFetch(
     data: init.body,
     signal: init.signal ?? undefined,
   };
-  const res = await http.request({ ...config, url: path });
+  let res: AxiosResponse;
+  try {
+    res = await http.request({ ...config, url: path });
+  } catch (error) {
+    trackError(error, {
+      feature: "api",
+      action: "api_request",
+      endpoint_group: endpointGroup(path),
+      method: config.method,
+      duration_ms: Math.round(performance.now() - started),
+    });
+    throw error;
+  }
   if (res.status === 401 && retry) {
     if (await ensureFreshToken()) return apiFetch(path, init, false);
     onAuthExpired?.();
   }
+  if (!isSuccessful(res)) {
+    trackEvent("api_request_failed", {
+      endpoint_group: endpointGroup(path),
+      method: config.method,
+      status_code: res.status,
+      retry,
+      duration_ms: Math.round(performance.now() - started),
+    });
+  }
   return res;
+}
+
+function endpointGroup(path: string): string {
+  const clean = path.split("?")[0] || "/";
+  if (clean.startsWith("/auth/")) return "/auth/:action";
+  if (clean.startsWith("/users/") && clean.endsWith("/follow")) return "/users/:username/follow";
+  if (clean.startsWith("/users/")) return "/users/:id";
+  if (clean.startsWith("/checkpoints/") && clean.includes("/reaction")) return "/checkpoints/:id/reaction";
+  if (clean.startsWith("/checkpoints/") && clean.endsWith("/view")) return "/checkpoints/:id/view";
+  if (clean.startsWith("/checkpoints/")) return "/checkpoints/:id";
+  if (clean.startsWith("/discover/feed/following")) return "/discover/feed/following";
+  if (clean.startsWith("/discover/feed")) return "/discover/feed";
+  if (clean.startsWith("/places/")) return "/places/:id";
+  if (clean.startsWith("/journeys/")) return "/journeys/:id";
+  if (clean.startsWith("/integrations/drive/")) return "/integrations/drive/:action";
+  if (clean.startsWith("/integrations/photos/")) return "/integrations/photos/:action";
+  return clean;
 }
 
 /** Exchange a Supabase token for our backend token pair. */
 export async function exchange(supabaseToken: string): Promise<User> {
   const res = await postJSON("/auth/exchange", { supabase_token: supabaseToken });
-  if (!isSuccessful(res)) throw new Error(`exchange failed: ${res.status}`);
+  if (!isSuccessful(res)) {
+    trackEvent("auth_exchange_failed", { status_code: res.status });
+    throw new Error(`exchange failed: ${res.status}`);
+  }
   const data = res.data;
   tokens.set(data.access_token, data.refresh_token);
+  trackEvent("auth_exchange_success");
   return data.user as User;
 }
 

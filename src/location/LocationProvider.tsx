@@ -15,6 +15,7 @@ import {
   wasAutoAskDismissed,
   type Coords,
 } from "../lib/geo";
+import { trackError, trackEvent } from "../lib/observability";
 
 type Status = "idle" | "locating" | "granted" | "unsupported";
 
@@ -54,10 +55,12 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
     if (!navigator.geolocation) {
       setStatus("unsupported");
+      trackEvent("location_unsupported", { source: "ambient" });
       return;
     }
     let active = true;
     setStatus("locating");
+    trackEvent("location_auto_request", { source: "ambient" });
     canLocateSilently().then((ok) => {
       if (!active) return;
       if (ok) {
@@ -66,10 +69,14 @@ export function LocationProvider({ children }: { children: ReactNode }) {
             if (active) {
               setCoords(c);
               setStatus("granted");
+              trackEvent("location_granted", { source: "ambient_silent" });
             }
           },
           () => {
-            if (active) setStatus("idle"); // revoked/failed — stay quiet
+            if (active) {
+              setStatus("idle"); // revoked/failed — stay quiet
+              trackEvent("location_denied", { source: "ambient_silent" });
+            }
           },
         );
       } else if (wasAutoAskDismissed()) {
@@ -115,14 +122,19 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const request = useCallback(() => {
+    trackEvent("location_request_open", { source: "ambient_manual" });
     canLocateSilently().then((ok) => {
       if (ok) {
         getCurrentCoords().then(
           (c) => {
             setCoords(c);
             setStatus("granted");
+            trackEvent("location_granted", { source: "ambient_manual" });
           },
-          () => setAsking(true),
+          (error) => {
+            trackError(error, { feature: "location", action: "ambient_manual_locate" }, "warn");
+            setAsking(true);
+          },
         );
       } else {
         setAsking(true);
@@ -134,6 +146,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     setAsking(false);
     setCoords(c);
     setStatus("granted");
+    trackEvent("location_granted", { source: "ambient_sheet" });
   }, []);
 
   const handleClose = useCallback(() => {
@@ -141,6 +154,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     // Dismissing the ambient sheet = don't auto-ask again. Mandatory check-in
     // is a separate flow and still asks every time.
     markAutoAskDismissed();
+    trackEvent("location_denied", { source: "ambient_dismiss" });
     setStatus((s) => (s === "locating" ? "idle" : s));
   }, []);
 

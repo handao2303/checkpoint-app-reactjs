@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { Icon, type IconName } from "./ui/Icon";
 import { cn } from "../lib/cn";
+import { trackEvent } from "../lib/observability";
 
 type Tab = {
   to: string;
@@ -28,6 +29,7 @@ export function BottomNav() {
               end={to === "/"}
               className="block"
               aria-label={label}
+              onClick={() => trackEvent("nav_tab_click", { tab: label, target_route: to })}
             >
               {({ isActive }) => (
                 <span

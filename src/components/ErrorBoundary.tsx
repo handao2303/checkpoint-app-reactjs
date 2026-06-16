@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { trackError } from "../lib/observability";
 
 interface Props {
   children: ReactNode;
@@ -20,6 +21,15 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Surface for diagnosis; replace with real reporting later if needed.
     console.error("App crashed:", error, info.componentStack);
+    trackError(
+      error,
+      {
+        feature: "react",
+        action: "render_crash",
+        component_stack: info.componentStack?.slice(0, 100),
+      },
+      "fatal",
+    );
   }
 
   render() {

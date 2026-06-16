@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createCheckpoint, ApiError, type Badge, type CheckinInput, type User } from "../lib/api";
 import { Toast, XPToast } from "../components/ui/Toast";
 import { BadgeUnlockModal } from "../components/BadgeUnlockModal";
+import { trackError, trackEvent } from "../lib/observability";
 
 // ---- persistence ----------------------------------------------------------
 
@@ -110,6 +111,12 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
     };
     saveJob(job);
     setQueue((q) => [...q, job]);
+    trackEvent("checkin_enqueue", {
+      image_count: input.images.length,
+      category: input.category,
+      has_journey: !!input.journey_id,
+      has_place: !!input.place_id,
+    });
   }, []);
 
   useEffect(() => {
@@ -120,7 +127,10 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
 
     async function run() {
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt]);
+        if (attempt > 0) {
+          trackEvent("checkin_retry", { attempt: attempt + 1 });
+          await sleep(RETRY_DELAYS_MS[attempt]);
+        }
 
         try {
           // Snapshot the user's current level before the checkin so we can
@@ -141,12 +151,25 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
 
           const didLevelUp = res.level > (prevUser?.level ?? res.level);
           setXpReward({ xp: res.xp_awarded, level: res.level, didLevelUp });
-          if (res.new_badges?.length) setBadges(res.new_badges);
+          trackEvent("checkin_create_success", {
+            checkpoint_id: res.checkpoint.id,
+            category: res.checkpoint.category,
+            xp: res.xp_awarded,
+            did_level_up: didLevelUp,
+            badge_count: res.new_badges?.length ?? 0,
+          });
+          if (didLevelUp) trackEvent("checkin_level_up", { level: res.level });
+          if (res.new_badges?.length) {
+            trackEvent("checkin_badge_unlocked", { badge_count: res.new_badges.length });
+            setBadges(res.new_badges);
+          }
           break;
         } catch (err) {
           const retry = isRetryable(err) && attempt < MAX_ATTEMPTS - 1;
           if (!retry) {
             removeJob(job.id);
+            trackError(err, { feature: "checkin", action: "checkin_create", attempt: attempt + 1 });
+            trackEvent("checkin_create_failed", { attempt: attempt + 1 });
             setErrorToast("Lưu check-in thất bại. Vui lòng thử lại.");
             break;
           }

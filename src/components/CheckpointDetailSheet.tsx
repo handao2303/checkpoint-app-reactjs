@@ -15,6 +15,7 @@ import { XPBadge } from "./ui/Chip";
 import { DetailSheetSkeleton } from "./ui/Skeleton";
 import { ShareButton } from "./share/ShareButton";
 import { renderCheckpointCard } from "../lib/shareCard";
+import { trackEvent } from "../lib/observability";
 
 export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: () => void;}) {
   const { user } = useAuth();
@@ -29,9 +30,11 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
 
   // Count this open as a view, then refetch so the displayed count includes it.
   useEffect(() => {
+    trackEvent("checkpoint_detail_open", { checkpoint_id: id });
     let cancelled = false;
     void viewCheckpoint(id).then(() => {
       if (!cancelled) queryClient.invalidateQueries({ queryKey: ["checkpoint", id] });
+      trackEvent("checkpoint_view_recorded", { checkpoint_id: id });
     });
     return () => {
       cancelled = true;
@@ -82,7 +85,10 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <button
-              onClick={() => setProfileUsername(data.author.username)}
+              onClick={() => {
+                trackEvent("feed_profile_open", { source: "checkpoint_detail" });
+                setProfileUsername(data.author.username);
+              }}
               className="flex items-center gap-2 rounded-full transition hover:opacity-80"
             >
               {data.author.avatar_url ? (
@@ -145,7 +151,10 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               confirmBox
             ) : (
               <button
-                onClick={requestDelete}
+                onClick={() => {
+                  trackEvent("checkpoint_delete_request", { checkpoint_id: id });
+                  requestDelete();
+                }}
                 className="flex items-center justify-center gap-2 rounded-full py-2 text-sm font-semibold text-accent-600 hover:bg-accent-50"
               >
                 <Icon name="trash" size={16} /> Xoá check-in

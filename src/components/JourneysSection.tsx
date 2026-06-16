@@ -5,6 +5,7 @@ import { getMyJourneys, createJourney, updateJourney, type Journey } from "../li
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Sheet } from "./ui/Sheet";
+import { trackEvent } from "../lib/observability";
 
 // Lazy so MapLibre loads only when a journey is opened (not on Profile mount).
 const JourneyDetailSheet = lazy(() =>
@@ -34,10 +35,14 @@ export function JourneysSection() {
     try {
       const j = await createJourney(name, description.trim() || undefined);
       await updateJourney(j.id, { is_active: true });
+      trackEvent("journey_create_success", { journey_id: j.id });
+      trackEvent("journey_start_success", { journey_id: j.id });
       await qc.invalidateQueries({ queryKey: ["journeys"] });
       setStarting(false);
       setTitle("");
       setDescription("");
+    } catch {
+      trackEvent("journey_create_failed");
     } finally {
       setBusy(false);
     }
@@ -47,7 +52,10 @@ export function JourneysSection() {
     setBusy(true);
     try {
       await updateJourney(j.id, { is_active: false });
+      trackEvent("journey_end_success", { journey_id: j.id });
       await qc.invalidateQueries({ queryKey: ["journeys"] });
+    } catch {
+      trackEvent("journey_end_failed", { journey_id: j.id });
     } finally {
       setBusy(false);
     }
@@ -57,7 +65,13 @@ export function JourneysSection() {
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h3 className="font-display text-lg font-bold">Hành trình</h3>
-        <button onClick={() => setStarting(true)} className="text-sm font-semibold text-primary">
+        <button
+          onClick={() => {
+            trackEvent("journey_start_open");
+            setStarting(true);
+          }}
+          className="text-sm font-semibold text-primary"
+        >
           + Bắt đầu
         </button>
       </div>
@@ -91,7 +105,10 @@ export function JourneysSection() {
           {journeys.map((j) => (
             <button
               key={j.id}
-              onClick={() => setOpenId(j.id)}
+              onClick={() => {
+                trackEvent("journey_detail_open", { journey_id: j.id });
+                setOpenId(j.id);
+              }}
               className="flex items-center gap-3 rounded-xl bg-surface p-3 text-left shadow-card"
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-50 text-primary">

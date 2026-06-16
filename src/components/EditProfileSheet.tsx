@@ -8,6 +8,7 @@ import { getBadges, updateProfile, uploadAvatar } from "../lib/api";
 import { prepareImage } from "../lib/image";
 import { AvatarCropSheet } from "./AvatarCropSheet";
 import { buildPickerFrames } from "../lib/avatarFrames";
+import { trackError, trackEvent } from "../lib/observability";
 
 // The selected frame is baked into the image, so the backend doesn't track it.
 // Remember the last choice locally to pre-select it next time.
@@ -40,15 +41,18 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-picking the same file later
     if (!file) return;
+    trackEvent("avatar_pick");
     setError(null);
     setUploading(true);
     try {
       // Convert HEIC + downscale; then open crop sheet.
       const prepared = await prepareImage(file);
       setCropImageSrc(URL.createObjectURL(prepared));
+      trackEvent("avatar_prepare_success");
     } catch {
       // Fallback: use the original file directly.
       setCropImageSrc(URL.createObjectURL(file));
+      trackEvent("avatar_prepare_failed");
     } finally {
       setUploading(false);
     }
@@ -59,16 +63,21 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
     setUploading(true);
     setError(null);
     try {
+      trackEvent("avatar_crop_done", { has_frame: !!frameId });
       // Baked avatars are PNG (transparent corners around the circle/medallion).
       const file = new File([blob], "avatar.png", { type: "image/png" });
       applyUser(await uploadAvatar(file));
+      trackEvent("avatar_upload_success", { has_frame: !!frameId });
       try {
         if (frameId) localStorage.setItem(frameStorageKey(user.id), frameId);
         else localStorage.removeItem(frameStorageKey(user.id));
+        trackEvent("avatar_frame_select", { has_frame: !!frameId });
       } catch {
         // localStorage unavailable (private mode) — harmless
       }
     } catch (err) {
+      trackError(err, { feature: "profile", action: "avatar_upload" });
+      trackEvent("avatar_upload_failed");
       setError(err instanceof Error ? err.message : "Tải ảnh thất bại.");
     } finally {
       setUploading(false);
@@ -87,8 +96,11 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
           bio: b,
         }),
       );
+      trackEvent("profile_update_success", { has_display_name: !!name, has_bio: !!b });
       onClose();
     } catch (err) {
+      trackError(err, { feature: "profile", action: "profile_update" });
+      trackEvent("profile_update_failed");
       setError(err instanceof Error ? err.message : "Lưu thất bại.");
     } finally {
       setSaving(false);

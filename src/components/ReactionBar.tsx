@@ -8,6 +8,7 @@ import { clearReaction, getReactions, setReaction, type ReactionSummary } from "
 import { addReactionNotification } from "../lib/notifications";
 import { useAuth } from "../auth/AuthContext";
 import { cn } from "../lib/cn";
+import { trackEvent } from "../lib/observability";
 
 // The fixed reaction set — keys match the backend AllowedReactions and the SVG
 // icon registry. `fill` flags glyphs that read well filled when active.
@@ -69,9 +70,14 @@ export function ReactionBar({
     },
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(key, ctx.prev);
+      trackEvent(_v ? "reaction_set_failed" : "reaction_clear_failed", { checkpoint_id: checkpointId });
     },
     onSuccess: (summary, reaction) => {
       qc.setQueryData(key, summary);
+      trackEvent(reaction ? "reaction_set_success" : "reaction_clear_success", {
+        checkpoint_id: checkpointId,
+        reaction: reaction ?? undefined,
+      });
       // Notify the owner only when setting/switching a reaction (not clearing).
       if (reaction && user) {
         void addReactionNotification(

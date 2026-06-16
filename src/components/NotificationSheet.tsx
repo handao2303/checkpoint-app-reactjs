@@ -6,6 +6,7 @@ import { useNotifications } from "../context/NotificationProvider";
 import { CheckpointDetailSheet } from "./CheckpointDetailSheet";
 import { UserProfileSheet } from "./UserProfileSheet";
 import { Icon, type IconName } from "./ui/Icon";
+import { trackEvent } from "../lib/observability";
 
 const REACTION_ICONS: Record<string, IconName> = {
   like: "like",
@@ -38,6 +39,8 @@ export function NotificationSheet({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (marked.current) return;
     marked.current = true;
+    trackEvent("notification_sheet_open", { count: items.length });
+    trackEvent("notification_mark_seen");
     markAllSeen();
   }, [markAllSeen]);
 
@@ -80,6 +83,7 @@ export function NotificationSheet({ onClose }: { onClose: () => void }) {
                     notif={n}
                     unseen={n.created_at.getTime() > seenCutoff.current}
                     onOpen={() => {
+                      trackEvent("notification_row_open", { type: n.type });
                       if (n.type === "follow" || n.type === "unfollow") {
                         setProfileUsername(n.actor.username);
                       } else if (n.checkpoint_id) {

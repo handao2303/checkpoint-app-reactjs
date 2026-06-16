@@ -26,6 +26,7 @@ import {
 import { addFollowNotification } from "../lib/notifications";
 import { DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { useUserLocation } from "../location/LocationProvider";
+import { trackError, trackEvent } from "../lib/observability";
 
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
 
@@ -70,13 +71,33 @@ export function DiscoverPage() {
 
   const forYou = useInfiniteQuery({
     queryKey: ["feed", at],
-    queryFn: ({ pageParam }) => getFeed(at, pageParam),
+    queryFn: async ({ pageParam }) => {
+      try {
+        const page = await getFeed(at, pageParam);
+        trackEvent("feed_load_success", { tab: "for_you", count: page.items.length, has_cursor: !!pageParam });
+        return page;
+      } catch (error) {
+        trackError(error, { feature: "discover", action: "feed_load", tab: "for_you" });
+        trackEvent("feed_load_failed", { tab: "for_you" });
+        throw error;
+      }
+    },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor,
   });
   const followingFeed = useInfiniteQuery({
     queryKey: ["feed-following", at],
-    queryFn: ({ pageParam }) => getFeedFollowing(at, pageParam),
+    queryFn: async ({ pageParam }) => {
+      try {
+        const page = await getFeedFollowing(at, pageParam);
+        trackEvent("feed_load_success", { tab: "following", count: page.items.length, has_cursor: !!pageParam });
+        return page;
+      } catch (error) {
+        trackError(error, { feature: "discover", action: "feed_load", tab: "following" });
+        trackEvent("feed_load_failed", { tab: "following" });
+        throw error;
+      }
+    },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor,
     enabled: tab === "following",
@@ -95,11 +116,13 @@ export function DiscoverPage() {
   const { pullDistance, pullProgress, isPulling, isRefreshing, isReady } = usePullToRefresh({
     scrollElement: scrollEl,
     disabled: selectedId != null || placeId != null || profileUsername != null || debounced !== "",
-    onRefresh: () =>
-      queryClient.resetQueries({
+    onRefresh: () => {
+      trackEvent("pull_to_refresh", { tab });
+      return queryClient.resetQueries({
         queryKey: [tab === "following" ? "feed-following" : "feed", at],
         exact: true,
-      }),
+      });
+    },
   });
 
   const virtualizer = useVirtualizer({
@@ -122,6 +145,7 @@ export function DiscoverPage() {
   useEffect(() => {
     const last = virtualItems.at(-1);
     if (last && last.index >= items.length - 1 && hasNextPage && !isFetchingNextPage) {
+      trackEvent("feed_next_page", { tab });
       fetchNextPage();
     }
   }, [virtualItems, items.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
@@ -190,7 +214,10 @@ export function DiscoverPage() {
               {results.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => setPlaceId(p.id)}
+                  onClick={() => {
+                    trackEvent("feed_place_open", { place_id: p.id });
+                    setPlaceId(p.id);
+                  }}
                   className="flex items-center gap-3 rounded-xl bg-surface p-3 text-left shadow-card"
                 >
                   <Icon name={categoryIcon(p.category)} size={24} className="text-muted-foreground" />
@@ -217,7 +244,10 @@ export function DiscoverPage() {
             ).map(([key, label]) => (
               <button
                 key={key}
-                onClick={() => setTab(key)}
+                onClick={() => {
+                  trackEvent("discover_tab_change", { tab: key });
+                  setTab(key);
+                }}
                 className={`relative pb-2 font-display text-lg font-bold transition ${
                   tab === key ? "text-clay-600" : "text-subtle-foreground"
                 }`}
@@ -268,8 +298,14 @@ export function DiscoverPage() {
                       item={it}
                       mine={user != null && it.author.username === user.username}
                       isFollowing={followingIds.includes(it.user_id)}
-                      onOpen={() => setSelectedId(it.id)}
-                      onOpenProfile={setProfileUsername}
+                      onOpen={() => {
+                        trackEvent("feed_card_open", { checkpoint_id: it.id, category: it.category });
+                        setSelectedId(it.id);
+                      }}
+                      onOpenProfile={(username) => {
+                        trackEvent("feed_profile_open");
+                        setProfileUsername(username);
+                      }}
                     />
                   </div>
                 </div>
@@ -294,7 +330,10 @@ export function DiscoverPage() {
       {showScrollTop && (
         <button
           type="button"
-          onClick={() => scrollEl?.scrollTo({ top: 0, behavior: "smooth" })}
+          onClick={() => {
+            trackEvent("feed_scroll_top_click");
+            scrollEl?.scrollTo({ top: 0, behavior: "smooth" });
+          }}
           aria-label="Cuộn lên đầu"
           className={`fixed right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition hover:brightness-105 md:right-[calc(50%-13rem)] ${
             user
@@ -374,6 +413,7 @@ function FeedCard({
     try {
       if (isFollowing) await unfollowUser(item.author.username);
       else await followUser(item.author.username);
+      trackEvent(isFollowing ? "unfollow_success" : "follow_success", { source: "feed_card" });
       if (me) {
         void addFollowNotification(item.user_id, isFollowing ? "unfollow" : "follow", {
           id: me.id,
@@ -385,6 +425,7 @@ function FeedCard({
       queryClient.invalidateQueries({ queryKey: ["following"] });
       queryClient.invalidateQueries({ queryKey: ["feed-following"] });
     } catch {
+      trackEvent(isFollowing ? "unfollow_failed" : "follow_failed", { source: "feed_card" });
       // best-effort; leave UI as-is on failure
     } finally {
       setFollowing(false);

@@ -5,6 +5,7 @@ import { Icon, type IconName } from "../components/ui/Icon";
 import { XPBadge } from "../components/ui/Chip";
 import { Skeleton } from "../components/ui/Skeleton";
 import { UserProfileSheet } from "../components/UserProfileSheet";
+import { trackEvent } from "../lib/observability";
 
 const PODIUM_STYLE = [
   // index 0 → rank #1 (center, tallest)
@@ -186,7 +187,10 @@ export function LeaderboardPage() {
                   entry={e}
                   style={PODIUM_STYLE[idx]}
                   isMe={e.user_id === me?.user_id}
-                  onOpen={() => setProfileUsername(e.username)}
+                  onOpen={() => {
+                    trackEvent("leaderboard_profile_open", { rank: e.rank });
+                    setProfileUsername(e.username);
+                  }}
                 />
               ))}
             </div>
@@ -203,7 +207,10 @@ export function LeaderboardPage() {
                   key={e.user_id}
                   entry={e}
                   highlight={e.user_id === me?.user_id}
-                  onOpen={() => setProfileUsername(e.username)}
+                  onOpen={() => {
+                    trackEvent("leaderboard_profile_open", { rank: e.rank });
+                    setProfileUsername(e.username);
+                  }}
                 />
               ))}
             </div>
@@ -213,7 +220,14 @@ export function LeaderboardPage() {
           {me && !meInTop && (
             <>
               <p className="pt-2 text-center text-xs text-muted-foreground">• • •</p>
-              <Row entry={me} highlight onOpen={() => setProfileUsername(me.username)} />
+              <Row
+                entry={me}
+                highlight
+                onOpen={() => {
+                  trackEvent("leaderboard_profile_open", { rank: me.rank });
+                  setProfileUsername(me.username);
+                }}
+              />
             </>
           )}
         </>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { LocationProvider } from "../location/LocationProvider";
 import { ScrollContainerContext } from "./AppLayout";
+import { trackEvent } from "../lib/observability";
 
 /** Minimal layout for anonymous (not-logged-in) visitors: shared pages
  *  (/c, /j, /u) and the public Discover feed render under it. No notification /
@@ -20,6 +21,7 @@ export function PublicShareLayout() {
           </Link>
           <Link
             to="/login"
+            onClick={() => trackEvent("public_login_click")}
             className="rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm hover:brightness-105"
           >
             Đăng nhập

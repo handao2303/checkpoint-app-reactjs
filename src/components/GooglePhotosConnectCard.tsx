@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { disconnectPhotos, getPhotosStatus, initPhotosConnect } from "../lib/api";
+import { trackEvent } from "../lib/observability";
 
 export function GooglePhotosConnectCard() {
   const queryClient = useQueryClient();
@@ -12,16 +13,20 @@ export function GooglePhotosConnectCard() {
 
   const connectMutation = useMutation({
     mutationFn: async () => {
+      trackEvent("integration_connect_start", { provider: "photos" });
       const { auth_url } = await initPhotosConnect();
       window.location.href = auth_url;
     },
+    onError: () => trackEvent("integration_connect_failed", { provider: "photos" }),
   });
 
   const disconnectMutation = useMutation({
     mutationFn: disconnectPhotos,
     onSuccess: () => {
+      trackEvent("integration_disconnect_success", { provider: "photos" });
       void queryClient.invalidateQueries({ queryKey: ["photos-status"] });
     },
+    onError: () => trackEvent("integration_disconnect_failed", { provider: "photos" }),
   });
 
   if (isLoading) {

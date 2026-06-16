@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { deleteCheckpoint, getMe } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
 import { Button } from "../components/ui/Button";
+import { trackError, trackEvent } from "../lib/observability";
 
 /**
  * Shared hard-delete flow for a checkpoint (used by the detail sheet and the
@@ -38,8 +39,11 @@ export function useDeleteCheckpoint(
       ]);
       // XP/level/counters changed server-side — refresh the cached user too.
       getMe().then(applyUser).catch(() => {});
+      trackEvent("checkpoint_delete_success", { checkpoint_id: id });
       onDeleted?.();
     } catch {
+      trackError(new Error("delete checkpoint failed"), { feature: "checkpoint", action: "checkpoint_delete", checkpoint_id: id });
+      trackEvent("checkpoint_delete_failed", { checkpoint_id: id });
       setError("Không xóa được. Vui lòng thử lại.");
       setDeleting(false);
     }

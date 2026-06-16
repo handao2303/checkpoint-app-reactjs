@@ -29,6 +29,7 @@ import { levelTierIconUrl } from "../lib/avatarFrames";
 import { categoryIcon } from "../lib/maps";
 import { quickCheckinSettings } from "../lib/settings";
 import { renderProfileCard } from "../lib/shareCard";
+import { trackEvent } from "../lib/observability";
 
 function SettingSwitch({
   checked,
@@ -153,20 +154,25 @@ export function ProfilePage() {
   const [driveToast, setDriveToast] = useState<string | null>(null);
 
   useEffect(() => {
+    trackEvent("profile_open");
     const drive = searchParams.get("drive");
     const photos = searchParams.get("photos");
     if (drive === "connected") {
+      trackEvent("integration_connect_return_success", { provider: "drive" });
       setDriveToast("Đã kết nối Google Drive ✓");
       void queryClient.invalidateQueries({ queryKey: ["drive-status"] });
       setSearchParams({}, { replace: true });
     } else if (drive === "error") {
+      trackEvent("integration_connect_return_failed", { provider: "drive" });
       setDriveToast("Kết nối Google Drive thất bại");
       setSearchParams({}, { replace: true });
     } else if (photos === "connected") {
+      trackEvent("integration_connect_return_success", { provider: "photos" });
       setDriveToast("Đã kết nối Google Photos ✓");
       void queryClient.invalidateQueries({ queryKey: ["photos-status"] });
       setSearchParams({}, { replace: true });
     } else if (photos === "error") {
+      trackEvent("integration_connect_return_failed", { provider: "photos" });
       setDriveToast("Kết nối Google Photos thất bại");
       setSearchParams({}, { replace: true });
     }
@@ -187,7 +193,10 @@ export function ProfilePage() {
       {/* Hero card */}
       <div className="relative rounded-2xl bg-[image:var(--gradient-passport)] p-5 text-white shadow-card">
         <button
-          onClick={() => setEditing(true)}
+          onClick={() => {
+            trackEvent("profile_edit_open");
+            setEditing(true);
+          }}
           className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
           aria-label="Sửa hồ sơ"
         >
@@ -263,7 +272,10 @@ export function ProfilePage() {
           </h3>
           <button
             type="button"
-            onClick={() => navigate("/badges")}
+            onClick={() => {
+              trackEvent("badges_open", { source: "profile_preview" });
+              navigate("/badges");
+            }}
             className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           >
             Xem tất cả <Icon name="chevron-right" size={14} />
@@ -335,7 +347,10 @@ export function ProfilePage() {
           </h3>
           <button
             type="button"
-            onClick={() => navigate("/leaderboard")}
+            onClick={() => {
+              trackEvent("leaderboard_open", { source: "profile_preview" });
+              navigate("/leaderboard");
+            }}
             className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           >
             Xem tất cả <Icon name="chevron-right" size={14} />
@@ -381,6 +396,7 @@ export function ProfilePage() {
               onChange={(checked) => {
                 quickCheckinSettings.openCreateOnLaunch = checked;
                 setOpenCreateOnLaunch(checked);
+                trackEvent("profile_setting_change", { setting: "open_create_on_launch", enabled: checked });
               }}
             />
             <SettingSwitch
@@ -390,6 +406,7 @@ export function ProfilePage() {
               onChange={(checked) => {
                 quickCheckinSettings.preferCameraOnCheckin = checked;
                 setPreferCameraOnCheckin(checked);
+                trackEvent("profile_setting_change", { setting: "prefer_camera_on_checkin", enabled: checked });
               }}
             />
           </div>

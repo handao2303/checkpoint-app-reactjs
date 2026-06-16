@@ -15,6 +15,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { trackError, trackEvent } from "./observability";
 
 export type NotifType = "comment" | "follow" | "unfollow" | "reaction" | "checkpoint";
 
@@ -39,6 +40,7 @@ const notifCol = (userId: string) => collection(db, "users", userId, "notificati
 
 function reportNotificationError(action: string, error: unknown): void {
   console.warn(`notification ${action} failed:`, error);
+  trackError(error, { feature: "notifications", action: `notification_${action}` });
 }
 
 function reportNotificationInserted(
@@ -55,6 +57,7 @@ function reportNotificationInserted(
     notificationId,
     ...(checkpointId ? { checkpointId } : {}),
   });
+  trackEvent("notification_insert_success", { type, checkpoint_id: checkpointId });
 }
 
 function actorFields(actor: NotifActor) {
@@ -98,6 +101,7 @@ export function subscribeNotifications(
     (error) => {
       cb([]);
       reportNotificationError("subscription", error);
+      trackEvent("notification_subscribe_failed");
     },
   );
 }

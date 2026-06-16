@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { disconnectDrive, getDriveStatus, initDriveConnect } from "../lib/api";
+import { trackEvent } from "../lib/observability";
 
 export function DriveConnectCard() {
   const queryClient = useQueryClient();
@@ -12,16 +13,20 @@ export function DriveConnectCard() {
 
   const connectMutation = useMutation({
     mutationFn: async () => {
+      trackEvent("integration_connect_start", { provider: "drive" });
       const { auth_url } = await initDriveConnect();
       window.location.href = auth_url;
     },
+    onError: () => trackEvent("integration_connect_failed", { provider: "drive" }),
   });
 
   const disconnectMutation = useMutation({
     mutationFn: disconnectDrive,
     onSuccess: () => {
+      trackEvent("integration_disconnect_success", { provider: "drive" });
       void queryClient.invalidateQueries({ queryKey: ["drive-status"] });
     },
+    onError: () => trackEvent("integration_disconnect_failed", { provider: "drive" }),
   });
 
   if (isLoading) {

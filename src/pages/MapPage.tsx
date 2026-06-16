@@ -14,6 +14,7 @@ import { getCheckpointsInBounds, getFollowing, type Bounds, type Checkpoint } fr
 import type { Coords } from "../lib/geo";
 import { DEFAULT_VIEW, MAP_STYLE, categoryIcon } from "../lib/maps";
 import { useUserLocation } from "../location/LocationProvider";
+import { trackError, trackEvent } from "../lib/observability";
 
 type MapFilter = "all" | "following" | "mine";
 
@@ -89,7 +90,17 @@ export function MapPage() {
 
   const { data = [] } = useQuery({
     queryKey: ["checkpoints", "bbox", queryBounds],
-    queryFn: () => getCheckpointsInBounds(queryBounds!),
+    queryFn: async () => {
+      try {
+        const checkpoints = await getCheckpointsInBounds(queryBounds!);
+        trackEvent("map_bbox_fetch_success", { count: checkpoints.length });
+        return checkpoints;
+      } catch (error) {
+        trackError(error, { feature: "map", action: "map_bbox_fetch" });
+        trackEvent("map_bbox_fetch_failed");
+        throw error;
+      }
+    },
     enabled: !!queryBounds,
     placeholderData: keepPreviousData,
     staleTime: 60_000,
@@ -147,6 +158,7 @@ export function MapPage() {
     (map: MapLibreMap) => {
       mapRef.current = map;
       setMapReady(true);
+      trackEvent("map_loaded");
       syncViewport(map);
       if (coordsRef.current) centerOnUser(map, coordsRef.current);
       const attrib = map.getContainer().querySelector(".maplibregl-ctrl-attrib");
@@ -161,6 +173,7 @@ export function MapPage() {
       properties: Checkpoint;
     }>;
     setClusterLeaves(leaves.map((f) => f.properties));
+    trackEvent("map_cluster_open", { count: leaves.length });
   }
 
   return (
@@ -171,7 +184,10 @@ export function MapPage() {
         attributionControl={{ compact: true }}
         onLoad={(e) => handleLoad(e.target)}
         onMoveEnd={(e) => syncViewport(e.target)}
-        onError={(e) => console.error("Map error:", e.error)}
+        onError={(e) => {
+          console.error("Map error:", e.error);
+          trackError(e.error, { feature: "map", action: "map_error" });
+        }}
       >
         <GeolocateControl position="top-right" trackUserLocation />
         <NavigationControl position="top-right" showCompass={false} />
@@ -228,6 +244,7 @@ export function MapPage() {
               onClick={(e) => {
                 e.originalEvent.stopPropagation();
                 setSelectedId(cp.id);
+                trackEvent("map_marker_open", { checkpoint_id: cp.id, category: cp.category });
               }}
             >
               {cp.thumbnail_url ? (
@@ -258,6 +275,7 @@ export function MapPage() {
           <button
             key={key}
             onClick={() => setMapFilter(key)}
+            onMouseDown={() => trackEvent("map_filter_change", { filter: key })}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold shadow-md transition ${
               mapFilter === key
                 ? "bg-primary text-white"

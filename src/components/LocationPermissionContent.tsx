@@ -3,6 +3,7 @@ import { Icon } from "./ui/Icon";
 import { Button } from "./ui/Button";
 import { ERR_INSECURE, getCurrentCoords, isGeolocationSecure } from "../lib/geo";
 import { getPlatform, isStandalone } from "../lib/platform";
+import { trackError, trackEvent } from "../lib/observability";
 
 /** Platform- and install-mode-specific steps to re-enable a blocked location
  *  permission (there is no web API to open these settings programmatically). */
@@ -73,6 +74,7 @@ export function LocationPermissionContent({
     getCurrentCoords().then(
       (coords) => {
         setBusy(false);
+        trackEvent("location_granted", { source: "permission_content" });
         onGranted(coords);
       },
       (err: GeolocationPositionError | Error) => {
@@ -80,10 +82,16 @@ export function LocationPermissionContent({
         // Non-secure origin: iOS won't even show the prompt — explain why.
         if (err instanceof Error && err.message === ERR_INSECURE) {
           setError("Định vị cần kết nối an toàn (HTTPS). Hãy mở app qua đường dẫn https://…");
+          trackEvent("location_insecure_context");
           return;
         }
-        if ("code" in err && err.code === err.PERMISSION_DENIED) setState("denied");
-        else setError("Không lấy được vị trí. Vui lòng thử lại.");
+        if ("code" in err && err.code === err.PERMISSION_DENIED) {
+          setState("denied");
+          trackEvent("location_denied", { source: "permission_content" });
+        } else {
+          setError("Không lấy được vị trí. Vui lòng thử lại.");
+          trackError(err, { feature: "location", action: "permission_content" }, "warn");
+        }
       },
     );
   }, [onGranted]);

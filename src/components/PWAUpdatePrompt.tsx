@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { registerSW } from "virtual:pwa-register";
 import { Icon } from "./ui/Icon";
+import { trackEvent } from "../lib/observability";
 
 /**
  * Registers the service worker and shows a small toast when a new build is
@@ -15,6 +16,7 @@ export function PWAUpdatePrompt() {
   useEffect(() => {
     const fn = registerSW({
       onNeedRefresh() {
+        trackEvent("pwa_update_prompt_shown");
         setNeedRefresh(true);
       },
     });
@@ -28,13 +30,19 @@ export function PWAUpdatePrompt() {
       <Icon name="sparkles" size={18} className="shrink-0 text-primary" />
       <span className="text-sm font-medium text-foreground">Có bản cập nhật mới</span>
       <button
-        onClick={() => updateSW?.(true)}
+        onClick={() => {
+          trackEvent("pwa_update_accept");
+          updateSW?.(true);
+        }}
         className="shrink-0 rounded-full bg-primary px-3 py-1 text-sm font-semibold text-primary-foreground"
       >
         Tải lại
       </button>
       <button
-        onClick={() => setNeedRefresh(false)}
+        onClick={() => {
+          trackEvent("pwa_update_dismiss");
+          setNeedRefresh(false);
+        }}
         aria-label="Đóng"
         className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-surface-muted"
       >

@@ -3,6 +3,7 @@ import { Icon } from "../components/ui/Icon";
 import { useAuth } from "../auth/AuthContext";
 import { authErrorMessage } from "../lib/authErrors";
 import { Button } from "../components/ui/Button";
+import { trackEvent } from "../lib/observability";
 
 export function LoginPage() {
   const { loginEmail, signupEmail, loginGoogle, loginAnonymous } = useAuth();
@@ -96,7 +97,9 @@ export function LoginPage() {
         <button
           type="button"
           onClick={() => {
-            setMode(mode === "signin" ? "signup" : "signin");
+            const next = mode === "signin" ? "signup" : "signin";
+            trackEvent("login_mode_change", { mode: next });
+            setMode(next);
             setError(null);
           }}
           className="font-semibold text-primary"

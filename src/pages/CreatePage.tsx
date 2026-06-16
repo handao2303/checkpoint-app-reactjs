@@ -5,6 +5,7 @@ import { PhotoCheckinTab } from "../components/PhotoCheckinTab";
 import { LocationPermissionContent } from "../components/LocationPermissionContent";
 import { canLocateSilently, getCurrentCoords, type Coords } from "../lib/geo";
 import { cn } from "../lib/cn";
+import { trackError, trackEvent } from "../lib/observability";
 
 type Tab = "gps" | "photo";
 
@@ -20,6 +21,7 @@ export function CreatePage() {
   const locate = useCallback(async () => {
     setLocating(true);
     if (!navigator.geolocation) {
+      trackEvent("location_unsupported", { source: "create_page" });
       setLocating(false);
       return;
     }
@@ -29,7 +31,10 @@ export function CreatePage() {
     if (await canLocateSilently()) {
       try {
         setCoords(await getCurrentCoords());
-      } catch {
+        trackEvent("location_granted", { source: "create_page_silent" });
+      } catch (error) {
+        trackError(error, { feature: "checkin", action: "create_page_location" }, "warn");
+        trackEvent("location_denied", { source: "create_page_silent" });
         // revoked/failed → inline prompt lets the user retry or re-enable.
       }
     }
@@ -46,7 +51,10 @@ export function CreatePage() {
         <button
           key={t}
           type="button"
-          onClick={() => setTab(t)}
+          onClick={() => {
+            trackEvent("checkin_tab_change", { tab: t });
+            setTab(t);
+          }}
           className={cn(
             "flex-1 rounded-full px-4 py-2 text-sm font-semibold transition",
             tab === t

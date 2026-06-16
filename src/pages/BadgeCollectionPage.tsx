@@ -6,6 +6,7 @@ import { Card } from "../components/ui/Card";
 import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
 import { getBadges, getPassport } from "../lib/api";
+import { trackEvent } from "../lib/observability";
 
 // Maps badge keys to measurable progress the frontend can derive from user/passport data.
 const PROGRESS_HINTS: Record<
@@ -66,7 +67,10 @@ export function BadgeCollectionPage() {
           <button
             key={key}
             type="button"
-            onClick={() => setFilter(key)}
+            onClick={() => {
+              trackEvent("badge_filter_change", { filter: key });
+              setFilter(key);
+            }}
             className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition ${
               filter === key
                 ? "bg-primary text-primary-foreground"

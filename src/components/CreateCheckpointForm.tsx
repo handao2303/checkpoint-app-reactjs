@@ -12,6 +12,7 @@ import { Button } from "./ui/Button";
 import { cn } from "../lib/cn";
 import { quickCheckinSettings } from "../lib/settings";
 import { CameraCaptureSheet } from "./CameraCaptureSheet";
+import { trackError, trackEvent } from "../lib/observability";
 
 interface PickedImage {
   original: File;
@@ -183,8 +184,11 @@ export function CreateCheckpointForm({
           thumbnailUrl: URL.createObjectURL(thumbnail),
         })),
       ]);
+      trackEvent("image_prepare_success", { image_count: prepared.length });
     } catch (e) {
       console.error("image prepare failed:", e);
+      trackError(e, { feature: "checkin", action: "image_prepare" });
+      trackEvent("image_prepare_failed");
       setErr("Không xử lý được ảnh. Vui lòng thử ảnh khác.");
     } finally {
       setProcessing(false);
@@ -217,7 +221,9 @@ export function CreateCheckpointForm({
     let slots;
     try {
       slots = await getUploadSlots(picked?.length);
+      trackEvent("upload_slots_success", { image_count: picked.length });
     } catch {
+      trackEvent("upload_slots_failed", { image_count: picked.length });
       setErr("Không lấy được link upload. Vui lòng thử lại.");
       setBusy(false);
       return;
@@ -226,7 +232,9 @@ export function CreateCheckpointForm({
     // Step 2 — upload directly to R2. Fails fast if any PUT fails.
     try {
       await putFilesToSlots(slots, picked.map((p) => ({ original: p.original, thumbnail: p.thumbnail })));
+      trackEvent("r2_upload_success", { image_count: picked.length });
     } catch {
+      trackEvent("r2_upload_failed", { image_count: picked.length });
       setErr("Upload ảnh thất bại. Vui lòng thử lại.");
       setBusy(false);
       return;

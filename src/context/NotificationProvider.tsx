@@ -21,6 +21,7 @@ import {
   subscribeNotifications,
   type AppNotification,
 } from "../lib/notifications";
+import { trackEvent } from "../lib/observability";
 
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
 
@@ -57,9 +58,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     knownStoredIds.current.clear();
     storedInitialized.current = false;
     return subscribeNotifications(user.id, (notifs) => {
+      trackEvent("notification_subscribe_success", { count: notifs.length });
       if (storedInitialized.current) {
         const newest = notifs.find((n) => !knownStoredIds.current.has(n.id));
-        if (newest) setToast(newest);
+        if (newest) {
+          trackEvent("notification_toast_shown", { type: newest.type });
+          setToast(newest);
+        }
       } else {
         storedInitialized.current = true;
       }
@@ -131,6 +136,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           message={notificationToastMessage(toast)}
           onDone={() => setToast(null)}
           onClick={() => {
+            trackEvent("notification_toast_click", { type: toast.type });
             const target =
               toast.type === "follow" || toast.type === "unfollow"
                 ? `/u/${encodeURIComponent(toast.actor.username)}`

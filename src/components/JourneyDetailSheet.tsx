@@ -11,6 +11,7 @@ import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 import { ShareButton } from "./share/ShareButton";
 import { renderJourneyCard } from "../lib/shareCard";
+import { trackEvent } from "../lib/observability";
 
 export function JourneyDetailSheet({
   id,
@@ -118,7 +119,10 @@ export function JourneyDetailSheet({
                 {stops.map((s) => (
                   <button
                     key={s.id}
-                    onClick={() => onOpenCheckpoint?.(s.id)}
+                    onClick={() => {
+                      trackEvent("journey_stop_open", { checkpoint_id: s.id });
+                      onOpenCheckpoint?.(s.id);
+                    }}
                     className="flex items-center gap-2 text-left text-sm"
                   >
                     <Icon name={categoryIcon(s.category)} size={18} className="text-muted-foreground" />

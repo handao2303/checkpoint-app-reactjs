@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { supabase } from "../lib/supabase";
 import { exchange, getMe, logout, setAuthExpiredHandler, tokens, type User } from "../lib/api";
 import { authErrorMessage } from "../lib/authErrors";
+import { setObservabilityUser, trackError, trackEvent } from "../lib/observability";
 
 interface AuthState {
   user: User | null;
@@ -29,16 +30,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         if (tokens.access) {
           try {
-            setUser(await getMe());
+            const restored = await getMe();
+            setUser(restored);
+            setObservabilityUser(restored);
+            trackEvent("auth_session_restore", { source: "backend_token", status: "success" });
             return;
           } catch {
             tokens.clear();
+            trackEvent("auth_session_restore", { source: "backend_token", status: "failed" });
           }
         }
         const { data } = await supabase.auth.getSession();
-        if (data.session) setUser(await exchange(data.session.access_token));
+        if (data.session) {
+          const restored = await exchange(data.session.access_token);
+          setUser(restored);
+          setObservabilityUser(restored);
+          trackEvent("auth_session_restore", { source: "supabase_session", status: "success" });
+        }
       } catch {
         tokens.clear();
+        trackError(new Error("session restore failed"), { feature: "auth", action: "auth_session_restore" });
       } finally {
         setLoading(false);
       }
@@ -53,9 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const isNewSignIn = event === "SIGNED_IN" && !tokens.access;
       if (isNewSignIn || event === "USER_UPDATED") {
         try {
-          setUser(await exchange(session.access_token));
+          const nextUser = await exchange(session.access_token);
+          setUser(nextUser);
+          setObservabilityUser(nextUser);
+          trackEvent("auth_exchange_success", { source: event.toLowerCase() });
         } catch {
-          /* ignore */
+          trackError(new Error("auth state exchange failed"), { feature: "auth", action: "auth_state_change" });
         }
       }
     });
@@ -65,7 +79,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // When apiFetch can't re-auth (refresh token AND Supabase session both gone),
   // drop the user → the app renders LoginPage.
   useEffect(() => {
-    setAuthExpiredHandler(() => setUser(null));
+    setAuthExpiredHandler(() => {
+      trackEvent("auth_expired");
+      setObservabilityUser(null);
+      setUser(null);
+    });
     return () => setAuthExpiredHandler(null);
   }, []);
 
@@ -74,27 +92,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("error")) {
+      trackEvent("login_failed", { method: "oauth_redirect", error_code: params.get("error_code") });
       alert(authErrorMessage({ code: params.get("error_code"), message: params.get("error_description") }));
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
 
   const loginEmail = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    setUser(await exchange(data.session.access_token));
+    trackEvent("login_attempt", { method: "email" });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      const nextUser = await exchange(data.session.access_token);
+      setUser(nextUser);
+      setObservabilityUser(nextUser);
+      trackEvent("login_success", { method: "email" });
+    } catch (error) {
+      trackError(error, { feature: "auth", action: "login_email" });
+      trackEvent("login_failed", { method: "email" });
+      throw error;
+    }
   };
 
   const signupEmail = async (email: string, password: string) => {
+    trackEvent("login_attempt", { method: "signup_email" });
     const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
+    if (error) {
+      trackEvent("login_failed", { method: "signup_email" });
+      throw error;
+    }
     // If email confirmation is off, a session exists immediately.
-    if (data.session) setUser(await exchange(data.session.access_token));
-    else throw new Error("Kiểm tra email để xác nhận tài khoản, rồi đăng nhập.");
+    if (data.session) {
+      const nextUser = await exchange(data.session.access_token);
+      setUser(nextUser);
+      setObservabilityUser(nextUser);
+      trackEvent("signup_success", { method: "email" });
+    } else {
+      trackEvent("signup_success", { method: "email", requires_confirmation: true });
+      throw new Error("Kiểm tra email để xác nhận tài khoản, rồi đăng nhập.");
+    }
   };
 
   const loginGoogle = async () => {
     const redirectTo = window.location.origin;
+    trackEvent("login_attempt", { method: "google", is_linking: !!user?.is_anonymous });
     // If signed in anonymously, LINK Google to the same Supabase user so the
     // guest's data (same `sub`) is preserved; otherwise a normal sign-in.
     if (user?.is_anonymous) {
@@ -102,17 +143,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         provider: "google",
         options: { redirectTo },
       });
-      if (error) throw error;
+      if (error) {
+        trackEvent("login_failed", { method: "google_link" });
+        throw error;
+      }
     } else {
       await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
     }
   };
 
   const loginAnonymous = async () => {
+    trackEvent("login_attempt", { method: "anonymous" });
     const { data, error } = await supabase.auth.signInAnonymously();
-    if (error) throw error;
+    if (error) {
+      trackEvent("login_failed", { method: "anonymous" });
+      throw error;
+    }
     if (!data.session) throw new Error("Không tạo được phiên khách");
-    setUser(await exchange(data.session.access_token));
+    const nextUser = await exchange(data.session.access_token);
+    setUser(nextUser);
+    setObservabilityUser(nextUser);
+    trackEvent("anonymous_login_success");
   };
 
   // Convert the current anonymous user into a permanent account. Supabase keeps
@@ -123,13 +174,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.updateUser({ email, password });
     if (error) throw error;
     const { data } = await supabase.auth.getSession();
-    if (data.session) setUser(await exchange(data.session.access_token));
+    if (data.session) {
+      const nextUser = await exchange(data.session.access_token);
+      setUser(nextUser);
+      setObservabilityUser(nextUser);
+      trackEvent("signup_success", { method: "upgrade_email" });
+    }
   };
 
   const signOut = async () => {
-    await logout();
-    await supabase.auth.signOut();
-    setUser(null);
+    trackEvent("logout_click");
+    try {
+      await logout();
+      await supabase.auth.signOut();
+      trackEvent("logout_success");
+    } catch (error) {
+      trackError(error, { feature: "auth", action: "logout" });
+      throw error;
+    } finally {
+      setObservabilityUser(null);
+      setUser(null);
+    }
   };
 
   return (

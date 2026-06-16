@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Icon } from "../ui/Icon";
 import { Button } from "../ui/Button";
 import { shareImageBlob } from "../../lib/share";
+import { trackError, trackEvent } from "../../lib/observability";
 
 /** Share button that renders a card image (via a Canvas2D `render` fn) and shares
  *  it + a deep link. Canvas (not html-to-image) so photos render on iOS too. */
@@ -25,9 +26,14 @@ export function ShareButton({
 
   const onShare = async () => {
     setBusy(true);
+    trackEvent("share_render_start");
     try {
       const blob = await render();
+      trackEvent("share_render_success", { has_blob: !!blob });
       await shareImageBlob(blob, { filename, title, text, url });
+    } catch (error) {
+      trackError(error, { feature: "share", action: "share_render" });
+      trackEvent("share_render_failed");
     } finally {
       setBusy(false);
     }

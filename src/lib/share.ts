@@ -1,3 +1,5 @@
+import { trackError, trackEvent } from "./observability";
+
 interface ShareOpts {
   filename: string;
   title: string;
@@ -17,9 +19,14 @@ export async function shareImageBlob(blob: Blob | null, opts: ShareOpts): Promis
   if (file && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: opts.title, text: opts.text, url: opts.url });
+      trackEvent("native_share_success", { has_file: true });
       return;
     } catch (e) {
-      if ((e as Error).name === "AbortError") return; // user dismissed the sheet
+      if ((e as Error).name === "AbortError") {
+        trackEvent("native_share_cancel", { has_file: true });
+        return;
+      }
+      trackError(e, { feature: "share", action: "native_share" });
     }
   }
 
@@ -31,6 +38,7 @@ export async function shareImageBlob(blob: Blob | null, opts: ShareOpts): Promis
     a.download = opts.filename;
     a.click();
     URL.revokeObjectURL(url);
+    trackEvent("share_download_fallback");
     return;
   }
 
@@ -38,7 +46,9 @@ export async function shareImageBlob(blob: Blob | null, opts: ShareOpts): Promis
   if (navigator.share) {
     try {
       await navigator.share({ title: opts.title, text: opts.text, url: opts.url });
+      trackEvent("native_share_success", { has_file: false });
     } catch {
+      trackEvent("native_share_cancel", { has_file: false });
       /* cancelled */
     }
   }
