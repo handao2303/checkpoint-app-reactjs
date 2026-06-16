@@ -184,6 +184,7 @@ export function AvatarCropSheet({
             aspect={1}
             cropShape="round"
             showGrid={false}
+            objectFit="cover"
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={onCropComplete}

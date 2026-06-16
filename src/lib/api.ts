@@ -6,7 +6,7 @@ import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { supabase } from "./supabase";
 import { trackError, trackEvent } from "./observability";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 /** HTTP error with a status code — used to distinguish retryable (5xx) from
  *  non-retryable (4xx) failures in the background checkin queue. */

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { Icon } from "./ui/Icon";
-import { getCheckpointDetail, viewCheckpoint } from "../lib/api";
+import { getCheckpointDetail, viewCheckpoint, API_URL } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { useAuth } from "../auth/AuthContext";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
@@ -117,7 +117,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
             filename={`checkpoint-${data.checkpoint.id}.png`}
             title={data.checkpoint.name}
             text={`Mình vừa check-in tại ${data.checkpoint.name} trên Checkpoint!`}
-            url={`${window.location.origin}/c/${data.checkpoint.id}`}
+            url={`${API_URL}/share/checkpoint/${data.checkpoint.id}`}
             render={() =>
               renderCheckpointCard({
                 name: data.checkpoint.name,
@@ -128,7 +128,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                 author: data.author.display_name || data.author.username,
                 date: new Date(data.checkpoint.created_at).toLocaleDateString("vi-VN"),
                 imageUrls: data.images?.map((im) => im.url),
-                url: `${window.location.origin}/c/${data.checkpoint.id}`,
+                url: `${API_URL}/share/checkpoint/${data.checkpoint.id}`,
               })
             }
           />

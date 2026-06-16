@@ -4,7 +4,7 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { getJourney, type JourneyStop } from "../lib/api";
+import { getJourney, type JourneyStop, API_URL } from "../lib/api";
 import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
@@ -142,7 +142,7 @@ export function JourneyDetailSheet({
               title={data.journey.title}
               text={`Hành trình "${data.journey.title}" của mình trên Checkpoint!`}
               label="Chia sẻ hành trình"
-              url={`${window.location.origin}/j/${data.journey.id}`}
+              url={`${API_URL}/share/journey/${data.journey.id}`}
               render={() =>
                 renderJourneyCard({
                   title: data.journey.title,
@@ -153,7 +153,7 @@ export function JourneyDetailSheet({
                     data.journey.started_at ?? data.journey.created_at,
                   ).toLocaleDateString("vi-VN"),
                   imageUrls: stops.map((s) => s.image_url).filter(Boolean) as string[],
-                  url: `${window.location.origin}/j/${data.journey.id}`,
+                  url: `${API_URL}/share/journey/${data.journey.id}`,
                 })
               }
             />
