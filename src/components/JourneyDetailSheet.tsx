@@ -97,13 +97,7 @@ export function JourneyDetailSheet({
                 )}
                 {stops.map((s, i) => (
                   <Marker key={s.id} longitude={s.lng} latitude={s.lat} anchor="center">
-                    {s.image_url ? (
-                      <StopPhotoStack stop={s} stops={stops} />
-                    ) : (
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground ring-2 ring-white">
-                        {i + 1}
-                      </span>
-                    )}
+                    <StopMarker stop={s} stops={stops} index={i} total={stops.length} />
                   </Marker>
                 ))}
               </Map>
@@ -151,7 +145,7 @@ export function JourneyDetailSheet({
                   date: new Date(
                     data.journey.started_at ?? data.journey.created_at,
                   ).toLocaleDateString("vi-VN"),
-                  imageUrls: stops.map((s) => s.image_url).filter(Boolean) as string[],
+                  imageUrls: stops.map((s) => s.thumbnail_url ?? s.image_url).filter(Boolean) as string[],
                   url: `${API_URL}/share/journey/${data.journey.id}`,
                 })
               }
@@ -163,12 +157,97 @@ export function JourneyDetailSheet({
   );
 }
 
-/** Cover photo for one journey stop, shown as a small rotated card. */
-function StopPhotoStack({ stop, stops }: { stop: JourneyStop; stops: JourneyStop[] }) {
-  if (!stop.image_url) return null;
+type StopMarkerMeta =
+  | {
+      kind: "icon";
+      iconName: "play" | "flag";
+      tone: string;
+      ariaLabel: string;
+    }
+  | {
+      kind: "number";
+      label: string;
+      tone: string;
+      ariaLabel: string;
+    };
+
+function getStopMarkerMeta(index: number, total: number): StopMarkerMeta {
+  if (total <= 1) {
+    return {
+      kind: "number",
+      label: "1",
+      tone: "bg-primary text-primary-foreground",
+      ariaLabel: "Điểm duy nhất",
+    };
+  }
+  if (index === 0) {
+    return {
+      kind: "icon",
+      iconName: "play",
+      tone: "bg-emerald-600 text-white",
+      ariaLabel: "Điểm bắt đầu",
+    };
+  }
+  if (index === total - 1) {
+    return {
+      kind: "icon",
+      iconName: "flag",
+      tone: "bg-accent-600 text-white",
+      ariaLabel: "Điểm kết thúc",
+    };
+  }
+  return {
+    kind: "number",
+    label: String(index + 1),
+    tone: "bg-primary text-primary-foreground",
+    ariaLabel: `Điểm số ${index + 1}`,
+  };
+}
+
+function StopMarker({
+  stop,
+  stops,
+  index,
+  total,
+}: {
+  stop: JourneyStop;
+  stops: JourneyStop[];
+  index: number;
+  total: number;
+}) {
+  const meta = getStopMarkerMeta(index, total);
+
+  if (stop.image_url) {
+    return <StopPhotoStack stop={stop} stops={stops} index={index} total={total} />;
+  }
 
   return (
-    <div className="relative h-12 w-12 translate-y-1.5">
+    <span
+      title={meta.ariaLabel}
+      className={`flex h-8 min-w-8 items-center justify-center rounded-full border-[3px] border-white px-1 shadow-lg ${meta.tone}`}
+    >
+      <StopMarkerBadgeContent meta={meta} />
+    </span>
+  );
+}
+
+/** Cover photo for one journey stop, shown as a small rotated card. */
+function StopPhotoStack({
+  stop,
+  stops,
+  index,
+  total,
+}: {
+  stop: JourneyStop;
+  stops: JourneyStop[];
+  index: number;
+  total: number;
+}) {
+  if (!stop.image_url) return null;
+  const meta = getStopMarkerMeta(index, total);
+
+  return (
+    <div className="relative h-14 w-14 translate-y-1.5" title={meta.ariaLabel}>
       <MediaPreview
         url={stop.image_url}
         thumbnailUrl={stop.thumbnail_url}
@@ -187,8 +266,34 @@ function StopPhotoStack({ stop, stops }: { stop: JourneyStop; stops: JourneyStop
         galleryIndex={stops.filter((item) => item.image_url).findIndex((item) => item.id === stop.id)}
         className="absolute h-10 w-10 -rotate-6 rounded-md border-2 border-white object-cover shadow-md"
       />
+      <StopMarkerBadge meta={meta} />
     </div>
   );
+}
+
+function StopMarkerBadge({ meta }: { meta: StopMarkerMeta }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none absolute bottom-5 left-6 z-20 flex h-5 min-w-5 -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full border-[2px] border-white px-1 shadow-lg ${meta.tone}`}
+    >
+      <StopMarkerBadgeContent meta={meta} />
+    </span>
+  );
+}
+
+function StopMarkerBadgeContent({ meta }: { meta: StopMarkerMeta }) {
+  if (meta.kind === "icon") {
+    return (
+      <Icon
+        name={meta.iconName}
+        size={10}
+        className={meta.iconName === "play" ? "ml-0.5 fill-white" : undefined}
+        strokeWidth={2.4}
+      />
+    );
+  }
+  return <span className="text-sm font-black leading-none">{meta.label}</span>;
 }
 
 function StopCaption({ stop }: { stop: JourneyStop }) {

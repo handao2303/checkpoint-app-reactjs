@@ -7,6 +7,7 @@ import {
   getNearbyPlaces,
   getUploadSlots,
   putFilesToSlots,
+  getNearbyAppPlaces,
   type UploadMediaType,
   type UploadSlot,
 } from "../lib/api";
@@ -64,6 +65,20 @@ export interface CheckinPlace {
   category: string;
 }
 
+function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export function CreateCheckpointForm({
   at,
   place,
@@ -91,6 +106,11 @@ export function CreateCheckpointForm({
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
   const [journeyId, setJourneyId] = useState<string | null | undefined>(undefined);
   const effectiveJourneyId = journeyId === undefined ? (activeJourneys[0]?.id ?? null) : journeyId;
+
+  const [selectedPlace, setSelectedPlace] = useState<CheckinPlace | null>(place ?? null);
+  const [viewMode, setViewMode] = useState<"select-place" | "fill-form">("fill-form");
+  const [hasInitializedView, setHasInitializedView] = useState(false);
+
   const [name, setName] = useState(place?.name ?? "");
   const [category, setCategory] = useState(place?.category ?? "cafe");
   const [suggestionApplied, setSuggestionApplied] = useState(false);
@@ -98,12 +118,63 @@ export function CreateCheckpointForm({
   const [rating, setRating] = useState<number | undefined>(undefined);
   const [picked, setPicked] = useState<PickedMedia[]>([]);
   const geo = useGeocode(at.lat, at.lng);
+
+  const { data: nearbyAppPlacesData, isFetched: nearbyAppPlacesFetched } = useQuery({
+    queryKey: ["places-nearby-app", at.lat, at.lng],
+    queryFn: () => getNearbyAppPlaces(at, { limit: 50 }),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+    enabled: !place,
+  });
+  const nearbyAppPlaces = nearbyAppPlacesData?.places ?? [];
+
+  const matchingPlaces = nearbyAppPlaces
+    .map((p) => ({
+      ...p,
+      distance: getHaversineDistance(at.lat, at.lng, p.lat, p.lng),
+    }))
+    .filter((p) => p.distance <= 50)
+    .sort((a, b) => a.distance - b.distance);
+
+  useEffect(() => {
+    if (place || hasInitializedView || !nearbyAppPlacesFetched) return;
+    if (matchingPlaces.length > 0) {
+      setViewMode("select-place");
+    }
+    setHasInitializedView(true);
+  }, [place, matchingPlaces.length, nearbyAppPlacesFetched, hasInitializedView]);
+
+  const handleSelectPlace = (p: CheckinPlace) => {
+    setSelectedPlace(p);
+    setName(p.name);
+    setCategory(p.category);
+    setViewMode("fill-form");
+  };
+
+  const handleCreateNewPlace = () => {
+    setSelectedPlace(null);
+    const top = placeSuggestions.find((s) => s.name?.trim());
+    if (top) {
+      setName(top.name.trim());
+      setCategory(top.category || "other");
+    } else if (geo) {
+      const suggestion = geo.address.split(",")[0].trim();
+      setName(suggestion || "");
+      setCategory("other");
+    } else {
+      setName("");
+      setCategory("cafe");
+      autoFillResolved.current = false;
+    }
+    setViewMode("fill-form");
+  };
+
   const { data: placeSuggestions = [], isFetched: placeSuggestionsFetched } = useQuery({
     queryKey: ["places-suggest", at.lat, at.lng],
     queryFn: () => getNearbyPlaces(at.lat, at.lng),
     staleTime: 60 * 60 * 1000,
     retry: false,
-    enabled: !place, // skip for existing-place check-ins
+    enabled: !place && !selectedPlace, // skip for existing-place check-ins
   });
   const [busy, setBusy] = useState(false);
   const [imageProcessing, setImageProcessing] = useState(false);
@@ -144,7 +215,7 @@ export function CreateCheckpointForm({
   // request has completed without a usable result.
   const autoFillResolved = useRef(false);
   useEffect(() => {
-    if (autoFillResolved.current || place || !placeSuggestionsFetched) return;
+    if (autoFillResolved.current || place || selectedPlace || !placeSuggestionsFetched) return;
 
     const top = placeSuggestions.find((s) => s.name?.trim());
     if (top) {
@@ -319,7 +390,7 @@ export function CreateCheckpointForm({
         address: geo?.address,
         province: geo?.provinceName,
         province_code: geo?.province,
-        place_id: place?.id,
+        place_id: selectedPlace?.id || undefined,
         journey_id: effectiveJourneyId ?? undefined,
         images,
       });
@@ -329,8 +400,100 @@ export function CreateCheckpointForm({
     }
   }
 
+  if (viewMode === "select-place" && matchingPlaces.length > 0) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-base font-bold text-foreground">Bạn đang check-in tại đâu?</h3>
+          <p className="text-xs text-muted-foreground">Chọn một địa điểm gần bạn để check-in:</p>
+        </div>
+        <div className="flex flex-col gap-2.5 max-h-[300px] overflow-y-auto pr-1">
+          {matchingPlaces.map((p) => {
+            const cat = CATEGORIES.find((c) => c.key === p.category);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => handleSelectPlace(p)}
+                className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3 text-left transition hover:border-primary/50 hover:bg-surface-muted/50"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Icon name={cat?.icon || "map-pin"} size={18} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-semibold text-foreground">{p.name}</p>
+                    <span className="shrink-0 text-xs font-semibold text-primary">
+                      cách {Math.round(p.distance)}m
+                    </span>
+                  </div>
+                  {p.address && <p className="truncate text-xs text-muted-foreground mt-0.5">{p.address}</p>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <div className="border-t border-border/60 pt-3">
+          <Button
+            type="button"
+            className="w-full justify-center gap-1.5"
+            onClick={handleCreateNewPlace}
+          >
+            <Icon name="plus" size={16} /> Tạo địa điểm mới
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
+      {selectedPlace && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Icon name={CATEGORIES.find((c) => c.key === selectedPlace.category)?.icon || "map-pin"} size={16} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-muted-foreground font-medium">Check-in tại địa điểm</p>
+              <p className="truncate text-sm font-bold text-foreground">{selectedPlace.name}</p>
+            </div>
+          </div>
+          {!place && (
+            <button
+              type="button"
+              onClick={() => setViewMode("select-place")}
+              className="shrink-0 text-xs font-bold text-primary hover:underline"
+            >
+              Thay đổi
+            </button>
+          )}
+        </div>
+      )}
+
+      {!selectedPlace && matchingPlaces.length > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-muted/50 p-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted-foreground/10 text-muted-foreground">
+              <Icon name="plus" size={16} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-muted-foreground font-medium">Đang tạo địa điểm mới</p>
+              <p className="truncate text-sm font-bold text-foreground">
+                {name || "Chưa nhập tên địa điểm"}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setViewMode("select-place")}
+            className="shrink-0 text-xs font-bold text-primary hover:underline"
+          >
+            Xem danh sách
+          </button>
+        </div>
+      )}
+
       {activeJourneys?.length > 0 && (
         <label className="flex flex-col gap-1.5">
           <span className="flex items-center gap-1.5 text-sm font-semibold text-secondary">
@@ -359,9 +522,8 @@ export function CreateCheckpointForm({
             setName(e.target.value);
             if (suggestionApplied) setSuggestionApplied(false);
           }}
-          readOnly={!!place}
           placeholder="Tên địa điểm"
-          className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring read-only:opacity-70"
+          className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
 
@@ -370,10 +532,12 @@ export function CreateCheckpointForm({
           <button
             key={c.key}
             type="button"
+            disabled={!!selectedPlace}
             onClick={() => setCategory(c.key)}
             className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium",
+              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition",
               category === c.key ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground",
+              selectedPlace && "opacity-60 cursor-not-allowed",
             )}
           >
             <Icon name={c.icon} size={16} /> {c.label}

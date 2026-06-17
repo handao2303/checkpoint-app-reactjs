@@ -557,6 +557,7 @@ export interface PlaceDetail {
   avg_rating?: number;
   images: { id: string; url: string; thumbnail_url?: string }[];
   reviews: PlaceReview[];
+  checkins: FeedItem[];
 }
 
 export interface FeedItem {
@@ -691,8 +692,9 @@ export async function getPopularPlaces(near?: LatLng): Promise<Place[]> {
   return res.data.places ?? [];
 }
 
-export async function getPlace(id: string): Promise<PlaceDetail> {
-  const res = await apiFetch(`/places/${id}`);
+export async function getPlace(id: string, opts?: { limit?: number; offset?: number }): Promise<PlaceDetail> {
+  const { limit = 20, offset = 0 } = opts ?? {};
+  const res = await apiFetch(`/places/${id}?limit=${limit}&offset=${offset}`);
   if (!isSuccessful(res)) throw new Error("load place failed");
   return res.data;
 }
@@ -714,6 +716,34 @@ export async function getNearbyPlaces(lat: number, lng: number): Promise<PlaceSu
   } catch {
     return [];
   }
+}
+
+export interface NearbyPlacesResponse {
+  places: Place[];
+  next_offset?: number;
+}
+
+/** Returns nearby places (our own backend) for the Discover experience.
+   *  radius in meters, limit number of results.
+   */
+export async function getNearbyAppPlaces(
+  at: LatLng,
+  opts?: { limit?: number; offset?: number }
+): Promise<NearbyPlacesResponse> {
+  const { limit = 20, offset = 0 } = opts ?? {};
+  const p = new URLSearchParams({
+    lat: String(at.lat),
+    lng: String(at.lng),
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const res = await apiFetch(`/places/nearby?${p}`);
+  if (!isSuccessful(res)) throw new Error("load nearby places failed");
+  const places = res.data.places ?? [];
+  return {
+    places,
+    next_offset: places.length === limit ? offset + limit : undefined,
+  };
 }
 
 // ---- Journeys (Phase 3) ----
