@@ -1,21 +1,21 @@
 import { Suspense, useEffect, useRef } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import { AppLayout } from "./components/AppLayout";
-import { PublicShareLayout } from "./components/PublicShareLayout";
-import { LoginPage } from "./pages/LoginPage";
-import { DiscoverPage } from "./pages/DiscoverPage";
-import { CreatePage } from "./pages/CreatePage";
-import { AIPlanPage } from "./pages/AIPlanPage";
-import { ProfilePage } from "./pages/ProfilePage";
-import { LeaderboardPage } from "./pages/LeaderboardPage";
-import { BadgeCollectionPage } from "./pages/BadgeCollectionPage";
-import { CheckpointLink, JourneyLink, UserProfileLink } from "./pages/LinkRoutes";
-import { MapSkeleton } from "./components/MapSkeleton";
-import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { InstallHint } from "./components/InstallHint";
+import { MapSkeleton } from "./components/MapSkeleton";
+import { PublicShareLayout } from "./components/PublicShareLayout";
+import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
 import { quickCheckinSettings } from "./lib/settings";
+import { AIPlanPage } from "./pages/AIPlanPage";
+import { BadgeCollectionPage } from "./pages/BadgeCollectionPage";
+import { CreatePage } from "./pages/CreatePage";
+import { DiscoverPage } from "./pages/DiscoverPage";
+import { LeaderboardPage } from "./pages/LeaderboardPage";
+import { CheckpointLink, JourneyLink, UserProfileLink } from "./pages/LinkRoutes";
+import { LoginPage } from "./pages/LoginPage";
+import { ProfilePage } from "./pages/ProfilePage";
 
 // MapPage pulls in MapLibre (~280KB) — load it only when the map route is opened.
 // lazyWithRetry reloads once on a stale-chunk failure instead of white-screening.

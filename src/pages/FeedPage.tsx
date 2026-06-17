@@ -38,7 +38,7 @@ function formatDistance(m: number | null | undefined): string | null {
   return m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)}km`;
 }
 
-export function OldDiscoverPage() {
+export function FeedPage() {
   const [tab, setTab] = useState<"for-you" | "following">("for-you");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placeId, setPlaceId] = useState<string | null>(null);

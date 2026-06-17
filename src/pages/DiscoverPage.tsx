@@ -33,9 +33,9 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
   const a =
     Math.sin(dphi / 2.0) * Math.sin(dphi / 2.0) +
     Math.cos(phi1) *
-      Math.cos(phi2) *
-      Math.sin(dlambda / 2.0) *
-      Math.sin(dlambda / 2.0);
+    Math.cos(phi2) *
+    Math.sin(dlambda / 2.0) *
+    Math.sin(dlambda / 2.0);
   const c = 2.0 * Math.atan2(Math.sqrt(a), Math.sqrt(1.0 - a));
 
   return r * c;
@@ -109,6 +109,16 @@ export function DiscoverPage() {
     if (observerRef.current) observer.observe(observerRef.current);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+   useEffect(() => {
+    const handleScrollToTop = () => {
+      scrollEl?.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    window.addEventListener("scroll-discover-to-top", handleScrollToTop);
+    return () => {
+      window.removeEventListener("scroll-discover-to-top", handleScrollToTop);
+    };
+  }, [scrollEl]);
 
   return (
     <>
