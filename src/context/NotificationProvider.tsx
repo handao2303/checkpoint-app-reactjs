@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
@@ -36,6 +36,7 @@ const NotificationContext = createContext<NotificationState | null>(null);
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { coords } = useUserLocation();
   const at: LatLng = coords ?? FALLBACK;
 
@@ -60,7 +61,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     return subscribeNotifications(user.id, (notifs) => {
       trackEvent("notification_subscribe_success", { count: notifs.length });
       if (storedInitialized.current) {
-        const newest = notifs.find((n) => !knownStoredIds.current.has(n.id));
+        const newNotifs = notifs.filter((n) => !knownStoredIds.current.has(n.id));
+        for (const n of newNotifs) {
+          if (n.type !== "comment" || !n.checkpoint_id) continue;
+          queryClient.removeQueries({ queryKey: ["comments", n.checkpoint_id] });
+          queryClient.removeQueries({ queryKey: ["comment-count", n.checkpoint_id] });
+          queryClient.invalidateQueries({ queryKey: ["comments", n.checkpoint_id] });
+          queryClient.invalidateQueries({ queryKey: ["comment-count", n.checkpoint_id] });
+        }
+        const newest = newNotifs[0];
         if (newest) {
           trackEvent("notification_toast_shown", { type: newest.type });
           setToast(newest);
@@ -71,7 +80,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       knownStoredIds.current = new Set(notifs.map((n) => n.id));
       setStored(notifs);
     });
-  }, [user]);
+  }, [queryClient, user]);
 
   // Derived "a user you follow posted a new check-in" — from the following feed.
   // NOTE: dedicated key (NOT ["feed-following", at]) — DiscoverPage uses that key

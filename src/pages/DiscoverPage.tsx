@@ -21,12 +21,14 @@ import {
   getFollowing,
   searchPlaces,
   unfollowUser,
+  API_URL,
   type FeedItem,
   type LatLng,
 } from "../lib/api";
 import { DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { addFollowNotification } from "../lib/notifications";
 import { trackError, trackEvent } from "../lib/observability";
+import { shareImageBlob } from "../lib/share";
 import { useUserLocation } from "../location/LocationProvider";
 
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
@@ -392,6 +394,17 @@ function FeedCard({
   // Card disappears via the feed invalidation the hook performs.
   const { requestDelete, confirming, confirmBox } = useDeleteCheckpoint(item.id);
 
+  async function shareCheckpoint() {
+    setMenuOpen(false);
+    trackEvent("feed_card_share");
+    await shareImageBlob(null, {
+      filename: `checkpoint-${item.id}.png`,
+      title: item.name,
+      text: `Mình vừa thấy check-in tại ${item.name} trên Checkpoint!`,
+      url: `${API_URL}/share/checkpoint/${item.id}`,
+    });
+  }
+
   async function toggleFollow() {
     setMenuOpen(false);
     setFollowing(true);
@@ -456,6 +469,12 @@ function FeedCard({
             </button>
             {menuOpen && (
               <div className="absolute right-0 top-full z-20 mt-1 min-w-40 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+                <button
+                  onClick={shareCheckpoint}
+                  className="flex w-full items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-surface-muted"
+                >
+                  <Icon name="share" size={16} /> Chia sẻ
+                </button>
                 {mine ? (
                   <button
                     onClick={() => {

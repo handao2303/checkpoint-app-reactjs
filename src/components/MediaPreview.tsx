@@ -57,6 +57,28 @@ export function MediaPreview({
         setVisible(nextVisible);
         setActiveIndex(index);
       }}
+      toolbarRender={({ index, rotate, onRotate }) =>
+        items[index]?.mediaType === "video" ? null : (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onRotate(rotate - 90)}
+              className="flex h-10 w-10 items-center justify-center text-white/90 transition hover:text-white"
+              aria-label="Xoay trái"
+            >
+              <Icon name="rotate-ccw" size={22} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onRotate(rotate + 90)}
+              className="flex h-10 w-10 items-center justify-center text-white/90 transition hover:text-white"
+              aria-label="Xoay phải"
+            >
+              <Icon name="rotate-cw" size={22} />
+            </button>
+          </div>
+        )
+      }
     >
       {items.map((item, index) => (
         <PhotoView
