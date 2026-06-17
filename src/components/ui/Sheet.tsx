@@ -13,20 +13,24 @@ export function Sheet({
   title,
   onClose,
   grow = false,
+  className,
   children,
 }: {
   title?: string;
   onClose: () => void;
   grow?: boolean;
+  className?: string;
   children: ReactNode;
 }) {
+  const hasCustomHeight = /\b(?:h-|min-h-|max-h-|\[height:|\[max-height:)/.test(className ?? "");
+  const allowsFullHeight = /\b(?:h-full|h-\[100dvh\]|max-h-\[100dvh\]|h-screen|max-h-screen)/.test(className ?? "");
   const headerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startY: number; startH: number } | null>(null);
   const closeTimer = useRef<number | null>(null);
   const [closing, setClosing] = useState(false);
   const [height, setHeight] = useState<number | null>(() =>
-    grow ? Math.round(window.innerHeight * 0.7) : null,
+    grow && !hasCustomHeight ? Math.round(window.innerHeight * 0.7) : null,
   );
 
   useEffect(() => () => {
@@ -40,7 +44,7 @@ export function Sheet({
     closeTimer.current = window.setTimeout(onClose, CLOSE_MS);
   }
 
-  const maxHeight = () => Math.round(window.innerHeight * 0.92);
+  const maxHeight = () => Math.round(window.innerHeight * (allowsFullHeight ? 1 : 0.92));
   const minHeight = () => {
     if (grow) return Math.round(window.innerHeight * 0.4);
     const content = (headerRef.current?.offsetHeight ?? 0) + (contentRef.current?.offsetHeight ?? 0);
@@ -66,8 +70,10 @@ export function Sheet({
       <div className={cn("absolute inset-0 bg-black/40", closing ? "animate-fade-out" : "animate-fade-in")} />
       <div
         className={cn(
-          "relative z-10 flex max-h-[92dvh] w-full max-w-md flex-col rounded-t-2xl bg-surface shadow-lg",
+          "relative z-10 flex w-full max-w-md flex-col rounded-t-2xl bg-surface shadow-lg",
+          !hasCustomHeight && "max-h-[92dvh]",
           closing ? "animate-slide-down-out" : "animate-slide-up-in",
+          className,
         )}
         style={height === null ? undefined : { height }}
         onClick={(e) => e.stopPropagation()}

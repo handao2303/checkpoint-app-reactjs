@@ -56,14 +56,12 @@ function SettingSwitch({
         <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>
       </span>
       <span
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-          checked ? "bg-primary" : "bg-surface-muted"
-        }`}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-primary" : "bg-surface-muted"
+          }`}
       >
         <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-            checked ? "translate-x-5" : "translate-x-0.5"
-          }`}
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"
+            }`}
         />
       </span>
     </button>
@@ -77,9 +75,10 @@ function MomentCaption({ cp }: { cp?: Checkpoint }) {
       <p className="font-display text-lg font-bold">{cp.name}</p>
       {cp.note && <p className="text-sm">{cp.note}</p>}
       {cp.address && (
-        <p className="mt-0.5 flex items-center justify-center gap-1 text-xs opacity-80">
-          <Icon name="map-pin" size={12} /> {cp.address}
-        </p>
+        <div className="mt-0.5 flex items-start justify-center gap-1 text-xs opacity-80">
+          <Icon name="map-pin" size={12} className="mt-0.5 shrink-0" />
+          <span>{cp.address}</span>
+        </div>
       )}
     </div>
   );
@@ -178,7 +177,7 @@ export function ProfilePage() {
       setDriveToast("Kết nối Google Photos thất bại");
       setSearchParams({}, { replace: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!user) return null;

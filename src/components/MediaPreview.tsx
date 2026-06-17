@@ -57,6 +57,7 @@ export function MediaPreview({
         setVisible(nextVisible);
         setActiveIndex(index);
       }}
+      overlayRender={({ index }) => items[index]?.caption ?? null}
       toolbarRender={({ index, rotate, onRotate }) =>
         items[index]?.mediaType === "video" ? null : (
           <div className="flex items-center gap-1">
@@ -84,7 +85,6 @@ export function MediaPreview({
         <PhotoView
           key={`${item.url}-${index}`}
           src={item.mediaType === "video" ? undefined : item.url}
-          overlay={item.caption}
           width={item.mediaType === "video" ? viewportWidth : undefined}
           height={item.mediaType === "video" ? viewportHeight : undefined}
           render={

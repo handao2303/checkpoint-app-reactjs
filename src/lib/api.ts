@@ -339,6 +339,7 @@ export interface Checkpoint {
   lat: number;
   lng: number;
   address?: string;
+  journey_id?: string;
   image_url?: string;
   thumbnail_url?: string;
   media_type?: "image" | "video";
@@ -439,6 +440,25 @@ export async function getMyCheckpoints(limit = 30): Promise<Checkpoint[]> {
   const res = await apiFetch(`/checkpoints/me?limit=${limit}`);
   if (!isSuccessful(res)) throw new Error("load my checkpoints failed");
   return res.data.checkpoints ?? [];
+}
+
+export interface CheckpointPage {
+  checkpoints: Checkpoint[];
+  next_cursor?: string;
+}
+
+export async function getMyUnassignedCheckpoints({
+  limit = 20,
+  cursor,
+}: {
+  limit?: number;
+  cursor?: string;
+} = {}): Promise<CheckpointPage> {
+  const params = new URLSearchParams({ limit: String(limit), journey: "none" });
+  if (cursor) params.set("cursor", cursor);
+  const res = await apiFetch(`/checkpoints/me?${params}`);
+  if (!isSuccessful(res)) throw new Error("load my unassigned checkpoints failed");
+  return { checkpoints: res.data.checkpoints ?? [], next_cursor: res.data.next_cursor };
 }
 
 /** Public list of a user's checkpoints (profile gallery), newest first. */
@@ -764,6 +784,15 @@ export async function updateJourney(
   });
   if (!isSuccessful(res)) throw new Error("update journey failed");
   return res.data;
+}
+
+export async function assignCheckpointsToJourney(journeyId: string, checkpointIds: string[]): Promise<void> {
+  const res = await apiFetch(`/journeys/${journeyId}/checkpoints`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ checkpoint_ids: checkpointIds }),
+  });
+  if (!isSuccessful(res)) throw new Error("assign checkpoints to journey failed");
 }
 
 // ---- Google Drive integration ----

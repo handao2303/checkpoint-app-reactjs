@@ -40,7 +40,7 @@ export function ShareButton({
   };
 
   return (
-    <Button variant="green" icon={<Icon name="share" size={20} />} disabled={busy} onClick={onShare}>
+    <Button variant="green" icon={<Icon name="share" size={20} />} disabled={busy} onClick={onShare} className="w-full">
       {busy ? "Đang tạo ảnh..." : label}
     </Button>
   );

@@ -48,7 +48,7 @@ export function JourneyDetailSheet({
   };
 
   return (
-    <Sheet grow onClose={onClose}>
+    <Sheet grow className="h-full" onClose={onClose}>
       {isLoading || !data ? (
         <div className="flex min-h-0 flex-1 flex-col gap-3">
           <Skeleton className="h-6 w-48" />
@@ -74,7 +74,7 @@ export function JourneyDetailSheet({
           </div>
 
           {stops?.length > 0 && (
-            <div className="min-h-40 flex-1 overflow-hidden rounded-xl">
+            <div className="min-h-80 flex-1 overflow-hidden rounded-xl">
               <Map
                 initialViewState={DEFAULT_VIEW}
                 mapStyle={MAP_STYLE}
@@ -110,7 +110,7 @@ export function JourneyDetailSheet({
             </div>
           )}
 
-          <div className="max-h-44 shrink-0 overflow-y-auto border-l-2 border-border pl-4">
+          <div className="max-h-25 shrink-0 overflow-y-auto border-l-2 border-border pl-4">
             {stops.length === 0 ? (
               <p className="text-sm text-muted-foreground">Chưa có check-in nào trong hành trình.</p>
             ) : (
@@ -135,7 +135,7 @@ export function JourneyDetailSheet({
             )}
           </div>
 
-          <div className="shrink-0">
+          <div className="shrink-0 text-end">
             <ShareButton
               filename={`journey-${data.journey.id}.png`}
               title={data.journey.title}
@@ -197,9 +197,10 @@ function StopCaption({ stop }: { stop: JourneyStop }) {
       <p className="font-display text-lg font-bold">{stop.name}</p>
       {stop.note && <p className="text-sm">{stop.note}</p>}
       {stop.address && (
-        <p className="mt-0.5 flex items-center justify-center gap-1 text-xs opacity-80">
-          <Icon name="map-pin" size={12} /> {stop.address}
-        </p>
+        <div className="mt-0.5 flex items-start justify-center gap-1 text-xs opacity-80">
+          <Icon name="map-pin" size={12} className="mt-0.5 shrink-0" />
+          <span>{stop.address}</span>
+        </div>
       )}
     </div>
   );
