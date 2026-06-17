@@ -55,6 +55,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
     queryKey: ["following"],
     queryFn: getFollowing,
     staleTime: Infinity,
+    enabled: !!me,
   });
 
   const isFollowing = u != null && followingIds.includes(u.id);
