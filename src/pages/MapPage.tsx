@@ -333,7 +333,7 @@ export function MapPage() {
         })}
       </Map>
 
-      <div ref={filterControlRef} className="absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
+      <div ref={filterControlRef} className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
         <button
           type="button"
           aria-label={activeCategory ? `Lọc ${activeCategory.label}` : "Lọc theo danh mục"}
@@ -346,7 +346,7 @@ export function MapPage() {
               categoryMenuOpen: !current.categoryMenuOpen,
             }))
           }
-          className={`flex h-11 w-11 items-center justify-center rounded-full shadow-md backdrop-blur transition-all duration-150 active:scale-95 ${
+          className={`pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full shadow-md backdrop-blur transition-all duration-150 active:scale-95 ${
             categoryFilter === "all"
               ? "bg-surface/90 text-foreground hover:bg-surface"
               : "bg-primary text-primary-foreground"

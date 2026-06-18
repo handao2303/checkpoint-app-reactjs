@@ -681,13 +681,6 @@ export function CreateCheckpointForm({
 
       {err && <p className="text-sm text-accent-600">{err}</p>}
 
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary-100 bg-primary-50 p-3 shadow-sm">
-        <span className="flex items-center gap-2 font-bold text-foreground">
-          <Icon name="xp-coin" size={28} className="text-primary" /> Bạn sẽ nhận XP khi cắm cờ
-        </span>
-        <span className="text-sm font-extrabold text-primary">+XP</span>
-      </div>
-
       <Button type="submit" variant="accent" size="lg" disabled={busy || processing || picked.length === 0} icon={<Icon name="flag-planted" size={22} />}>
         {busy ? "Đang lưu..." : "CẮM CỜ"}
       </Button>
