@@ -11,6 +11,7 @@ import { Sheet } from "../components/ui/Sheet";
 import { UserProfileSheet } from "../components/UserProfileSheet";
 import { cn } from "../lib/cn";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { useOptionalCheckinQueue } from "../context/CheckinQueue";
 import {
   getNearbyAppPlaces,
   getPopularPlaces,
@@ -70,6 +71,7 @@ export function DiscoverPage() {
   const [placeListScrollMargin, setPlaceListScrollMargin] = useState(0);
 
   const { user } = useAuth();
+  const pendingCount = useOptionalCheckinQueue()?.pendingCount ?? 0;
   const { coords } = useUserLocation();
   const at: LatLng = coords ?? FALLBACK;
 
@@ -287,6 +289,7 @@ export function DiscoverPage() {
           )
         ) : (
           <>
+            {pendingCount > 0 && <PendingCheckinStatus count={pendingCount} />}
             {(isPopularLoading || hotPlaces.length > 0) && filters.active !== "hot" && (
               <section className="flex flex-col gap-3">
                 <div className="flex items-end justify-between px-1">
@@ -594,6 +597,21 @@ function HotPlaceSkeleton() {
         <Skeleton className="h-4 w-28" />
         <Skeleton className="h-3 w-24" />
       </div>
+    </div>
+  );
+}
+
+function PendingCheckinStatus({ count }: { count: number }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex min-h-12 items-center gap-3 rounded-xl border border-border bg-surface-muted px-4 py-2.5 text-sm text-muted-foreground"
+    >
+      <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-border border-t-primary" />
+      <span className="truncate font-medium">
+        {count === 1 ? "Đang đăng check-in..." : `Đang đăng ${count} check-in...`}
+      </span>
     </div>
   );
 }
