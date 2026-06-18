@@ -145,7 +145,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <Sheet onClose={onClose} className="h-[90dvh]">
+    <Sheet onClose={onClose} className="h-[94dvh]">
       {isLoading || !firstPage ? (
         <DetailSheetSkeleton />
       ) : checkingIn ? (

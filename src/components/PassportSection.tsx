@@ -358,7 +358,6 @@ export function PassportSection({ username }: PassportSectionProps) {
   });
 
   const handleStampClick = (stamp: StampConfig) => {
-    console.log("Clicked stamp:", stamp);
     if (stamp.unlocked) {
       setSelectedStampForPhotos(stamp);
     }

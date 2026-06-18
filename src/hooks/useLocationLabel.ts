@@ -3,7 +3,6 @@ import { useGeocode } from "./useGeocode";
 
 export function useLocationLabel(coords: LatLng | null | undefined) {
   const geo = useGeocode(coords?.lat ?? null, coords?.lng ?? null);
-
   if (!coords) {
     return {
       locationLabel: "Đang dùng vị trí mặc định TP.HCM",

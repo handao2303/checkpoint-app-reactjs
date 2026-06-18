@@ -54,7 +54,7 @@ export function useGeocode(lat: number | null, lng: number | null): GeoResult | 
     if (lat == null || lng == null) return;
     const key = getCacheKey(lat, lng);
     const cached = getCachedResult(key);
-    
+
     if (cached) {
       setResult(cached);
       return;

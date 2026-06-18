@@ -48,7 +48,7 @@ export function JourneyDetailSheet({
   };
 
   return (
-    <Sheet grow className="h-[90dvh]" onClose={onClose}>
+    <Sheet grow className="h-[94dvh]" onClose={onClose}>
       {isLoading || !data ? (
         <div className="flex min-h-0 flex-1 flex-col gap-3">
           <Skeleton className="h-6 w-48" />
@@ -74,7 +74,7 @@ export function JourneyDetailSheet({
           </div>
 
           {stops?.length > 0 && (
-            <div className="min-h-80 flex-1 overflow-hidden rounded-xl">
+            <div className="flex-1 overflow-hidden rounded-xl">
               <Map
                 initialViewState={DEFAULT_VIEW}
                 mapStyle={MAP_STYLE}
@@ -104,26 +104,22 @@ export function JourneyDetailSheet({
             </div>
           )}
 
-          <div className="max-h-25 shrink-0 overflow-y-auto border-l-2 border-border pl-4">
+          <div className="max-h-50 shrink-0 overflow-y-auto rounded-xl border border-border bg-surface">
             {stops.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Chưa có check-in nào trong hành trình.</p>
+              <p className="p-3 text-sm text-muted-foreground">Chưa có check-in nào trong hành trình.</p>
             ) : (
-              <div className="flex flex-col gap-2">
-                {stops.map((s) => (
-                  <button
+              <div className="py-1">
+                {stops.map((s, i) => (
+                  <StopListItem
                     key={s.id}
-                    onClick={() => {
+                    stop={s}
+                    index={i}
+                    total={stops.length}
+                    onOpen={() => {
                       trackEvent("journey_stop_open", { checkpoint_id: s.id });
                       onOpenCheckpoint?.(s.id);
                     }}
-                    className="flex items-center gap-2 text-left text-sm"
-                  >
-                    <Icon name={categoryIcon(s.category)} size={18} className="text-muted-foreground" />
-                    <span className="flex-1 font-medium">{s.name}</span>
-                    <span className="text-xs text-subtle-foreground">
-                      {new Date(s.created_at).toLocaleDateString("vi-VN")}
-                    </span>
-                  </button>
+                  />
                 ))}
               </div>
             )}
@@ -282,18 +278,71 @@ function StopMarkerBadge({ meta }: { meta: StopMarkerMeta }) {
   );
 }
 
-function StopMarkerBadgeContent({ meta }: { meta: StopMarkerMeta }) {
+function StopMarkerBadgeContent({
+  meta,
+  size = 10,
+  numberClassName = "text-sm",
+}: {
+  meta: StopMarkerMeta;
+  size?: number;
+  numberClassName?: string;
+}) {
   if (meta.kind === "icon") {
     return (
       <Icon
         name={meta.iconName}
-        size={10}
+        size={size}
         className={meta.iconName === "play" ? "ml-0.5 fill-white" : undefined}
         strokeWidth={2.4}
       />
     );
   }
-  return <span className="text-sm font-black leading-none">{meta.label}</span>;
+  return <span className={`${numberClassName} font-black leading-none`}>{meta.label}</span>;
+}
+
+function StopListItem({
+  stop,
+  index,
+  total,
+  onOpen,
+}: {
+  stop: JourneyStop;
+  index: number;
+  total: number;
+  onOpen: () => void;
+}) {
+  const meta = getStopMarkerMeta(index, total);
+  const isFirst = index === 0;
+  const isLast = index === total - 1;
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex w-full items-stretch gap-3 px-3 text-left text-sm transition-colors hover:bg-surface-muted"
+    >
+      <span className="relative flex w-6 shrink-0 justify-center">
+        {!isFirst && <span className="absolute top-0 h-1/2 w-px bg-border" aria-hidden="true" />}
+        {!isLast && <span className="absolute bottom-0 h-1/2 w-px bg-border" aria-hidden="true" />}
+        <span
+          title={meta.ariaLabel}
+          className={`relative z-10 my-3 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 shadow-sm ${meta.tone}`}
+        >
+          <StopMarkerBadgeContent meta={meta} size={9} numberClassName="text-[11px]" />
+        </span>
+      </span>
+      <span className="my-2.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted-foreground">
+        <Icon name={categoryIcon(stop.category)} size={15} />
+      </span>
+      <span className="my-2.5 min-w-0 flex-1">
+        <span className="block truncate font-semibold text-foreground">{stop.name}</span>
+        {stop.address && <span className="block truncate text-xs text-muted-foreground">{stop.address}</span>}
+      </span>
+      <span className="my-2.5 shrink-0 text-xs text-subtle-foreground">
+        {new Date(stop.created_at).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })}
+      </span>
+    </button>
+  );
 }
 
 function StopCaption({ stop }: { stop: JourneyStop }) {

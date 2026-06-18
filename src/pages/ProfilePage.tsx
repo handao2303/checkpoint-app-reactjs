@@ -7,6 +7,7 @@ import { EditProfileSheet } from "../components/EditProfileSheet";
 import { SettingsSheet } from "../components/SettingsSheet";
 import { JourneysSection } from "../components/JourneysSection";
 import { MediaPreview } from "../components/MediaPreview";
+import { MyCheckpointsSheet } from "../components/MyCheckpointsSheet";
 import { PassportSection } from "../components/PassportSection";
 import { ShareButton } from "../components/share/ShareButton";
 import { Button } from "../components/ui/Button";
@@ -16,7 +17,6 @@ import { Skeleton } from "../components/ui/Skeleton";
 import { Toast } from "../components/ui/Toast";
 import { UserAvatar } from "../components/ui/UserAvatar";
 import { UpgradeBanner } from "../components/UpgradeBanner";
-import { useCheckin } from "../hooks/useCheckin";
 import { useUserProfile } from "../context/UserProfileProvider";
 import {
   API_URL,
@@ -94,7 +94,7 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [settingsSheetOpen, setSettingsSheetOpen] = useState(false);
-  const { start, sheets } = useCheckin();
+  const [checkpointsSheetOpen, setCheckpointsSheetOpen] = useState(false);
 
   const { data: myCheckpoints = [], isLoading: momentsLoading } = useQuery({
     queryKey: ["checkpoints", "me"],
@@ -368,11 +368,15 @@ export function ProfilePage() {
         <div className="mb-2 flex items-center justify-between">
           <h3 className="font-display text-lg font-bold">Khoảnh khắc hành trình</h3>
           <button
-            onClick={start}
-            aria-label="Cắm cờ khoảnh khắc mới"
+            type="button"
+            onClick={() => {
+              trackEvent("my_checkpoints_open", { source: "profile_moments" });
+              setCheckpointsSheetOpen(true);
+            }}
+            aria-label="Xem tất cả check-in"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition hover:brightness-105 active:scale-95"
           >
-            <Icon name="camera" size={18} />
+            <Icon name="list" size={18} />
           </button>
         </div>
         {momentsLoading ? (
@@ -450,7 +454,7 @@ export function ProfilePage() {
 
       {editing && <EditProfileSheet onClose={() => setEditing(false)} />}
       {settingsSheetOpen && <SettingsSheet onClose={() => setSettingsSheetOpen(false)} />}
-      {sheets}
+      {checkpointsSheetOpen && <MyCheckpointsSheet onClose={() => setCheckpointsSheetOpen(false)} />}
       {driveToast && <Toast message={driveToast} onDone={() => setDriveToast(null)} />}
     </div>
   );

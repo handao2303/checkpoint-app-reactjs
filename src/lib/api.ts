@@ -458,6 +458,20 @@ export interface CheckpointPage {
   next_cursor?: string;
 }
 
+export async function getMyCheckpointPage({
+  limit = 20,
+  cursor,
+}: {
+  limit?: number;
+  cursor?: string;
+} = {}): Promise<CheckpointPage> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (cursor) params.set("cursor", cursor);
+  const res = await apiFetch(`/checkpoints/me?${params}`);
+  if (!isSuccessful(res)) throw new Error("load my checkpoints failed");
+  return { checkpoints: res.data.checkpoints ?? [], next_cursor: res.data.next_cursor };
+}
+
 export async function getMyUnassignedCheckpoints({
   limit = 20,
   cursor,
@@ -486,6 +500,19 @@ export async function getUserCheckpoints(userId: string, limit = 30, provinceCod
 export async function deleteCheckpoint(id: string): Promise<void> {
   const res = await apiFetch(`/checkpoints/${id}`, { method: "DELETE" });
   if (!isSuccessful(res)) throw new Error(`delete checkpoint failed: ${res.status}`);
+}
+
+export async function updateCheckpoint(
+  id: string,
+  patch: { name: string; note?: string | null; rating?: number | null },
+): Promise<Checkpoint> {
+  const res = await apiFetch(`/checkpoints/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!isSuccessful(res)) throw new Error(`update checkpoint failed: ${res.status}`);
+  return res.data as Checkpoint;
 }
 
 export interface UploadSlot {
@@ -832,6 +859,15 @@ export async function updateJourney(
   });
   if (!isSuccessful(res)) throw new Error("update journey failed");
   return res.data;
+}
+
+export async function deleteJourney(
+  id: string,
+  { deleteCheckpoints = false }: { deleteCheckpoints?: boolean } = {},
+): Promise<void> {
+  const mode = deleteCheckpoints ? "delete" : "detach";
+  const res = await apiFetch(`/journeys/${id}?checkpoints=${mode}`, { method: "DELETE" });
+  if (!isSuccessful(res)) throw new Error(`delete journey failed: ${res.status}`);
 }
 
 export async function assignCheckpointsToJourney(journeyId: string, checkpointIds: string[]): Promise<void> {
