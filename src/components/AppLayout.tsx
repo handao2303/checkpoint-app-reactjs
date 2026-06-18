@@ -62,7 +62,7 @@ export function AppLayout() {
             <header className="shrink-0 sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
               <div className="flex items-center gap-2">
                 <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-cta">
-                  <img src="/pin.svg" alt="" className="h-6 w-6 brightness-0 invert" />
+                  <img src="/pin.svg" alt="" className="h-6 w-6" />
                 </span>
                 <span className="font-display text-2xl font-extrabold text-foreground">Checkpoint</span>
               </div>
