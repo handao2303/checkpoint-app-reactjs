@@ -1,4 +1,5 @@
 import { Icon } from "./ui/Icon";
+import { UserAvatar } from "./ui/UserAvatar";
 import type { AvatarFrame } from "../lib/avatarFrames";
 import { cn } from "../lib/cn";
 
@@ -25,13 +26,12 @@ function FrameThumb({
         className="absolute -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full bg-surface-muted"
         style={{ left: HOLE.left, top: HOLE.top, width: HOLE.size, height: HOLE.size }}
       >
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <Icon name="user" size={18} />
-          </span>
-        )}
+        <UserAvatar
+          src={avatarUrl}
+          className="h-full w-full"
+          fallbackClassName="bg-surface-muted text-muted-foreground"
+          fit="cover"
+        />
       </span>
       {frame && (
         <img src={frame.file} alt="" className="absolute inset-0 h-full w-full" draggable={false} />
@@ -71,11 +71,12 @@ export function AvatarFramePicker({
           )}
         >
           <span className="relative flex h-[59%] w-[59%] items-center justify-center overflow-hidden rounded-full bg-surface-muted">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <Icon name="user" size={18} className="text-muted-foreground" />
-            )}
+            <UserAvatar
+              src={avatarUrl}
+              className="h-full w-full"
+              fallbackClassName="bg-surface-muted text-muted-foreground"
+              fit="cover"
+            />
           </span>
         </span>
         <span className="w-16 truncate text-center text-[10px] text-muted-foreground">Không khung</span>

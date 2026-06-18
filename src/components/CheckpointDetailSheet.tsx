@@ -11,6 +11,7 @@ import { UserProfileSheet } from "./UserProfileSheet";
 import { Sheet } from "./ui/Sheet";
 import { XPBadge } from "./ui/Chip";
 import { DetailSheetSkeleton } from "./ui/Skeleton";
+import { UserAvatar } from "./ui/UserAvatar";
 import { ShareButton } from "./share/ShareButton";
 import { MediaPreview } from "./MediaPreview";
 import { renderCheckpointCard } from "../lib/shareCard";
@@ -108,15 +109,14 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               }}
               className="flex items-center gap-2 rounded-full transition hover:opacity-80"
             >
-              {data.author.avatar_url ? (
-                <img
-                  src={data.author.avatar_url}
-                  alt=""
-                  className="h-8 w-8 shrink-0 object-contain"
-                />
-              ) : (
-                <span className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
-              )}
+              <UserAvatar
+                src={data.author.avatar_url}
+                name={data.author.display_name}
+                username={data.author.username}
+                className="h-8 w-8"
+                shape="none"
+                fallbackClassName="h-7 w-7"
+              />
               <span className="font-medium text-foreground">
                 {data.author.display_name || data.author.username}
               </span>

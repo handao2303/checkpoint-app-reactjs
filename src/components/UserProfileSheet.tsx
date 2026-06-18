@@ -19,6 +19,7 @@ import { Icon } from "./ui/Icon";
 import { MediaPreview } from "./MediaPreview";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
+import { UserAvatar } from "./ui/UserAvatar";
 import { trackEvent } from "../lib/observability";
 
 function avatarRingClass(level: number) {
@@ -100,16 +101,22 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                 {u.avatar_url ? (
                   <PhotoProvider>
                     <PhotoView src={u.avatar_url}>
-                      <img
+                      <UserAvatar
                         src={u.avatar_url}
-                        alt=""
-                        className={`h-24 w-24 object-contain`}
+                        name={u.display_name}
+                        username={u.username}
+                        className="h-24 w-24"
+                        shape="none"
+                        loading="eager"
                       />
                     </PhotoView>
                   </PhotoProvider>
                 ) : (
-                  <span
-                    className={`block h-20 w-20 rounded-full bg-white/20 ${avatarRingClass(u.level)}`}
+                  <UserAvatar
+                    name={u.display_name}
+                    username={u.username}
+                    className="h-20 w-20"
+                    fallbackClassName={`bg-white/20 text-white ${avatarRingClass(u.level)}`}
                   />
                 )}
                 <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-bold text-clay-600 shadow-sm">

@@ -15,6 +15,7 @@ import { Button } from "./ui/Button";
 import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
 import { DetailSheetSkeleton } from "./ui/Skeleton";
+import { UserAvatar } from "./ui/UserAvatar";
 
 function formatDistance(m: number | null | undefined): string | null {
   if (m == null || !Number.isFinite(m) || m < 0) return null;
@@ -285,18 +286,15 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
                       {/* Author Header */}
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                          {c.author.avatar_url ? (
-                            <img
-                              src={c.author.avatar_url}
-                              alt=""
-                              width={40}
-                              height={40}
-                              loading="lazy"
-                              className="h-10 w-10 shrink-0 rounded-full object-cover"
-                            />
-                          ) : (
-                            <span className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
-                          )}
+                          <UserAvatar
+                            src={c.author.avatar_url}
+                            name={authorName}
+                            username={c.author.username}
+                            className="h-10 w-10"
+                            fit="cover"
+                            width={40}
+                            height={40}
+                          />
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-semibold text-foreground text-sm">{authorName}</p>
                             {c.address && <p className="truncate text-[11px] text-muted-foreground">{c.address}</p>}

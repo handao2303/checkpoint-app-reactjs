@@ -11,6 +11,7 @@ import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { XPBadge } from "../components/ui/Chip";
 import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
+import { UserAvatar } from "../components/ui/UserAvatar";
 import { useOptionalCheckinQueue } from "../context/CheckinQueue";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
@@ -448,11 +449,13 @@ function FeedCard({
           onClick={() => onOpenProfile(item.author.username)}
           className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-80"
         >
-          {item.author.avatar_url ? (
-            <img src={item.author.avatar_url} alt="" className="h-11 w-11 shrink-0 object-contain" />
-          ) : (
-            <span className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
-          )}
+          <UserAvatar
+            src={item.author.avatar_url}
+            name={author}
+            username={item.author.username}
+            className="h-11 w-11"
+            shape="none"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold text-foreground">{author}</p>
             {item.address && <p className="truncate text-xs text-muted-foreground">{item.address}</p>}

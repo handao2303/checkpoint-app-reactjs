@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
+import { UserAvatar } from "./ui/UserAvatar";
 import { Sheet } from "./ui/Sheet";
 import { Button } from "./ui/Button";
 import { useAuth } from "../auth/AuthContext";
@@ -120,11 +121,15 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
             className="relative h-28 w-28 disabled:opacity-60"
             aria-label="Đổi ảnh đại diện"
           >
-            {user.avatar_url ? (
-              <img src={user.avatar_url} alt="" className="h-28 w-28 object-contain" />
-            ) : (
-              <span className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-border bg-surface-muted" />
-            )}
+            <UserAvatar
+              src={user.avatar_url}
+              name={user.display_name}
+              username={user.username}
+              className="h-28 w-28"
+              shape="none"
+              loading="eager"
+              fallbackClassName="h-24 w-24 border-4 border-border bg-surface-muted text-muted-foreground"
+            />
             <span className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md">
               <Icon name="camera" size={16} />
             </span>

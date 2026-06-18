@@ -1,51 +1,69 @@
-import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getLeaderboard, type LeaderboardEntry } from "../lib/api";
-import { Icon, type IconName } from "../components/ui/Icon";
-import { XPBadge } from "../components/ui/Chip";
+import { useState } from "react";
+import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
+import { UserAvatar } from "../components/ui/UserAvatar";
 import { UserProfileSheet } from "../components/UserProfileSheet";
+import { getLeaderboard, type LeaderboardEntry } from "../lib/api";
 import { trackEvent } from "../lib/observability";
 
+const xpFormatter = new Intl.NumberFormat("vi-VN");
 const PODIUM_STYLE = [
-  // index 0 → rank #1 (center, tallest)
   {
     order: "order-2",
-    avatarSize: "h-16 w-16",
-    ring: "ring-4 ring-yellow-400",
-    rankBg: "bg-yellow-400 text-yellow-900",
-    mt: "mt-0",
+    width: "min-w-[112px] flex-[1.22]",
+    avatar: "h-[6.25rem] w-[6.25rem]",
+    medal: "bg-gold text-neutral-900 ring-gold/30",
+    frame: "border-gold/45 bg-primary-50 shadow-lg",
+    lift: "-translate-y-6",
+    title: "Quán quân",
   },
-  // index 1 → rank #2 (left)
   {
     order: "order-1",
-    avatarSize: "h-12 w-12",
-    ring: "ring-4 ring-slate-400",
-    rankBg: "bg-slate-400 text-white",
-    mt: "mt-6",
+    width: "min-w-[94px] flex-1",
+    avatar: "h-20 w-20",
+    medal: "bg-neutral-300 text-neutral-800 ring-neutral-300/40",
+    frame: "border-neutral-300/70 bg-surface shadow-card",
+    lift: "translate-y-1",
+    title: "Á quân",
   },
-  // index 2 → rank #3 (right)
   {
     order: "order-3",
-    avatarSize: "h-12 w-12",
-    ring: "ring-4 ring-amber-700",
-    rankBg: "bg-amber-700 text-white",
-    mt: "mt-6",
+    width: "min-w-[94px] flex-1",
+    avatar: "h-20 w-20",
+    medal: "bg-clay-300 text-clay-900 ring-clay-300/35",
+    frame: "border-clay-300/55 bg-surface shadow-card",
+    lift: "translate-y-3",
+    title: "Hạng ba",
   },
 ];
 
-const RANK_LABELS: { name: IconName; className: string }[] = [
-  { name: "medal", className: "text-gold" },
-  { name: "medal", className: "text-slate-400" },
-  { name: "medal", className: "text-amber-700" },
-];
+function displayName(entry: LeaderboardEntry) {
+  return entry.display_name || entry.username;
+}
 
-function rankLabel(rank: number): ReactNode {
-  const medal = RANK_LABELS[rank - 1];
-  return medal ? (
-    <Icon name={medal.name} size={22} className={`mx-auto ${medal.className}`} />
-  ) : (
-    `#${rank}`
+function formatXP(xp: number) {
+  return xpFormatter.format(xp);
+}
+
+function openProfile(
+  entry: LeaderboardEntry,
+  setProfileUsername: (username: string) => void,
+) {
+  trackEvent("leaderboard_profile_open", { rank: entry.rank });
+  setProfileUsername(entry.username);
+}
+
+function XPValue({ xp, compact = false }: { xp: number; compact?: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border border-primary-200 bg-primary-50 font-bold text-primary-600 ${
+        compact ? "px-2 py-1 text-xs" : "px-2.5 py-1 text-sm"
+      }`}
+    >
+      <Icon name="award" size={compact ? 14 : 16} aria-hidden="true" />
+      {formatXP(xp)}
+    </span>
   );
 }
 
@@ -60,37 +78,49 @@ function PodiumCard({
   isMe: boolean;
   onOpen: () => void;
 }) {
-  const name = entry.display_name || entry.username;
+  const name = displayName(entry);
   return (
     <button
       type="button"
       onClick={onOpen}
-      className={`${style.order} ${style.mt} flex flex-1 flex-col items-center gap-1.5 rounded-2xl p-3 text-center transition hover:brightness-95 active:scale-[0.98] ${
-        isMe ? "bg-primary-50 ring-2 ring-primary" : "bg-surface shadow-card"
+      className={`${style.order} ${style.width} ${style.lift} group flex flex-col items-center rounded-2xl border p-2.5 text-center outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.99] ${
+        isMe ? "border-primary bg-primary-50" : style.frame
       }`}
+      aria-label={`Mở hồ sơ ${name}, hạng ${entry.rank}`}
     >
       <div className="relative">
-        {entry.avatar_url ? (
-          <img src={entry.avatar_url} alt="" className={`object-contain ${style.avatarSize}`} />
-        ) : (
-          <span
-            className={`block rounded-full bg-gradient-to-br from-primary-300 to-clay-400 ${style.avatarSize} ${style.ring}`}
-          />
-        )}
+        <UserAvatar
+          src={entry.avatar_url}
+          name={name}
+          username={entry.username}
+          className={style.avatar}
+          loading={entry.rank === 1 ? "eager" : "lazy"}
+        />
         <span
-          className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-xs font-bold ${style.rankBg}`}
+          className={`absolute -top-2 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-black ring-4 ${style.medal}`}
         >
-          #{entry.rank}
+          <Icon name={entry.rank === 1 ? "trophy" : "medal"} size={14} aria-hidden="true" />
+          {entry.rank}
         </span>
       </div>
-      <p className="mt-2 line-clamp-1 text-xs font-semibold text-foreground">{name}</p>
-      <p className="text-xs text-muted-foreground">Cấp {entry.level}</p>
-      <XPBadge xp={entry.total_xp} />
+      <p className="mt-3 rounded-full bg-neutral-0/75 px-3 py-1 text-xs font-bold text-clay-700 shadow-sm">
+        {style.title}
+      </p>
+      <p
+        className="mt-2 min-w-0 max-w-full truncate px-1 text-sm font-bold leading-tight text-foreground"
+        title={name}
+      >
+        {name}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">Lv. {entry.level}</p>
+      <div className="mt-2">
+        <XPValue xp={entry.total_xp} compact={entry.rank !== 1} />
+      </div>
     </button>
   );
 }
 
-function Row({
+function LeaderboardRow({
   entry,
   highlight,
   onOpen,
@@ -99,29 +129,118 @@ function Row({
   highlight: boolean;
   onOpen: () => void;
 }) {
-  const name = entry.display_name || entry.username;
+  const name = displayName(entry);
   return (
     <button
       type="button"
       onClick={onOpen}
-      className={`flex w-full items-center gap-3 rounded-xl p-3 text-left transition hover:brightness-95 active:scale-[0.99] ${
-        highlight ? "bg-primary-50 ring-1 ring-primary" : "bg-surface shadow-card"
+      className={`grid w-full grid-cols-[2.25rem_2.75rem_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.995] ${
+        highlight
+          ? "border-primary bg-primary-50"
+          : "border-border bg-surface hover:border-primary-200"
       }`}
+      aria-label={`Mở hồ sơ ${name}, hạng ${entry.rank}`}
     >
-      <span className="w-9 text-center font-display text-lg font-bold text-clay-600">
-        {rankLabel(entry.rank)}
+      <span className="text-center font-display text-xl font-black text-clay-700">
+        {entry.rank}
       </span>
-      {entry.avatar_url ? (
-        <img src={entry.avatar_url} alt="" className="h-11 w-11 shrink-0 object-contain" />
-      ) : (
-        <span className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
-      )}
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-foreground">{name}</p>
-        <p className="text-xs text-muted-foreground">Cấp {entry.level}</p>
-      </div>
-      <XPBadge xp={entry.total_xp} />
+      <UserAvatar
+        src={entry.avatar_url}
+        name={name}
+        username={entry.username}
+        className="h-11 w-11"
+      />
+      <span className="min-w-0">
+        <span className="block truncate font-bold text-foreground">{name}</span>
+        <span className="mt-1 inline-flex rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-xs font-semibold text-clay-700">
+          Lv. {entry.level}
+        </span>
+      </span>
+      <span className="flex flex-col items-end gap-1">
+        <XPValue xp={entry.total_xp} compact />
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <Icon name="flag" size={14} aria-hidden="true" />
+          Hạng {entry.rank}
+        </span>
+      </span>
     </button>
+  );
+}
+
+function HeaderStats({ entries, me }: { entries: LeaderboardEntry[]; me?: LeaderboardEntry }) {
+  const topXP = entries[0]?.total_xp ?? 0;
+  return (
+    <section className="overflow-hidden rounded-2xl border border-primary-100 bg-gradient-to-br from-primary-50 via-neutral-0 to-green-50 p-4 shadow-card">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="inline-flex items-center gap-1 rounded-full bg-neutral-0/80 px-2.5 py-1 text-xs font-semibold text-clay-600">
+            <Icon name="sparkles" size={14} aria-hidden="true" />
+            Tuần khám phá
+          </p>
+          <h1 className="mt-2 flex items-center gap-2 font-display text-3xl font-black text-clay-800">
+            Bảng xếp hạng
+          </h1>
+        </div>
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-gold/35 bg-gold/15 text-gold">
+          <Icon name="trophy" size={30} aria-hidden="true" />
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="rounded-xl border border-primary-100 bg-neutral-0/70 p-2">
+          <p className="text-[11px] font-semibold text-muted-foreground">Top XP</p>
+          <p className="mt-1 truncate font-display text-base font-black text-primary-600">
+            {formatXP(topXP)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-primary-100 bg-neutral-0/70 p-2">
+          <p className="text-[11px] font-semibold text-muted-foreground">Người chơi</p>
+          <p className="mt-1 font-display text-base font-black text-clay-700">
+            {entries.length}
+          </p>
+        </div>
+        <div className="rounded-xl border border-primary-100 bg-neutral-0/70 p-2">
+          <p className="text-[11px] font-semibold text-muted-foreground">Bạn</p>
+          <p className="mt-1 truncate font-display text-base font-black text-green-700">
+            {me ? `#${me.rank}` : "--"}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LoadingState() {
+  return (
+    <>
+      <div className="flex h-72 items-end gap-2">
+        {[2, 1, 3].map((rank) => (
+          <div
+            key={rank}
+            className={`flex flex-1 flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-3 shadow-card ${
+              rank === 1 ? "h-64" : "h-52"
+            }`}
+          >
+            <Skeleton className="h-20 w-20 rounded-full" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div key={index} className="grid grid-cols-[2.25rem_2.75rem_minmax(0,1fr)_4.5rem] items-center gap-3 rounded-xl border border-border bg-surface p-3">
+            <Skeleton className="h-6 w-6 rounded" />
+            <Skeleton className="h-11 w-11 rounded-full" />
+            <div className="flex min-w-0 flex-col gap-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-14 rounded-full" />
+            </div>
+            <Skeleton className="h-7 w-16 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -129,7 +248,7 @@ export function LeaderboardPage() {
   const { data, isLoading } = useQuery({ queryKey: ["leaderboard"], queryFn: getLeaderboard });
   const entries = data?.entries ?? [];
   const me = data?.me;
-  const meInTop = me != null && entries.some((e) => e.user_id === me.user_id);
+  const meInTop = me != null && entries.some((entry) => entry.user_id === me.user_id);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   const top3 = entries.slice(0, 3);
@@ -137,98 +256,68 @@ export function LeaderboardPage() {
 
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <div>
-        <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-clay-600">
-          <Icon name="trophy" size={26} className="text-gold" /> Bảng xếp hạng
-        </h1>
-        <p className="text-sm text-muted-foreground">Nhà thám hiểm nổi bật tuần này</p>
-      </div>
-
+      <HeaderStats entries={entries} me={me} />
       {isLoading ? (
-        <>
-          {/* Podium skeleton */}
-          <div className="flex items-end gap-2">
-            {[1, 0, 2].map((i) => (
-              <div key={i} className={`flex flex-1 flex-col items-center gap-2 rounded-2xl bg-surface p-3 shadow-card ${i === 0 ? "mt-0" : "mt-6"}`}>
-                <Skeleton className="h-14 w-14 rounded-full" />
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-3 w-10" />
-              </div>
-            ))}
-          </div>
-          {/* List skeleton */}
-          <div className="flex flex-col gap-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-xl bg-surface p-3 shadow-card">
-                <Skeleton className="h-6 w-6 rounded" />
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
-                <Skeleton className="h-6 w-14 rounded-full" />
-              </div>
-            ))}
-          </div>
-        </>
+        <LoadingState />
       ) : entries.length === 0 ? (
-        <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-          Chưa có ai trên bảng xếp hạng. Hãy check-in để ghi điểm!
-        </p>
+        <div className="rounded-2xl border border-dashed border-primary-200 bg-surface-muted p-6 text-center">
+          <Icon name="mountain" size={34} className="mx-auto text-primary-500" aria-hidden="true" />
+          <p className="mt-3 font-bold text-foreground">Chưa có ai trên bảng xếp hạng</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Check-in đầu tiên sẽ mở màn cuộc đua XP.
+          </p>
+        </div>
       ) : (
         <>
-          {/* Top 3 podium */}
           {top3.length > 0 && (
-            <div className="flex items-end gap-2">
-              {/* Render order: #2 left, #1 center, #3 right using CSS order */}
-              {top3.map((e, idx) => (
-                <PodiumCard
-                  key={e.user_id}
-                  entry={e}
-                  style={PODIUM_STYLE[idx]}
-                  isMe={e.user_id === me?.user_id}
-                  onOpen={() => {
-                    trackEvent("leaderboard_profile_open", { rank: e.rank });
-                    setProfileUsername(e.username);
-                  }}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Rank 4+ list */}
-          {rest.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-muted-foreground">Các vị trí tiếp theo</p>
+            <section aria-label="Top 3 nhà khám phá">
+              <div className="flex min-h-[19rem] items-end gap-2 mt-[-30px]">
+                {top3.map((entry, index) => (
+                  <PodiumCard
+                    key={entry.user_id}
+                    entry={entry}
+                    style={PODIUM_STYLE[index]}
+                    isMe={entry.user_id === me?.user_id}
+                    onOpen={() => openProfile(entry, setProfileUsername)}
+                  />
+                ))}
               </div>
-              {rest.map((e) => (
-                <Row
-                  key={e.user_id}
-                  entry={e}
-                  highlight={e.user_id === me?.user_id}
-                  onOpen={() => {
-                    trackEvent("leaderboard_profile_open", { rank: e.rank });
-                    setProfileUsername(e.username);
-                  }}
-                />
-              ))}
-            </div>
+            </section>
           )}
 
-          {/* Pinned caller row if outside top list */}
+          {rest.length > 0 && (
+            <section className="flex flex-col gap-2" aria-label="Top nhà khám phá">
+              <div className="flex items-center gap-2">
+                <Icon name="compass" size={22} className="text-primary-500" aria-hidden="true" />
+                <h2 className="font-display text-lg font-black text-clay-800">
+                  Top nhà khám phá
+                </h2>
+                <span className="h-px flex-1 border-t border-dashed border-primary-200" />
+              </div>
+              {rest.map((entry) => (
+                <LeaderboardRow
+                  key={entry.user_id}
+                  entry={entry}
+                  highlight={entry.user_id === me?.user_id}
+                  onOpen={() => openProfile(entry, setProfileUsername)}
+                />
+              ))}
+            </section>
+          )}
+
           {me && !meInTop && (
-            <>
-              <p className="pt-2 text-center text-xs text-muted-foreground">• • •</p>
-              <Row
+            <section className="flex flex-col gap-2 pt-1" aria-label="Hạng của bạn">
+              <div className="flex items-center justify-center gap-2 text-xs font-semibold text-muted-foreground">
+                <span className="h-px w-10 border-t border-dashed border-primary-200" />
+                Hạng của bạn
+                <span className="h-px w-10 border-t border-dashed border-primary-200" />
+              </div>
+              <LeaderboardRow
                 entry={me}
                 highlight
-                onOpen={() => {
-                  trackEvent("leaderboard_profile_open", { rank: me.rank });
-                  setProfileUsername(me.username);
-                }}
+                onOpen={() => openProfile(me, setProfileUsername)}
               />
-            </>
+            </section>
           )}
         </>
       )}

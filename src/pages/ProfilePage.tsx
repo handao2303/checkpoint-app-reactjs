@@ -14,6 +14,7 @@ import { Button } from "../components/ui/Button";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
+import { UserAvatar } from "../components/ui/UserAvatar";
 import { UpgradeBanner } from "../components/UpgradeBanner";
 import { cn } from "../lib/cn";
 import { useCheckin } from "../hooks/useCheckin";
@@ -102,13 +103,14 @@ function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 
   return (
     <div className="flex flex-1 flex-col items-center gap-1 px-1">
       <div className="relative">
-        {entry.avatar_url ? (
-          <img src={entry.avatar_url} alt="" className="h-11 w-11 object-contain" />
-        ) : (
-          <span
-            className={`block h-10 w-10 rounded-full bg-gradient-to-br from-primary-300 to-clay-400 ring-2 ${ringClass}`}
-          />
-        )}
+        <UserAvatar
+          src={entry.avatar_url}
+          name={name}
+          username={entry.username}
+          className="h-11 w-11"
+          shape="none"
+          fallbackClassName={`h-10 w-10 ring-2 ${ringClass}`}
+        />
         <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-surface px-1 text-[10px] font-bold text-muted-foreground shadow-sm">
           #{rank}
         </span>
@@ -206,13 +208,15 @@ export function ProfilePage() {
         {/* Avatar + info */}
         <div className="flex items-start gap-4">
           <div className="relative shrink-0">
-            {user.avatar_url ? (
-              <img src={user.avatar_url} alt="" className="h-28 w-28 object-contain" />
-            ) : (
-              <span
-                className={`block h-24 w-24 rounded-full bg-white/20 ${avatarRingClass(user.level)}`}
-              />
-            )}
+            <UserAvatar
+              src={user.avatar_url}
+              name={user.display_name}
+              username={user.username}
+              className="h-28 w-28"
+              shape="none"
+              loading="eager"
+              fallbackClassName={`h-24 w-24 bg-white/20 text-white ${avatarRingClass(user.level)}`}
+            />
             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-bold text-clay-600 shadow-sm">
               Cấp {user.level}
             </span>

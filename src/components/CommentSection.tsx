@@ -11,6 +11,7 @@ import {
 } from "../lib/comments";
 import { addCommentNotification } from "../lib/notifications";
 import { Skeleton } from "./ui/Skeleton";
+import { UserAvatar } from "./ui/UserAvatar";
 
 export function CommentSection({
   checkpointId,
@@ -165,23 +166,21 @@ function CommentRow({
 }) {
   return (
     <div className="flex items-start gap-2">
-      {comment.avatar_url ? (
-        <button
-          onClick={() => onOpenProfile?.(comment.username)}
-          className="shrink-0 transition hover:opacity-80"
-          type="button"
-        >
-          <img src={comment.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />
-        </button>
-      ) : (
-        <button
-          onClick={() => onOpenProfile?.(comment.username)}
-          className="shrink-0 transition hover:opacity-80"
-          type="button"
-        >
-          <span className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400 block" />
-        </button>
-      )}
+      <button
+        onClick={() => onOpenProfile?.(comment.username)}
+        className="shrink-0 transition hover:opacity-80"
+        type="button"
+        aria-label={`Mở hồ sơ ${comment.display_name || comment.username}`}
+      >
+        <UserAvatar
+          src={comment.avatar_url}
+          name={comment.display_name}
+          username={comment.username}
+          className="h-9 w-9"
+          fit="cover"
+          fallbackClassName="h-8 w-8"
+        />
+      </button>
       <div className="min-w-0 flex-1">
         <p className="text-sm">
           <button

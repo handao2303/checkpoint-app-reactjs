@@ -1,17 +1,19 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useScrollContainer } from "../components/AppLayout";
-import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
-import { UserProfileSheet } from "../components/UserProfileSheet";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
+import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
 import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
+import { UserProfileSheet } from "../components/UserProfileSheet";
+import { useLocationLabel } from "../hooks/useLocationLabel";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import {
-  searchPlaces,
   getNearbyAppPlaces,
   getPopularPlaces,
+  searchPlaces,
   type LatLng,
   type Place,
 } from "../lib/api";
@@ -62,11 +64,13 @@ export function DiscoverPage() {
   const [debounced, setDebounced] = useState("");
   const [filters, setFilters] = useState<{ active: FilterKey }>({ active: "all" });
   const queryClient = useQueryClient();
-  const observerRef = useRef<HTMLDivElement | null>(null);
+  const placeListRef = useRef<HTMLDivElement | null>(null);
+  const [placeListScrollMargin, setPlaceListScrollMargin] = useState(0);
 
   const { user } = useAuth();
   const { coords } = useUserLocation();
   const at: LatLng = coords ?? FALLBACK;
+  const { locationLabel, locationHint } = useLocationLabel(coords);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 300);
@@ -115,12 +119,19 @@ export function DiscoverPage() {
     () => popularPlaces.filter((p) => p.checkin_count > 0).slice(0, 10),
     [popularPlaces],
   );
-  const locationLabel = coords ? "Gần bạn" : "Đang dùng vị trí mặc định TP.HCM";
-  const locationHint = coords
-    ? "Địa điểm đang được sắp xếp theo khoảng cách gần nhất"
-    : "Bật vị trí để xem các checkpoint quanh bạn chính xác hơn";
 
   const scrollEl = useScrollContainer();
+  const canLoadMorePlaces = !debounced && filters.active !== "hot" && hasNextPage;
+  const virtualPlaceCount = visiblePlaces.length + (canLoadMorePlaces ? 1 : 0);
+  const placeVirtualizer = useVirtualizer({
+    count: virtualPlaceCount,
+    getScrollElement: () => scrollEl,
+    estimateSize: () => 112,
+    overscan: 5,
+    scrollMargin: placeListScrollMargin,
+    getItemKey: (index) => visiblePlaces[index]?.id ?? `loader-${index}`,
+  });
+  const virtualPlaceItems = placeVirtualizer.getVirtualItems();
 
   const { pullDistance, pullProgress, isPulling, isRefreshing, isReady } = usePullToRefresh({
     scrollElement: scrollEl,
@@ -134,20 +145,35 @@ export function DiscoverPage() {
     },
   });
 
-  // Intersection Observer for infinite scrolling
   useEffect(() => {
-    if (!hasNextPage || isFetchingNextPage) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          void fetchNextPage();
-        }
-      },
-      { threshold: 0.1 }
-    );
-    if (observerRef.current) observer.observe(observerRef.current);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+    if (placeListRef.current) {
+      setPlaceListScrollMargin(placeListRef.current.offsetTop);
+    }
+  }, [scrollEl, debounced, filters.active, visiblePlaces.length, hotPlaces.length, isPopularLoading]);
+
+  useEffect(() => {
+    const last = virtualPlaceItems.at(-1);
+    if (
+      !last ||
+      debounced ||
+      filters.active === "hot" ||
+      !hasNextPage ||
+      isFetchingNextPage ||
+      last.index < visiblePlaces.length - 1
+    ) {
+      return;
+    }
+    trackEvent("discover_next_page", { count: visiblePlaces.length });
+    void fetchNextPage();
+  }, [
+    virtualPlaceItems,
+    debounced,
+    filters.active,
+    visiblePlaces.length,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  ]);
 
   useEffect(() => {
     const handleScrollToTop = () => {
@@ -324,31 +350,47 @@ export function DiscoverPage() {
                 Chưa có địa điểm nào quanh đây. Hãy là người cắm cờ đầu tiên!
               </p>
             ) : (
-              <div className="flex flex-col gap-3">
-                {visiblePlaces.map((p) => (
-                  <PlaceCard
-                    key={p.id}
-                    place={p}
-                    distance={formatDistance(haversine(at.lat, at.lng, p.lat, p.lng))}
-                    signedIn={!!user}
-                    onOpen={() => {
-                      trackEvent("discover_place_open", { place_id: p.id });
-                      setPlaceId(p.id);
-                    }}
-                  />
-                ))}
+              <div
+                ref={placeListRef}
+                style={{ height: placeVirtualizer.getTotalSize(), position: "relative" }}
+              >
+                {virtualPlaceItems.map((virtualItem) => {
+                  const place = visiblePlaces[virtualItem.index];
+                  const isLoader = place == null;
 
-                {/* Infinite scroll loader / sentinel */}
-                {hasNextPage && filters.active !== "hot" && (
-                  <div ref={observerRef} className="flex justify-center p-4">
-                    <span className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
-                  </div>
-                )}
-                {isFetchingNextPage && !hasNextPage && (
-                  <div className="flex flex-col gap-3">
-                    <PlaceCardSkeleton />
-                  </div>
-                )}
+                  return (
+                    <div
+                      key={virtualItem.key}
+                      data-index={virtualItem.index}
+                      ref={placeVirtualizer.measureElement}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${virtualItem.start - placeListScrollMargin}px)`,
+                      }}
+                    >
+                      <div className="pb-3">
+                        {isLoader ? (
+                          <div className="flex justify-center p-4">
+                            <span className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+                          </div>
+                        ) : (
+                          <PlaceCard
+                            place={place}
+                            distance={formatDistance(haversine(at.lat, at.lng, place.lat, place.lng))}
+                            signedIn={!!user}
+                            onOpen={() => {
+                              trackEvent("discover_place_open", { place_id: place.id });
+                              setPlaceId(place.id);
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>
@@ -400,7 +442,7 @@ function PlaceCard({
       <button
         type="button"
         onClick={onOpen}
-        className="group w-44 shrink-0 overflow-hidden rounded-xl border border-border/60 bg-surface text-left shadow-card transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="group w-44 shrink-0 overflow-hidden rounded-xl border border-border/60 bg-surface text-left shadow-card transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-full"
       >
         <PlaceThumb place={place} imageUrl={imageUrl} className="h-28 w-full rounded-none" imageLoading="lazy" />
         <div className="flex flex-col gap-1.5 p-3">
@@ -425,7 +467,7 @@ function PlaceCard({
     <button
       type="button"
       onClick={onOpen}
-      className="flex min-w-0 items-center gap-3 rounded-xl border border-border/50 bg-surface p-3 text-left shadow-card transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex min-w-0 items-center gap-3 rounded-xl border border-border/50 bg-surface p-3 text-left shadow-card transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-full"
     >
       <PlaceThumb place={place} imageUrl={imageUrl} className="h-16 w-16 rounded-xl" imageLoading="lazy" />
 
@@ -437,11 +479,6 @@ function PlaceCard({
               {place.address || category?.label || "Checkpoint"}
             </p>
           </div>
-          {place.viewer_has_checked_in && (
-            <span className="flex shrink-0 items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700">
-              <Icon name="check" size={11} /> Đã cắm
-            </span>
-          )}
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-muted-foreground">
