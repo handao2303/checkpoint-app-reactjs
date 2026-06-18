@@ -442,7 +442,7 @@ function PlaceCard({
       <button
         type="button"
         onClick={onOpen}
-        className="group w-44 shrink-0 overflow-hidden rounded-xl border border-border/60 bg-surface text-left shadow-card transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-full"
+        className="group w-44 shrink-0 overflow-hidden rounded-xl border border-border/60 bg-surface text-left shadow-card transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <PlaceThumb place={place} imageUrl={imageUrl} className="h-28 w-full rounded-none" imageLoading="lazy" />
         <div className="flex flex-col gap-1.5 p-3">
