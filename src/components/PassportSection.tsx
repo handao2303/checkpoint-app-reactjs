@@ -1,11 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
-import { getPassport } from "../lib/api";
+import { getPassport, getUserPassport } from "../lib/api";
 import { Skeleton } from "./ui/Skeleton";
 
+interface PassportSectionProps {
+  username?: string;
+}
+
 /** Digital passport: one "stamp" per province the user has checked in to. */
-export function PassportSection() {
-  const { data, isLoading } = useQuery({ queryKey: ["passport"], queryFn: getPassport });
+export function PassportSection({ username }: PassportSectionProps) {
+  const { data, isLoading } = useQuery({
+    queryKey: username ? ["passport", username] : ["passport"],
+    queryFn: username ? () => getUserPassport(username) : getPassport,
+  });
   const stamps = (data?.stamps ?? [])
     .sort((a, b) => b.checkin_count - a.checkin_count)
     .slice(0, 6);
@@ -35,7 +42,9 @@ export function PassportSection() {
         </div>
       ) : stamps.length === 0 ? (
         <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-          Chưa có con dấu nào. Check-in ở một tỉnh thành để đóng dấu hộ chiếu!
+          {username
+            ? "Người dùng này chưa có con dấu nào."
+            : "Chưa có con dấu nào. Check-in ở một tỉnh thành để đóng dấu hộ chiếu!"}
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-3">
@@ -64,3 +73,4 @@ export function PassportSection() {
     </div>
   );
 }
+

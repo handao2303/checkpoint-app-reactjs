@@ -271,6 +271,14 @@ export async function getPassport(): Promise<Passport> {
   return res.data as Passport;
 }
 
+/** Another user's digital passport (provinces visited) by their username. */
+export async function getUserPassport(username: string): Promise<Passport> {
+  const res = await apiFetch(`/users/${encodeURIComponent(username)}/passport`);
+  if (!isSuccessful(res)) throw new Error(`getUserPassport failed: ${res.status}`);
+  return res.data as Passport;
+}
+
+
 export interface LeaderboardEntry {
   rank: number;
   user_id: string;

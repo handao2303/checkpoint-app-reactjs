@@ -21,6 +21,8 @@ import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 import { UserAvatar } from "./ui/UserAvatar";
 import { trackEvent } from "../lib/observability";
+import { PassportSection } from "./PassportSection";
+
 
 function avatarRingClass(level: number) {
   if (level >= 16) return "border-4 border-yellow-400";
@@ -130,11 +132,8 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                 {u.bio && (
                   <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{u.bio}</p>
                 )}
-              </div>
-            </div>
-
-            {/* Tags */}
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
+                  {/* Tags */}
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
               {u.checkin_streak > 0 && (
                 <span className="flex items-center gap-1">
                   <Icon name="fire" size={12} className="text-primary" />
@@ -146,6 +145,10 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                 Thành viên từ {formatMemberSince(u.created_at)}
               </span>
             </div>
+              </div>
+            </div>
+
+          
 
             {/* Stats */}
             <div className="mt-4 grid grid-cols-4 gap-2">
@@ -180,6 +183,9 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
               {isFollowing ? "Đang theo dõi" : "Theo dõi"}
             </Button>
           )}
+
+          {/* Provinces visited */}
+          <PassportSection username={u.username} />
 
           {/* Check-in gallery */}
           <div>
