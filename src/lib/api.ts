@@ -253,6 +253,7 @@ export async function updateProfile(patch: {
 /** One province the user has visited — a passport "stamp". */
 export interface PassportStamp {
   province: string;
+  province_code: string | null;
   checkin_count: number;
   first_at: string;
   last_at: string;
@@ -444,8 +445,10 @@ export async function getCheckpointDetail(id: string): Promise<CheckpointDetail>
   return res.data;
 }
 
-export async function getMyCheckpoints(limit = 30): Promise<Checkpoint[]> {
-  const res = await apiFetch(`/checkpoints/me?limit=${limit}`);
+export async function getMyCheckpoints(limit = 30, provinceCode?: string): Promise<Checkpoint[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (provinceCode) params.set("province_code", provinceCode);
+  const res = await apiFetch(`/checkpoints/me?${params}`);
   if (!isSuccessful(res)) throw new Error("load my checkpoints failed");
   return res.data.checkpoints ?? [];
 }
@@ -470,8 +473,10 @@ export async function getMyUnassignedCheckpoints({
 }
 
 /** Public list of a user's checkpoints (profile gallery), newest first. */
-export async function getUserCheckpoints(userId: string, limit = 30): Promise<Checkpoint[]> {
-  const res = await apiFetch(`/checkpoints/by-user?user_id=${encodeURIComponent(userId)}&limit=${limit}`);
+export async function getUserCheckpoints(userId: string, limit = 30, provinceCode?: string): Promise<Checkpoint[]> {
+  const params = new URLSearchParams({ user_id: userId, limit: String(limit) });
+  if (provinceCode) params.set("province_code", provinceCode);
+  const res = await apiFetch(`/checkpoints/by-user?${params}`);
   if (!isSuccessful(res)) throw new Error("load user checkpoints failed");
   return res.data.checkpoints ?? [];
 }

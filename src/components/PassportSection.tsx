@@ -1,18 +1,18 @@
-import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Icon } from "./ui/Icon";
-import { Card } from "./ui/Card";
-import { Sheet } from "./ui/Sheet";
-import { Toast } from "./ui/Toast";
-import { MediaPreview } from "./MediaPreview";
+import { useState, type ReactNode } from "react";
 import {
+  getMyCheckpoints,
   getPassport,
-  getUserPassport,
   getUserByUsername,
   getUserCheckpoints,
-  getMyCheckpoints,
+  getUserPassport,
 } from "../lib/api";
 import { cn } from "../lib/cn";
+import { MediaPreview } from "./MediaPreview";
+import { Card } from "./ui/Card";
+import { Icon } from "./ui/Icon";
+import { Sheet } from "./ui/Sheet";
+import { Toast } from "./ui/Toast";
 
 interface PassportSectionProps {
   username?: string;
@@ -223,6 +223,7 @@ interface StampConfig {
   date: string;
   initials: string;
   shapeType: number;
+  provinceCode?: string | null;
 }
 
 export function PassportStamp({
@@ -271,7 +272,12 @@ export function PassportStamp({
   );
 }
 
-function getStampConfig(province: string, dateStr?: string, count: number = 0): StampConfig {
+function getStampConfig(
+  province: string,
+  provinceCode?: string | null,
+  dateStr?: string,
+  count: number = 0,
+): StampConfig {
   const name = province.trim();
   const initials = getProvinceInitials(name);
   const date = formatShortDate(dateStr);
@@ -294,7 +300,7 @@ function getStampConfig(province: string, dateStr?: string, count: number = 0): 
     .toUpperCase();
 
   return {
-    id: cleanLabel.toLowerCase().replace(/\s+/g, "-"),
+    id: province,
     name: name.replace(/^(Thành phố|Tỉnh)\s+/i, "").trim(),
     label: cleanLabel,
     unlocked: true,
@@ -303,6 +309,7 @@ function getStampConfig(province: string, dateStr?: string, count: number = 0): 
     initials,
     date,
     shapeType,
+    provinceCode,
   };
 }
 
@@ -312,47 +319,49 @@ export function PassportSection({ username }: PassportSectionProps) {
     queryFn: username ? () => getUserPassport(username) : getPassport,
   });
 
-  // Query checkpoints to display photos on stamp click
-  const { data: checkpoints = [] } = useQuery({
-    queryKey: username ? ["checkpoints-user-for-passport", username] : ["checkpoints-my-for-passport"],
-    queryFn: async () => {
-      if (username) {
-        const u = await getUserByUsername(username);
-        return getUserCheckpoints(u.id);
-      }
-      return getMyCheckpoints();
-    },
-  });
-
   const [toastMessage, setToastMessage] = useState<ReactNode | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [selectedProvinceForPhotos, setSelectedProvinceForPhotos] = useState<string | null>(null);
+  const [selectedStampForPhotos, setSelectedStampForPhotos] = useState<StampConfig | null>(null);
 
   // Map unlocked stamps dynamically from user's visited provinces
   const unlockedStamps: StampConfig[] = (data?.stamps ?? []).map((s) => {
-    return getStampConfig(s.province, s.first_at, s.checkin_count);
+    return getStampConfig(s.province, s.province_code, s.first_at, s.checkin_count);
   });
 
   const unlockedCount = data?.province_count ?? 0;
 
-  const getMatchingCheckpoints = (provinceName: string) => {
-    const cleanProv = provinceName
-      .replace(/^(Thành phố|Tỉnh)\s+/i, "")
-      .trim()
-      .toLowerCase();
-
-    return checkpoints.filter((cp) => {
-      const address = (cp.address || "").toLowerCase();
-      const name = (cp.name || "").toLowerCase();
-      return address.includes(cleanProv) || name.includes(cleanProv);
-    });
-  };
+  // Query checkpoints for selected stamp to display photos dynamically on click
+  const { data: provinceCheckpoints = [], isLoading: isPhotosLoading } = useQuery({
+    queryKey: ["passport-photos", username || "me", selectedStampForPhotos?.provinceCode, selectedStampForPhotos?.name],
+    queryFn: async () => {
+      if (!selectedStampForPhotos) return [];
+      const code = selectedStampForPhotos.provinceCode || undefined;
+      if (username) {
+        const u = await getUserByUsername(username);
+        const all = await getUserCheckpoints(u.id, 100, code);
+        // Fallback filter for legacy rows without provinceCode
+        if (!code) {
+          const cleanName = selectedStampForPhotos.name.replace(/^(Thành phố|Tỉnh)\s+/i, "").trim().toLowerCase();
+          return all.filter((cp) => (cp.address || "").toLowerCase().includes(cleanName) || (cp.name || "").toLowerCase().includes(cleanName));
+        }
+        return all;
+      }
+      const all = await getMyCheckpoints(100, code);
+      // Fallback filter for legacy rows without provinceCode
+      if (!code) {
+        const cleanName = selectedStampForPhotos.name.replace(/^(Thành phố|Tỉnh)\s+/i, "").trim().toLowerCase();
+        return all.filter((cp) => (cp.address || "").toLowerCase().includes(cleanName) || (cp.name || "").toLowerCase().includes(cleanName));
+      }
+      return all;
+    },
+    enabled: !!selectedStampForPhotos,
+  });
 
   const handleStampClick = (stamp: StampConfig) => {
-      const matching = getMatchingCheckpoints(stamp.name);
-      if (matching.length > 0) {
-        setSelectedProvinceForPhotos(stamp.name);
-      } 
+    console.log("Clicked stamp:", stamp);
+    if (stamp.unlocked) {
+      setSelectedStampForPhotos(stamp);
+    }
   };
 
   // Construct a single locked generic stamp card
@@ -458,33 +467,43 @@ export function PassportSection({ username }: PassportSectionProps) {
         </Sheet>
       )}
 
-      {selectedProvinceForPhotos && (
+      {selectedStampForPhotos && (
         <Sheet
-          title={`Khoảnh khắc tại ${selectedProvinceForPhotos.replace(/^(Thành phố|Tỉnh)\s+/i, "")}`}
-          onClose={() => setSelectedProvinceForPhotos(null)}
+          title={`Khoảnh khắc tại ${selectedStampForPhotos.name}`}
+          onClose={() => setSelectedStampForPhotos(null)}
         >
           <div className="py-4 max-h-[70vh] overflow-y-auto pr-1">
-            <div className="grid grid-cols-3 gap-2">
-              {getMatchingCheckpoints(selectedProvinceForPhotos)
-                .filter((cp) => cp.image_url)
-                .map((cp, idx, arr) => (
-                  <MediaPreview
-                    key={cp.id}
-                    url={cp.image_url}
-                    thumbnailUrl={cp.thumbnail_url}
-                    mediaType={cp.media_type}
-                    alt={cp.name}
-                    className="aspect-square w-full rounded-lg object-cover border border-border/40"
-                    galleryItems={arr.map((item) => ({
-                      url: item.image_url,
-                      thumbnailUrl: item.thumbnail_url,
-                      mediaType: item.media_type,
-                      alt: item.name,
-                    }))}
-                    galleryIndex={idx}
-                  />
-                ))}
-            </div>
+            {isPhotosLoading ? (
+              <div className="flex justify-center py-8">
+                <span className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+              </div>
+            ) : provinceCheckpoints.filter((cp) => cp.image_url).length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-8">
+                Không tìm thấy ảnh chụp tại tỉnh này.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {provinceCheckpoints
+                  .filter((cp) => cp.image_url)
+                  .map((cp, idx, arr) => (
+                    <MediaPreview
+                      key={cp.id}
+                      url={cp.image_url}
+                      thumbnailUrl={cp.thumbnail_url}
+                      mediaType={cp.media_type}
+                      alt={cp.name}
+                      className="aspect-square w-full rounded-lg object-cover border border-border/40"
+                      galleryItems={arr.map((item) => ({
+                        url: item.image_url,
+                        thumbnailUrl: item.thumbnail_url,
+                        mediaType: item.media_type,
+                        alt: item.name,
+                      }))}
+                      galleryIndex={idx}
+                    />
+                  ))}
+              </div>
+            )}
           </div>
         </Sheet>
       )}

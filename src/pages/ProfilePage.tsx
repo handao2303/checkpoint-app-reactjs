@@ -351,7 +351,7 @@ export function ProfilePage() {
       <PassportSection />
 
 
- {/* Moments */}
+      {/* Moments */}
       <div>
         <div className="mb-2 flex items-center justify-between">
           <h3 className="font-display text-lg font-bold">Khoảnh khắc hành trình</h3>
