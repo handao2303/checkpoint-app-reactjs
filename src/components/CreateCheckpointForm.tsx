@@ -21,6 +21,7 @@ import { CameraCaptureSheet } from "./CameraCaptureSheet";
 import { MediaPreview } from "./MediaPreview";
 import { Button } from "./ui/Button";
 import { Icon } from "./ui/Icon";
+import { Skeleton } from "./ui/Skeleton";
 
 interface PickedMedia {
   type: UploadMediaType;
@@ -108,7 +109,9 @@ export function CreateCheckpointForm({
   const effectiveJourneyId = journeyId === undefined ? (activeJourneys[0]?.id ?? null) : journeyId;
 
   const [selectedPlace, setSelectedPlace] = useState<CheckinPlace | null>(place ?? null);
-  const [viewMode, setViewMode] = useState<"select-place" | "fill-form">("fill-form");
+  const [viewMode, setViewMode] = useState<"select-place" | "fill-form">(
+    place ? "fill-form" : "select-place"
+  );
   const [hasInitializedView, setHasInitializedView] = useState(false);
 
   const [name, setName] = useState(place?.name ?? "");
@@ -138,8 +141,8 @@ export function CreateCheckpointForm({
 
   useEffect(() => {
     if (place || hasInitializedView || !nearbyAppPlacesFetched) return;
-    if (matchingPlaces.length > 0) {
-      setViewMode("select-place");
+    if (matchingPlaces.length === 0) {
+      setViewMode("fill-form");
     }
     setHasInitializedView(true);
   }, [place, matchingPlaces.length, nearbyAppPlacesFetched, hasInitializedView]);
@@ -400,7 +403,7 @@ export function CreateCheckpointForm({
     }
   }
 
-  if (viewMode === "select-place" && matchingPlaces.length > 0) {
+  if (viewMode === "select-place" && (!nearbyAppPlacesFetched || matchingPlaces.length > 0)) {
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
@@ -408,30 +411,50 @@ export function CreateCheckpointForm({
           <p className="text-xs text-muted-foreground">Chọn một địa điểm gần bạn để check-in:</p>
         </div>
         <div className="flex flex-col gap-2.5 max-h-[300px] overflow-y-auto pr-1">
-          {matchingPlaces.map((p) => {
-            const cat = CATEGORIES.find((c) => c.key === p.category);
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => handleSelectPlace(p)}
-                className="flex items-start gap-3 rounded-2xl border border-border bg-surface p-3 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-primary-50/40"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary-100 bg-primary-50 text-primary">
-                  <Icon name={cat?.icon || "pin"} size={18} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-semibold text-foreground">{p.name}</p>
-                    <span className="shrink-0 text-xs font-semibold text-primary">
-                      cách {Math.round(p.distance)}m
-                    </span>
+          {!nearbyAppPlacesFetched ? (
+            <div className="flex flex-col gap-2.5">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-3 rounded-2xl border border-border bg-surface p-3 text-left shadow-sm"
+                >
+                  <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                  <div className="min-w-0 flex-1 flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-10" />
+                    </div>
+                    <Skeleton className="h-3 w-48" />
                   </div>
-                  {p.address && <p className="truncate text-xs text-muted-foreground mt-0.5">{p.address}</p>}
                 </div>
-              </button>
-            );
-          })}
+              ))}
+            </div>
+          ) : (
+            matchingPlaces.map((p) => {
+              const cat = CATEGORIES.find((c) => c.key === p.category);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handleSelectPlace(p)}
+                  className="flex items-start gap-3 rounded-2xl border border-border bg-surface p-3 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-primary-50/40"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary-100 bg-primary-50 text-primary">
+                    <Icon name={cat?.icon || "pin"} size={18} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-sm font-semibold text-foreground">{p.name}</p>
+                      <span className="shrink-0 text-xs font-semibold text-primary">
+                        cách {Math.round(p.distance)}m
+                      </span>
+                    </div>
+                    {p.address && <p className="truncate text-xs text-muted-foreground mt-0.5">{p.address}</p>}
+                  </div>
+                </button>
+              );
+            })
+          )}
         </div>
         <div className="border-t border-border/60 pt-3">
           <Button
