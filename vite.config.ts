@@ -23,10 +23,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // "prompt" + a visible refresh affordance (PWAUpdatePrompt) so iOS users,
-      // whose Safari caches hard and only re-checks the SW on relaunch, can take
-      // a new deploy without reinstalling.
-      registerType: "prompt",
+      // "autoUpdate" so the service worker automatically updates in the background.
+      // Along with a controllerchange listener, this forces the page to reload
+      // to pick up the latest deploy immediately.
+      registerType: "autoUpdate",
       // We register the SW ourselves in PWAUpdatePrompt (virtual:pwa-register),
       // so don't also auto-inject a registration script.
       injectRegister: false,
