@@ -7,8 +7,9 @@ import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
 import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
+import { Sheet } from "../components/ui/Sheet";
 import { UserProfileSheet } from "../components/UserProfileSheet";
-import { useLocationLabel } from "../hooks/useLocationLabel";
+import { cn } from "../lib/cn";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import {
   getNearbyAppPlaces,
@@ -63,6 +64,7 @@ export function DiscoverPage() {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [filters, setFilters] = useState<{ active: FilterKey }>({ active: "all" });
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const queryClient = useQueryClient();
   const placeListRef = useRef<HTMLDivElement | null>(null);
   const [placeListScrollMargin, setPlaceListScrollMargin] = useState(0);
@@ -70,7 +72,6 @@ export function DiscoverPage() {
   const { user } = useAuth();
   const { coords } = useUserLocation();
   const at: LatLng = coords ?? FALLBACK;
-  const { locationLabel, locationHint } = useLocationLabel(coords);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 300);
@@ -216,59 +217,45 @@ export function DiscoverPage() {
           </div>
         )}
 
-        <section className="flex flex-col gap-1 px-1">
-          <p className="flex items-center gap-1.5 text-sm font-bold text-clay-700">
-            <Icon name="pin" size={16} className="text-primary" /> {locationLabel}
-          </p>
-          <p className="text-xs text-muted-foreground">{locationHint}</p>
-        </section>
-
-        <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 shadow-card focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-          <Icon name="search" size={19} className="shrink-0 text-foreground" />
-          <input
-            name="place-search"
-            aria-label="Tìm địa điểm"
-            autoComplete="off"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm địa điểm, quán cafe, nơi check-in…"
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-subtle-foreground"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Xóa tìm kiếm"
-            >
-              <Icon name="x" size={16} />
-            </button>
-          )}
-        </div>
-
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-none" aria-label="Bộ lọc nhanh">
-          {FILTER_CHIPS.map((chip) => {
-            const active = filters.active === chip.key;
-            return (
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 shadow-card focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+            <Icon name="search" size={19} className="shrink-0 text-foreground" />
+            <input
+              name="place-search"
+              aria-label="Tìm địa điểm"
+              autoComplete="off"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Tìm địa điểm, quán cafe, nơi check-in…"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-subtle-foreground"
+            />
+            {query && (
               <button
-                key={chip.key}
                 type="button"
-                onClick={() => {
-                  setFilters({ active: chip.key });
-                  trackEvent("discover_filter_change", { filter: chip.key });
-                }}
-                className={`flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                  active
-                    ? "border-primary bg-primary text-primary-foreground shadow-cta"
-                    : "border-border bg-surface text-clay-700 shadow-sm hover:border-primary/40 hover:text-foreground"
-                }`}
-                aria-pressed={active}
+                onClick={() => setQuery("")}
+                className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Xóa tìm kiếm"
               >
-                {chip.icon && <Icon name={chip.icon} size={14} />}
-                {chip.label}
+                <Icon name="x" size={16} />
               </button>
-            );
-          })}
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsFilterSheetOpen(true)}
+            className={cn(
+              "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring relative cursor-pointer active:scale-95",
+              filters.active !== "all"
+                ? "border-primary bg-primary text-primary-foreground shadow-cta"
+                : "border-border bg-surface text-foreground shadow-card hover:border-primary/40"
+            )}
+            aria-label="Mở bộ lọc"
+          >
+            <Icon name="filter" size={18} strokeWidth={filters.active !== "all" ? 2.5 : 2.2} />
+            {filters.active !== "all" && (
+              <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-accent-500 ring-2 ring-primary" />
+            )}
+          </button>
         </div>
 
         {debounced ? (
@@ -406,6 +393,39 @@ export function DiscoverPage() {
       )}
       {selectedCheckpointId && (
         <CheckpointDetailSheet id={selectedCheckpointId} onClose={() => setSelectedCheckpointId(null)} />
+      )}
+      {isFilterSheetOpen && (
+        <Sheet title="Bộ lọc tìm kiếm" onClose={() => setIsFilterSheetOpen(false)}>
+          <div className="flex flex-col gap-4 py-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Chọn danh mục lọc nhanh</p>
+            <div className="flex flex-wrap gap-2.5">
+              {FILTER_CHIPS.map((chip) => {
+                const active = filters.active === chip.key;
+                return (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => {
+                      setFilters({ active: chip.key });
+                      trackEvent("discover_filter_change", { filter: chip.key });
+                      setIsFilterSheetOpen(false);
+                    }}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-bold transition-all cursor-pointer hover:scale-[1.03] active:scale-[0.97]",
+                      active
+                        ? "border-primary bg-primary text-primary-foreground shadow-cta"
+                        : "border-border bg-surface text-clay-700 shadow-sm hover:border-primary/40 hover:text-foreground"
+                    )}
+                    aria-pressed={active}
+                  >
+                    {chip.icon && <Icon name={chip.icon} size={14} />}
+                    {chip.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </Sheet>
       )}
     </>
   );

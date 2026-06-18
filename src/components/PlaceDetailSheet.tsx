@@ -2,7 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { getPlace } from "../lib/api";
+import { getPlace, API_URL } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { trackEvent } from "../lib/observability";
 import { useUserLocation } from "../location/LocationProvider";
@@ -110,7 +110,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
 
   const sharePlace = async () => {
     if (!placeInfo) return;
-    const url = `${window.location.origin}/discover?place=${encodeURIComponent(placeInfo.id)}`;
+    const url = `${API_URL}/share/place/${placeInfo.id}`;
     try {
       if (navigator.share) {
         await navigator.share({

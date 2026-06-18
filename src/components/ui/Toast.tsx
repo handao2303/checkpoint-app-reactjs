@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Icon } from "./Icon";
 
 /** Animated XP reward pill — slides in from top with spring, exits upward. */
@@ -57,7 +57,7 @@ export function Toast({
   onDone,
   onClick,
 }: {
-  message: string;
+  message: ReactNode;
   onDone: () => void;
   onClick?: () => void;
 }) {

@@ -197,7 +197,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                 Chưa có check-in nào.
               </p>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex gap-3 overflow-x-auto px-4 -mx-4 pb-2 scrollbar-none ">
                 {checkpoints.map((cp) => (
                   <MediaPreview
                     key={cp.id}
@@ -216,13 +216,13 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                         caption: <MomentCaption cp={item} />,
                       }))}
                     galleryIndex={checkpoints.filter((item) => item.image_url).findIndex((item) => item.id === cp.id)}
-                    className="h-28 w-full rounded-lg object-cover"
+                    className="h-28 w-[140px] shrink-0 rounded-lg object-cover snap-start"
                     fallback={
                       <ImagePlaceholder
-                        className="h-28"
+                        className="h-28 w-[140px] shrink-0 snap-start"
                         label={
-                          <span className="flex items-center gap-1">
-                            <Icon name={categoryIcon(cp.category)} size={16} /> {cp.name}
+                          <span className="flex items-center gap-1 text-[11px] truncate px-1.5">
+                            <Icon name={categoryIcon(cp.category)} size={14} /> {cp.name}
                           </span>
                         }
                       />
@@ -264,9 +264,9 @@ function UserProfileSkeleton() {
 
 function MomentGridSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="flex gap-3 overflow-x-auto px-4 -mx-4 pb-2 scrollbar-none ">
       {Array.from({ length: 4 }).map((_, i) => (
-        <Skeleton key={i} className="h-28 rounded-lg" />
+        <Skeleton key={i} className="h-28 w-[140px] shrink-0 rounded-lg snap-start" />
       ))}
     </div>
   );

@@ -37,7 +37,7 @@ export function Chip({
 /** Small XP reward badge (e.g. "+50 XP"). */
 export function XPBadge({ xp }: { xp: number }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-green-600 bg-green-600 px-2 py-0.5 text-xs font-bold text-white shadow-sm">
+    <span className="inline-flex items-center rounded-full border border-green-600 bg-green-400 px-2 py-0.5 text-xs font-bold text-white shadow-sm">
       +{xp} XP
     </span>
   );

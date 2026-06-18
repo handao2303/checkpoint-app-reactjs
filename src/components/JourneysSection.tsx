@@ -121,6 +121,18 @@ export function JourneysSection() {
     });
   }
 
+  function toggleAllCheckpoints(checkpoints: Checkpoint[]) {
+    setDraft((current) => {
+      const allSelected = checkpoints.every((cp) => current.selected.some((item) => item.id === cp.id));
+      return {
+        ...current,
+        selected: allSelected
+          ? current.selected.filter((item) => !checkpoints.some((cp) => cp.id === item.id))
+          : [...current.selected, ...checkpoints.filter((cp) => !current.selected.some((item) => item.id === cp.id))],
+      };
+    });
+  }
+
   function removeSelected(id: string) {
     setDraft((current) => ({
       ...current,
@@ -282,6 +294,7 @@ export function JourneysSection() {
           hasNextPage={!!picker.hasNextPage}
           sentinelRef={sentinelRef}
           onToggle={toggleCheckpoint}
+          onToggleAll={toggleAllCheckpoints}
           onClose={closePicker}
           onContinue={continueFromPicker}
         />
@@ -401,6 +414,7 @@ function CheckpointPickerModal({
   hasNextPage,
   sentinelRef,
   onToggle,
+  onToggleAll,
   onClose,
   onContinue,
 }: {
@@ -412,9 +426,12 @@ function CheckpointPickerModal({
   hasNextPage: boolean;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
   onToggle: (checkpoint: Checkpoint) => void;
+  onToggleAll: (checkpoints: Checkpoint[]) => void;
   onClose: () => void;
   onContinue: () => void;
 }) {
+  const allSelected = checkpoints.length > 0 && checkpoints.every((cp) => selectedIds.has(cp.id));
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
@@ -435,6 +452,27 @@ function CheckpointPickerModal({
             <Icon name="x" size={20} />
           </button>
         </div>
+
+        {checkpoints.length > 0 && (
+          <div className="flex shrink-0 items-center justify-between border-b border-border bg-surface-muted/30 px-4 py-2">
+            <button
+              type="button"
+              onClick={() => onToggleAll(checkpoints)}
+              className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline cursor-pointer"
+            >
+              <span
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                  allSelected
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-surface"
+                }`}
+              >
+                {allSelected && <Icon name="check" size={10} />}
+              </span>
+              {allSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+            </button>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-4 py-2">
           {isLoading ? (

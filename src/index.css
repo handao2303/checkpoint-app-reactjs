@@ -15,6 +15,13 @@
   --font-body: "Montserrat", system-ui, -apple-system, sans-serif;
   --font-mono: "Be Vietnam Pro", ui-monospace, monospace;
 
+  --font-weight-light: 300;
+  --font-weight-normal: 300;
+  --font-weight-medium: 400;
+  --font-weight-semibold: 500;
+  --font-weight-bold: 600;
+  --font-weight-extrabold: 700;
+
   --color-primary-50:  #FFF0E8;
   --color-primary-100: #FFE0D1;
   --color-primary-200: #FFC2A8;
@@ -238,4 +245,12 @@
     -webkit-user-select: text;
     user-select: text;
   }
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }

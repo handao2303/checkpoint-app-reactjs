@@ -13,7 +13,7 @@ import { BadgeCollectionPage } from "./pages/BadgeCollectionPage";
 import { CreatePage } from "./pages/CreatePage";
 import { DiscoverPage } from "./pages/DiscoverPage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
-import { CheckpointLink, JourneyLink, UserProfileLink } from "./pages/LinkRoutes";
+import { CheckpointLink, JourneyLink, UserProfileLink, PlaceLink } from "./pages/LinkRoutes";
 import { LoginPage } from "./pages/LoginPage";
 import { ProfilePage } from "./pages/ProfilePage";
 
@@ -72,6 +72,7 @@ export default function App() {
           <Route index element={<Navigate to="/discover" replace />} />
           <Route path="discover" element={<DiscoverPage />} />
           <Route path="c/:id" element={<CheckpointLink />} />
+          <Route path="p/:id" element={<PlaceLink />} />
           <Route path="j/:id" element={<JourneyLink />} />
           <Route path="u/:username" element={<UserProfileLink />} />
         </Route>
@@ -97,6 +98,7 @@ export default function App() {
         {/* Deep links from share. URL survives login, so a recipient lands here
             right after signing in. */}
         <Route path="c/:id" element={<CheckpointLink />} />
+        <Route path="p/:id" element={<PlaceLink />} />
         <Route path="j/:id" element={<JourneyLink />} />
         <Route path="u/:username" element={<UserProfileLink />} />
         {/* Unknown paths (e.g. /login after signing in) → map. */}

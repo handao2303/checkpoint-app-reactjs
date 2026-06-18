@@ -3,71 +3,33 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { BadgeMedal } from "../components/BadgeMedal";
-import { DriveConnectCard } from "../components/DriveConnectCard";
 import { EditProfileSheet } from "../components/EditProfileSheet";
+import { SettingsSheet } from "../components/SettingsSheet";
 import { JourneysSection } from "../components/JourneysSection";
 import { MediaPreview } from "../components/MediaPreview";
 import { PassportSection } from "../components/PassportSection";
 import { ShareButton } from "../components/share/ShareButton";
-import { Toast } from "../components/ui/Toast";
 import { Button } from "../components/ui/Button";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
 import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
+import { Toast } from "../components/ui/Toast";
 import { UserAvatar } from "../components/ui/UserAvatar";
 import { UpgradeBanner } from "../components/UpgradeBanner";
-import { cn } from "../lib/cn";
 import { useCheckin } from "../hooks/useCheckin";
 import {
+  API_URL,
   getBadges,
   getLeaderboard,
   getMyCheckpoints,
   getPassport,
   type Checkpoint,
   type LeaderboardEntry,
-  API_URL,
 } from "../lib/api";
-import { levelTierIconUrl } from "../lib/avatarFrames";
 import { categoryIcon } from "../lib/maps";
-import { quickCheckinSettings } from "../lib/settings";
-import { renderProfileCard } from "../lib/shareCard";
 import { trackEvent } from "../lib/observability";
+import { renderProfileCard } from "../lib/shareCard";
 
-function SettingSwitch({
-  checked,
-  label,
-  description,
-  onChange,
-}: {
-  checked: boolean;
-  label: string;
-  description: string;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className="flex w-full items-center gap-3 rounded-lg py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-foreground">{label}</span>
-        <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>
-      </span>
-      <span
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-primary" : "bg-surface-muted"
-          }`}
-      >
-        <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"
-            }`}
-        />
-      </span>
-    </button>
-  );
-}
 
 function MomentCaption({ cp }: { cp?: Checkpoint }) {
   if (!cp) return null;
@@ -124,13 +86,7 @@ export function ProfilePage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [openCreateOnLaunch, setOpenCreateOnLaunch] = useState(
-    () => quickCheckinSettings.openCreateOnLaunch,
-  );
-  const [preferCameraOnCheckin, setPreferCameraOnCheckin] = useState(
-    () => quickCheckinSettings.preferCameraOnCheckin,
-  );
+  const [settingsSheetOpen, setSettingsSheetOpen] = useState(false);
   const { start, sheets } = useCheckin();
 
   const { data: myCheckpoints = [], isLoading: momentsLoading } = useQuery({
@@ -153,7 +109,6 @@ export function ProfilePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [driveToast, setDriveToast] = useState<string | null>(null);
-  const [levelIconLoaded, setLevelIconLoaded] = useState(false);
 
   useEffect(() => {
     trackEvent("profile_open");
@@ -198,20 +153,31 @@ export function ProfilePage() {
             trackEvent("profile_edit_open");
             setEditing(true);
           }}
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary"
+          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary cursor-pointer"
           aria-label="Sửa hồ sơ"
         >
           <Icon name="pencil" size={16} />
         </button>
 
+        <button
+          onClick={() => {
+            trackEvent("profile_settings_open");
+            setSettingsSheetOpen(true);
+          }}
+          className="absolute right-3 top-14 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary cursor-pointer"
+          aria-label="Cài đặt"
+        >
+          <Icon name="settings" size={16} />
+        </button>
+
         {/* Avatar + info */}
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-1">
           <div className="relative shrink-0">
             <UserAvatar
               src={user.avatar_url}
               name={user.display_name}
               username={user.username}
-              className="h-28 w-28"
+              className="h-25 w-25"
               loading="eager"
               fallbackClassName={`h-24 w-24 bg-primary-50 text-primary ${avatarRingClass(user.level)}`}
             />
@@ -253,7 +219,7 @@ export function ProfilePage() {
         {/* Stats */}
         <div className="mt-4 grid grid-cols-4 gap-2">
           {[
-            { label: "XP", value: user.total_xp.toLocaleString() },
+            { label: "Huy hiệu", value: unlockedBadges.length.toString() },
             { label: "Cờ", value: user.checkpoint_count.toString() },
             { label: "Hành trình", value: user.journey_count.toString() },
             { label: "Cấp", value: user.level.toString() },
@@ -269,34 +235,16 @@ export function ProfilePage() {
       {/* Level card */}
       <Card>
         <div className="flex items-center gap-4">
-          <div className="relative h-16 w-16 shrink-0">
-            {!levelIconLoaded && (
-              <span
-                className="absolute inset-0 h-full w-full shrink-0"
-                style={{ clipPath: "polygon(50% 5.47%, 85.16% 25.39%, 85.16% 65.23%, 50% 85.16%, 14.84% 65.23%, 14.84% 25.39%)" }}
-              >
-                <Skeleton className="h-full w-full rounded-none" />
-              </span>
-            )}
-            <img
-              src={levelTierIconUrl(user.level)}
-              alt=""
-              aria-hidden="true"
-              onLoad={() => setLevelIconLoaded(true)}
-              className={cn(
-                "absolute inset-0 h-full w-full object-contain transition-opacity duration-200",
-                levelIconLoaded ? "opacity-100" : "opacity-0",
-              )}
-            />
-            {levelIconLoaded && (
-              <span className="absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 font-display text-xl font-bold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]">
-                {user.level}
-              </span>
-            )}
-          </div>
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center justify-between">
-              <p className="font-semibold text-foreground">Cấp độ hiện tại</p>
+              <div className="flex items-center gap-1">
+                <Icon
+                  name="star"
+                  size={20}
+                  className="text-gold"
+                />
+                <p className="font-semibold text-foreground">Cấp độ hiện tại</p>
+              </div>
               <p className="text-sm text-muted-foreground">{user.total_xp.toLocaleString()} XP</p>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-primary-100">
@@ -334,7 +282,7 @@ export function ProfilePage() {
           </button>
         </div>
         {badgesLoading ? (
-          <div className="flex gap-4 overflow-x-auto pb-1">
+          <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-none">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex w-14 shrink-0 flex-col items-center gap-0.5">
                 <span
@@ -352,7 +300,7 @@ export function ProfilePage() {
             Chưa có huy hiệu nào. Hãy check-in để mở khóa!
           </p>
         ) : (
-          <div className="flex gap-4 overflow-x-auto pb-1">
+          <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-none">
             {unlockedBadges.map((b) => (
               <div
                 key={b.key}
@@ -402,61 +350,8 @@ export function ProfilePage() {
       {/* Provinces visited */}
       <PassportSection />
 
-      {/* Settings */}
-      <Card>
-        <button
-          type="button"
-          aria-expanded={settingsOpen}
-          aria-controls="profile-settings"
-          onClick={() => setSettingsOpen((open) => !open)}
-          className="flex w-full items-center gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Icon name="settings" size={18} className="text-clay-600" />
-          <h3 className="flex-1 font-display text-lg font-bold">Cài đặt</h3>
-          <Icon
-            name="chevron-down"
-            size={18}
-            className={`text-muted-foreground transition-transform ${settingsOpen ? "rotate-180" : ""}`}
-          />
-        </button>
-        {settingsOpen && (
-          <div id="profile-settings" className="mt-2 divide-y divide-border">
-            <SettingSwitch
-              checked={openCreateOnLaunch}
-              label="Check-in luôn khi mở app"
-              description="Đi thẳng đến màn hình cắm cờ mỗi khi tải lại hoặc mở app."
-              onChange={(checked) => {
-                quickCheckinSettings.openCreateOnLaunch = checked;
-                setOpenCreateOnLaunch(checked);
-                trackEvent("profile_setting_change", { setting: "open_create_on_launch", enabled: checked });
-              }}
-            />
-            <SettingSwitch
-              checked={preferCameraOnCheckin}
-              label="Ưu tiên chụp ảnh khi check-in"
-              description="Tự mở camera một lần khi bắt đầu check-in."
-              onChange={(checked) => {
-                quickCheckinSettings.preferCameraOnCheckin = checked;
-                setPreferCameraOnCheckin(checked);
-                trackEvent("profile_setting_change", { setting: "prefer_camera_on_checkin", enabled: checked });
-              }}
-            />
-          </div>
-        )}
-      </Card>
 
-      {/* Integrations */}
-      <Card>
-        <div className="mb-1 flex items-center gap-2">
-          <Icon name="sparkle" size={18} className="text-clay-600" />
-          <h3 className="font-display text-lg font-bold">Tích hợp</h3>
-        </div>
-        <div className="divide-y divide-border">
-          <DriveConnectCard />
-        </div>
-      </Card>
-
-      {/* Moments */}
+ {/* Moments */}
       <div>
         <div className="mb-2 flex items-center justify-between">
           <h3 className="font-display text-lg font-bold">Khoảnh khắc hành trình</h3>
@@ -469,9 +364,9 @@ export function ProfilePage() {
           </button>
         </div>
         {momentsLoading ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex gap-3 overflow-x-auto px-4 -mx-4 pb-2 scrollbar-none ">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+              <Skeleton key={i} className="h-28 w-[140px] shrink-0 rounded-lg snap-start" />
             ))}
           </div>
         ) : myCheckpoints.length === 0 ? (
@@ -479,7 +374,7 @@ export function ProfilePage() {
             Chưa có check-in nào. Mở tab Map và cắm cờ địa điểm đầu tiên!
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex gap-3 overflow-x-auto px-4 -mx-4 pb-2 scrollbar-none ">
             {myCheckpoints.map((cp) => (
               <MediaPreview
                 key={cp.id}
@@ -498,13 +393,13 @@ export function ProfilePage() {
                     caption: <MomentCaption cp={item} />,
                   }))}
                 galleryIndex={myCheckpoints.filter((item) => item.image_url).findIndex((item) => item.id === cp.id)}
-                className="h-28 w-full rounded-lg object-cover"
+                className="h-28 w-[140px] shrink-0 rounded-lg object-cover snap-start"
                 fallback={
                   <ImagePlaceholder
-                    className="h-28"
+                    className="h-28 w-[140px] shrink-0 snap-start"
                     label={
-                      <span className="flex items-center gap-1">
-                        <Icon name={categoryIcon(cp.category)} size={16} /> {cp.name}
+                      <span className="flex items-center gap-1 text-[11px] truncate px-1.5">
+                        <Icon name={categoryIcon(cp.category)} size={14} /> {cp.name}
                       </span>
                     }
                   />
@@ -542,6 +437,7 @@ export function ProfilePage() {
       </p>
 
       {editing && <EditProfileSheet onClose={() => setEditing(false)} />}
+      {settingsSheetOpen && <SettingsSheet onClose={() => setSettingsSheetOpen(false)} />}
       {sheets}
       {driveToast && <Toast message={driveToast} onDone={() => setDriveToast(null)} />}
     </div>
