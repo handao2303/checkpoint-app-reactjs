@@ -454,7 +454,6 @@ function FeedCard({
             name={author}
             username={item.author.username}
             className="h-11 w-11"
-            shape="none"
           />
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold text-foreground">{author}</p>

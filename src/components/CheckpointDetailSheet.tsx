@@ -114,7 +114,6 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                 name={data.author.display_name}
                 username={data.author.username}
                 className="h-8 w-8"
-                shape="none"
                 fallbackClassName="h-7 w-7"
               />
               <span className="font-medium text-foreground">

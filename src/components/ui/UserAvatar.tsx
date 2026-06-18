@@ -61,7 +61,7 @@ export function UserAvatar({
     <span
       aria-hidden="true"
       className={cn(
-        "grid shrink-0 place-items-center border border-primary-100 bg-primary-50 font-bold text-primary-700 shadow-sm",
+        "grid shrink-0 place-items-center border border-primary-100 bg-primary-50 font-extrabold text-primary-700 shadow-sm",
         shapeClass,
         className,
         fallbackClassName,

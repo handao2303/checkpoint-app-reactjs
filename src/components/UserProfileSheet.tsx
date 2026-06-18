@@ -94,7 +94,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
       ) : (
         <div className="flex flex-col gap-5 pb-2">
           {/* Hero card — matches ProfilePage layout */}
-          <div className="relative rounded-2xl bg-[image:var(--gradient-passport)] p-5 text-white shadow-card">
+          <div className="relative rounded-2xl border border-border bg-surface p-5 text-foreground shadow-card">
             {/* Avatar + info row */}
             <div className="flex items-start gap-4">
               <div className="relative shrink-0">
@@ -106,7 +106,6 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                         name={u.display_name}
                         username={u.username}
                         className="h-24 w-24"
-                        shape="none"
                         loading="eager"
                       />
                     </PhotoView>
@@ -116,10 +115,10 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                     name={u.display_name}
                     username={u.username}
                     className="h-20 w-20"
-                    fallbackClassName={`bg-white/20 text-white ${avatarRingClass(u.level)}`}
+                    fallbackClassName={`bg-primary-50 text-primary ${avatarRingClass(u.level)}`}
                   />
                 )}
-                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-bold text-clay-600 shadow-sm">
+                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-xs font-extrabold text-primary shadow-sm">
                   Cấp {u.level}
                 </span>
               </div>
@@ -127,18 +126,18 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                 <h2 className="font-display text-xl font-bold leading-tight">
                   {u.display_name || u.username}
                 </h2>
-                <p className="text-sm text-white/70">@{u.username}</p>
+                <p className="text-sm text-muted-foreground">@{u.username}</p>
                 {u.bio && (
-                  <p className="mt-1 line-clamp-2 text-xs text-white/80">{u.bio}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{u.bio}</p>
                 )}
               </div>
             </div>
 
             {/* Tags */}
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/80">
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
               {u.checkin_streak > 0 && (
                 <span className="flex items-center gap-1">
-                  <Icon name="fire" size={12} className="text-orange-300" />
+                  <Icon name="fire" size={12} className="text-primary" />
                   {u.checkin_streak} ngày liên tiếp
                 </span>
               )}
@@ -151,14 +150,14 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
             {/* Stats */}
             <div className="mt-4 grid grid-cols-4 gap-2">
               {[
-                { label: "TỔNG XP", value: u.total_xp.toLocaleString() },
-                { label: "SỐ CỜ", value: u.checkpoint_count.toString() },
-                { label: "HÀNH TRÌNH", value: u.journey_count.toString() },
-                { label: "CẤP", value: u.level.toString() },
+                { label: "XP", value: u.total_xp.toLocaleString() },
+                { label: "Cờ", value: u.checkpoint_count.toString() },
+                { label: "Hành trình", value: u.journey_count.toString() },
+                { label: "Cấp", value: u.level.toString() },
               ].map((s) => (
-                <div key={s.label} className="rounded-lg bg-white/10 py-2 text-center">
-                  <p className="text-[10px] text-white/70">{s.label}</p>
-                  <p className="font-display text-base font-bold">{s.value}</p>
+                <div key={s.label} className="rounded-xl border border-border bg-surface-muted py-2 text-center">
+                  <p className="text-[10px] font-semibold text-muted-foreground">{s.label}</p>
+                  <p className="font-display text-base font-extrabold text-clay-800">{s.value}</p>
                 </div>
               ))}
             </div>

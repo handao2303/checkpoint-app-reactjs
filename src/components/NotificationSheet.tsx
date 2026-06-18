@@ -133,7 +133,6 @@ function NotificationRow({
           name={name}
           username={notif.actor.username}
           className="h-12 w-12"
-          shape="none"
           fallbackClassName="h-11 w-11"
         />
         {notif.type === "reaction" && notif.reaction && REACTION_ICONS[notif.reaction] && (

@@ -1,0 +1,45 @@
+:root {
+  --cp-orange: #F05A28;
+  --cp-ink: #2A211C;
+  --cp-muted: #7A6B5F;
+  --cp-paper: #FFFDF8;
+  --cp-cream: #FFF8F1;
+  --cp-success: #2F8A52;
+  --cp-mustard: #E0A73A;
+  --cp-olive: #8CA96B;
+  --cp-border-warm: #EBD8C7;
+
+  --cp-icon-size-sm: 18px;
+  --cp-icon-size-md: 24px;
+  --cp-icon-size-lg: 32px;
+  --cp-icon-stroke: 2.2;
+}
+
+.cp-icon {
+  width: var(--cp-icon-size-md);
+  height: var(--cp-icon-size-md);
+  color: var(--cp-ink);
+  stroke-width: var(--cp-icon-stroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  flex-shrink: 0;
+}
+
+.cp-icon--primary { color: var(--cp-orange); }
+.cp-icon--muted { color: var(--cp-muted); }
+.cp-icon--success { color: var(--cp-success); }
+.cp-icon--mustard { color: var(--cp-mustard); }
+.cp-icon--sm { width: var(--cp-icon-size-sm); height: var(--cp-icon-size-sm); }
+.cp-icon--lg { width: var(--cp-icon-size-lg); height: var(--cp-icon-size-lg); }
+
+.cp-icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: inline-grid;
+  place-items: center;
+  background: #FFF1EA;
+  color: var(--cp-orange);
+  border: 1px solid var(--cp-border-warm);
+}

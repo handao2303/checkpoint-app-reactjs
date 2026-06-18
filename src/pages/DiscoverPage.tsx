@@ -217,14 +217,14 @@ export function DiscoverPage() {
         )}
 
         <section className="flex flex-col gap-1 px-1">
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-clay-600">
-            <Icon name="map-pin" size={15} /> {locationLabel}
+          <p className="flex items-center gap-1.5 text-sm font-bold text-clay-700">
+            <Icon name="pin" size={16} className="text-primary" /> {locationLabel}
           </p>
           <p className="text-xs text-muted-foreground">{locationHint}</p>
         </section>
 
-        <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-          <Icon name="search" size={18} className="shrink-0 text-muted-foreground" />
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 shadow-card focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+          <Icon name="search" size={19} className="shrink-0 text-foreground" />
           <input
             name="place-search"
             aria-label="Tìm địa điểm"
@@ -257,10 +257,10 @@ export function DiscoverPage() {
                   setFilters({ active: chip.key });
                   trackEvent("discover_filter_change", { filter: chip.key });
                 }}
-                className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                className={`flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   active
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "border border-border bg-surface text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                    ? "border-primary bg-primary text-primary-foreground shadow-cta"
+                    : "border-border bg-surface text-clay-700 shadow-sm hover:border-primary/40 hover:text-foreground"
                 }`}
                 aria-pressed={active}
               >
@@ -304,7 +304,9 @@ export function DiscoverPage() {
               <section className="flex flex-col gap-3">
                 <div className="flex items-end justify-between px-1">
                   <div>
-                    <h2 className="font-display text-lg font-bold text-foreground">Đang hot gần bạn</h2>
+                    <h2 className="flex items-center gap-2 font-display text-xl font-extrabold text-foreground">
+                      <Icon name="star" size={22} className="fill-gold text-gold" /> Đang hot gần bạn
+                    </h2>
                     <p className="text-xs text-muted-foreground">Nhiều người vừa cắm cờ</p>
                   </div>
                 </div>
@@ -330,7 +332,8 @@ export function DiscoverPage() {
 
             <section className="flex items-end justify-between px-1">
               <div>
-                <h2 className="font-display text-lg font-bold text-foreground">
+                <h2 className="flex items-center gap-2 font-display text-xl font-extrabold text-foreground">
+                  <Icon name="pin-filled" size={22} className="text-primary" />
                   {filters.active === "hot" ? "Địa điểm đang hot" : "Địa điểm gần bạn"}
                 </h2>
                 <p className="text-xs text-muted-foreground">
@@ -442,7 +445,7 @@ function PlaceCard({
       <button
         type="button"
         onClick={onOpen}
-        className="group w-44 shrink-0 overflow-hidden rounded-xl border border-border/60 bg-surface text-left shadow-card transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="group w-48 shrink-0 overflow-hidden rounded-2xl border border-border bg-surface text-left shadow-card transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <PlaceThumb place={place} imageUrl={imageUrl} className="h-28 w-full rounded-none" imageLoading="lazy" />
         <div className="flex flex-col gap-1.5 p-3">
@@ -450,7 +453,7 @@ function PlaceCard({
           <div className="flex min-w-0 items-center gap-2 text-[11px] font-medium text-muted-foreground">
             {place.avg_rating != null && (
               <span className="flex items-center gap-0.5 text-foreground">
-                <Icon name="star" size={12} className="fill-gold text-gold" /> {place.avg_rating.toFixed(1)}
+              <Icon name="star" size={12} className="fill-gold text-gold" /> {place.avg_rating.toFixed(1)}
               </span>
             )}
             <span className="flex items-center gap-0.5">
@@ -467,7 +470,7 @@ function PlaceCard({
     <button
       type="button"
       onClick={onOpen}
-      className="flex min-w-0 items-center gap-3 rounded-xl border border-border/50 bg-surface p-3 text-left shadow-card transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-full"
+      className="flex min-w-0 w-full items-center gap-3 rounded-2xl border border-border bg-surface p-3 text-left shadow-card transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <PlaceThumb place={place} imageUrl={imageUrl} className="h-16 w-16 rounded-xl" imageLoading="lazy" />
 
@@ -495,7 +498,7 @@ function PlaceCard({
           </span>
           {distance && (
             <span className="flex items-center gap-1">
-              <Icon name="map-pin" size={13} /> {distance}
+              <Icon name="pin" size={13} /> {distance}
             </span>
           )}
         </div>
@@ -504,10 +507,10 @@ function PlaceCard({
       <span
         className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${
           place.viewer_has_checked_in
-            ? "bg-green-50 text-green-700"
+            ? "border border-green-100 bg-green-50 text-green-700"
             : signedIn
-              ? "bg-primary text-primary-foreground"
-              : "bg-surface-muted text-muted-foreground"
+              ? "border border-primary bg-primary-50 text-primary"
+              : "border border-border bg-surface-muted text-muted-foreground"
         }`}
       >
         {cta}
@@ -529,7 +532,7 @@ function PlaceThumb({
 }) {
   return (
     <span
-      className={`relative flex shrink-0 items-center justify-center overflow-hidden bg-clay-50 text-clay-600 ${className}`}
+      className={`relative flex shrink-0 items-center justify-center overflow-hidden border border-border bg-primary-50 text-primary ${className}`}
     >
       {imageUrl ? (
         <img
@@ -549,7 +552,7 @@ function PlaceThumb({
 
 function PlaceCardSkeleton() {
   return (
-    <div className="flex items-center gap-4 rounded-xl bg-surface p-4 border border-border/40">
+    <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
       <Skeleton className="h-12 w-12 rounded-xl" />
       <div className="flex-1 flex flex-col gap-2">
         <Skeleton className="h-5 w-40" />
@@ -565,7 +568,7 @@ function PlaceCardSkeleton() {
 
 function HotPlaceSkeleton() {
   return (
-    <div className="w-44 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-surface shadow-card">
+    <div className="w-48 shrink-0 overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
       <Skeleton className="h-28 w-full rounded-none" />
       <div className="flex flex-col gap-2 p-3">
         <Skeleton className="h-4 w-28" />

@@ -47,8 +47,8 @@ export function PassportSection() {
               {s.cover_url ? (
                 <img src={s.cover_url} alt="" className="h-24 w-full object-cover" />
               ) : (
-                <div className="flex h-24 w-full items-center justify-center bg-[image:var(--gradient-passport)] text-white">
-                  <Icon name="map-pin" size={24} />
+                <div className="flex h-24 w-full items-center justify-center bg-primary-50 text-primary">
+                  <Icon name="pin" size={24} />
                 </div>
               )}
               <div className="p-2">

@@ -415,10 +415,10 @@ export function CreateCheckpointForm({
                 key={p.id}
                 type="button"
                 onClick={() => handleSelectPlace(p)}
-                className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3 text-left transition hover:border-primary/50 hover:bg-surface-muted/50"
+                className="flex items-start gap-3 rounded-2xl border border-border bg-surface p-3 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-primary-50/40"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Icon name={cat?.icon || "map-pin"} size={18} />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary-100 bg-primary-50 text-primary">
+                  <Icon name={cat?.icon || "pin"} size={18} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
@@ -449,10 +449,10 @@ export function CreateCheckpointForm({
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
       {selectedPlace && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary-100 bg-primary-50 p-3 shadow-sm">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Icon name={CATEGORIES.find((c) => c.key === selectedPlace.category)?.icon || "map-pin"} size={16} />
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary-100 bg-surface text-primary">
+              <Icon name={CATEGORIES.find((c) => c.key === selectedPlace.category)?.icon || "pin"} size={17} />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground font-medium">Check-in tại địa điểm</p>
@@ -472,7 +472,7 @@ export function CreateCheckpointForm({
       )}
 
       {!selectedPlace && matchingPlaces.length > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-muted/50 p-3">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-3 shadow-sm">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted-foreground/10 text-muted-foreground">
               <Icon name="plus" size={16} />
@@ -514,7 +514,10 @@ export function CreateCheckpointForm({
         </label>
       )}
 
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 shadow-card">
+        <span className="flex items-center gap-2 font-display text-lg font-extrabold text-foreground">
+          <Icon name="pin" size={20} className="text-primary" /> Địa điểm
+        </span>
         <input
           required
           value={name}
@@ -523,52 +526,57 @@ export function CreateCheckpointForm({
             if (suggestionApplied) setSuggestionApplied(false);
           }}
           placeholder="Tên địa điểm"
-          className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
+
+        <div className="flex flex-wrap gap-2">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              disabled={!!selectedPlace}
+              onClick={() => setCategory(c.key)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-bold transition-colors",
+                category === c.key
+                  ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                  : "border-border bg-surface-muted text-muted-foreground",
+                selectedPlace && "opacity-60 cursor-not-allowed",
+              )}
+            >
+              <Icon name={c.icon} size={16} /> {c.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {CATEGORIES.map((c) => (
-          <button
-            key={c.key}
-            type="button"
-            disabled={!!selectedPlace}
-            onClick={() => setCategory(c.key)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition",
-              category === c.key ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground",
-              selectedPlace && "opacity-60 cursor-not-allowed",
-            )}
-          >
-            <Icon name={c.icon} size={16} /> {c.label}
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-card">
+        <span className="flex items-center gap-2 font-display text-lg font-extrabold text-foreground">
+          <Icon name="star" size={20} className="fill-gold text-gold" /> Đánh giá địa điểm
+        </span>
+        <div className="flex items-center gap-1">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setRating(n === rating ? undefined : n)}
+              className={cn("rounded-full p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", rating && n <= rating ? "opacity-100" : "opacity-30")}
+              aria-label={`${n} sao`}
+            >
+              <Icon name="star" size={30} className="fill-gold text-gold" />
+            </button>
+          ))}
+        </div>
       </div>
 
-      <textarea
-        rows={3}
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder="Cảm nhận của bạn..."
-        className="resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-      />
-
-      <div className="flex items-center gap-1">
-        <span className="mr-1 text-sm text-muted-foreground">Đánh giá</span>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => setRating(n === rating ? undefined : n)}
-            className={cn(rating && n <= rating ? "opacity-100" : "opacity-30")}
-            aria-label={`${n} sao`}
-          >
-            <Icon name="star" size={28} className="fill-gold text-gold" />
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-card">
+        <span className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2 font-display text-lg font-extrabold text-foreground">
+            <Icon name="camera" size={20} className="text-primary" /> Thêm ảnh
+          </span>
+          <span className="text-xs font-semibold text-primary">{imageCount}/{maxImages} ảnh</span>
+        </span>
+        <div className="flex flex-wrap gap-2">
         {picked.map((p, i) => (
           <div key={p.url} className="relative h-20 w-20">
             <MediaPreview
@@ -599,7 +607,7 @@ export function CreateCheckpointForm({
             onClick={addPhotos}
             disabled={imageProcessing}
             className={cn(
-              "flex h-20 w-20 flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed border-border text-muted-foreground",
+              "flex h-20 w-20 flex-col items-center justify-center gap-0.5 rounded-xl border-2 border-dashed border-border bg-surface-muted text-muted-foreground",
               imageProcessing ? "cursor-wait opacity-60" : "cursor-pointer",
             )}
           >
@@ -653,10 +661,34 @@ export function CreateCheckpointForm({
           }}
         />
       </div>
+      </div>
+
+      <label className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 shadow-card">
+        <span className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2 font-display text-lg font-extrabold text-foreground">
+            <Icon name="pencil" size={20} className="text-primary" /> Cảm nhận của bạn
+          </span>
+          <span className="text-xs text-muted-foreground">{note.length}/500</span>
+        </span>
+        <textarea
+          rows={4}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Không gian, đồ uống, góc chụp, cảm xúc..."
+          className="resize-none rounded-2xl border border-border bg-surface-muted p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+      </label>
 
       {err && <p className="text-sm text-accent-600">{err}</p>}
 
-      <Button type="submit" variant="accent" disabled={busy || processing || picked.length === 0} icon={<Icon name="flag" size={20} />}>
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary-100 bg-primary-50 p-3 shadow-sm">
+        <span className="flex items-center gap-2 font-bold text-foreground">
+          <Icon name="xp-coin" size={28} className="text-primary" /> Bạn sẽ nhận XP khi cắm cờ
+        </span>
+        <span className="text-sm font-extrabold text-primary">+XP</span>
+      </div>
+
+      <Button type="submit" variant="accent" size="lg" disabled={busy || processing || picked.length === 0} icon={<Icon name="flag-planted" size={22} />}>
         {busy ? "Đang lưu..." : "CẮM CỜ"}
       </Button>
       {cameraOpen && (

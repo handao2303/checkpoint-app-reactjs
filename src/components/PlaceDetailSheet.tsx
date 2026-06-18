@@ -157,7 +157,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
         </>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="overflow-hidden rounded-xl border border-border/60 bg-surface shadow-card">
+          <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
             {heroItem ? (
               <MediaPreview
                 url={heroItem.url}
@@ -173,14 +173,14 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
             )}
             <div className="flex flex-col gap-3 p-4">
               <div className="flex items-start gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary">
-                  <Icon name={placeInfo ? categoryIcon(placeInfo.category) : "map-pin"} size={23} />
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-primary-100 bg-primary-50 text-primary">
+                  <Icon name={placeInfo ? categoryIcon(placeInfo.category) : "pin"} size={23} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <h2 className="font-display text-xl font-bold leading-tight text-foreground">{placeInfo?.name}</h2>
                   {placeInfo?.address && (
                     <p className="mt-1 flex items-start gap-1.5 text-sm text-muted-foreground">
-                      <Icon name="map-pin" size={14} className="mt-0.5 shrink-0" />
+                      <Icon name="pin" size={14} className="mt-0.5 shrink-0 text-primary" />
                       <span className="min-w-0 break-words">{placeInfo.address}</span>
                     </p>
                   )}
@@ -201,13 +201,13 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
                 </span>
                 {distanceStr && (
                   <span className="flex items-center gap-1">
-                    <Icon name="map-pin" size={14} /> {distanceStr}
+                    <Icon name="pin" size={14} /> {distanceStr}
                   </span>
                 )}
               </div>
 
               {placeInfo?.viewer_has_checked_in && (
-                <p className="flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-2 text-sm font-semibold text-green-700">
+                <p className="flex items-center gap-1.5 rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-sm font-bold text-green-700">
                   <Icon name="check" size={16} /> Bạn đã cắm cờ tại đây
                 </p>
               )}
@@ -233,7 +233,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
           )}
 
           <Button
-            icon={<Icon name="flag" size={20} />}
+            icon={<Icon name="flag-planted" size={20} />}
             onClick={() => (user ? setCheckingIn(true) : navigate("/login"))}
           >
             {user ? "Cắm cờ tại đây" : "Đăng nhập để cắm cờ"}
@@ -243,7 +243,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
             <button
               type="button"
               onClick={openDirections}
-              className="flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border border-border bg-surface text-xs font-semibold text-foreground transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border border-border bg-surface text-xs font-bold text-foreground shadow-sm transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Icon name="route" size={17} />
               Chỉ đường
@@ -251,38 +251,43 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
             <button
               type="button"
               disabled
-              className="flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border border-border bg-surface-muted text-xs font-semibold text-muted-foreground opacity-70"
+              className="flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border border-border bg-surface-muted text-xs font-bold text-muted-foreground opacity-70"
               title="Tính năng lưu địa điểm sẽ được thêm sau"
             >
-              <Icon name="star" size={17} />
+              <Icon name="bookmark" size={17} />
               Lưu
             </button>
             <button
               type="button"
               onClick={() => void sharePlace()}
-              className="flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border border-border bg-surface text-xs font-semibold text-foreground transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border border-border bg-surface text-xs font-bold text-foreground shadow-sm transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Icon name="share" size={17} />
               Chia sẻ
             </button>
           </div>
 
-          <div className="rounded-xl border border-border/60 bg-surface-muted/50 p-3 text-sm text-muted-foreground">
+          <div className="flex items-start gap-2 rounded-2xl border border-primary-100 bg-primary-50 p-3 text-sm font-semibold text-clay-700">
+            <Icon name="pin" size={18} className="mt-0.5 shrink-0 text-primary" />
+            <span>
             {distanceM == null
               ? "Bật vị trí để Checkpoint cho biết bạn có đang đủ gần để cắm cờ không."
               : canCheckInNearby
                 ? "Bạn đang ở gần địa điểm này. Có thể cắm cờ ngay."
                 : `Bạn cách địa điểm này ${distanceStr}. Di chuyển gần hơn để cắm cờ chính xác hơn.`}
+            </span>
           </div>
 
           {checkins.length > 0 && (
             <div className="mt-4 flex flex-col gap-4">
-              <h3 className="font-display font-bold text-foreground">Check-in gần đây</h3>
+              <h3 className="flex items-center gap-2 font-display text-xl font-extrabold text-foreground">
+                <Icon name="sparkle" size={22} className="text-gold" /> Check-in gần đây
+              </h3>
               <div className="flex flex-col gap-4">
                 {checkins?.map((c) => {
                   const authorName = c.author.display_name || c.author.username;
                   return (
-                    <Card key={c.id} className="flex flex-col gap-3 p-4 border border-border/50 bg-surface shadow-sm">
+                    <Card key={c.id} className="flex flex-col gap-3 rounded-2xl p-4">
                       {/* Author Header */}
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex min-w-0 flex-1 items-center gap-3 text-left">

@@ -1,0 +1,19 @@
+{
+  "name": "Checkpoint Playful Travel Journal Icons",
+  "version": "1.0.0",
+  "size": 24,
+  "strokeWidth": 2.2,
+  "strokeLinecap": "round",
+  "strokeLinejoin": "round",
+  "colors": {
+    "primary": "#F05A28",
+    "ink": "#2A211C",
+    "muted": "#7A6B5F",
+    "paper": "#FFFDF8",
+    "warmCream": "#FFF8F1",
+    "success": "#2F8A52",
+    "mustard": "#E0A73A",
+    "olive": "#8CA96B",
+    "borderWarm": "#EBD8C7"
+  }
+}

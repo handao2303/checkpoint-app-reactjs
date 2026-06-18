@@ -14,7 +14,7 @@ type IconProps = Omit<SVGProps<SVGSVGElement>, "name"> & {
  * 24x24 <svg> wrapper. Color inherits via `currentColor` (use Tailwind `text-*`);
  * add a `fill-current`/`fill-*` class to fill an outline glyph.
  */
-export function Icon({ name, size = 24, strokeWidth = 2, ...props }: IconProps) {
+export function Icon({ name, size = 24, strokeWidth = 2.2, ...props }: IconProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

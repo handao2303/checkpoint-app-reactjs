@@ -16,7 +16,6 @@ const PODIUM_STYLE = [
     medal: "bg-gold text-neutral-900 ring-gold/30",
     frame: "border-gold/45 bg-primary-50 shadow-lg",
     lift: "-translate-y-6",
-    title: "Quán quân",
   },
   {
     order: "order-1",
@@ -25,7 +24,6 @@ const PODIUM_STYLE = [
     medal: "bg-neutral-300 text-neutral-800 ring-neutral-300/40",
     frame: "border-neutral-300/70 bg-surface shadow-card",
     lift: "translate-y-1",
-    title: "Á quân",
   },
   {
     order: "order-3",
@@ -34,7 +32,6 @@ const PODIUM_STYLE = [
     medal: "bg-clay-300 text-clay-900 ring-clay-300/35",
     frame: "border-clay-300/55 bg-surface shadow-card",
     lift: "translate-y-3",
-    title: "Hạng ba",
   },
 ];
 
@@ -61,7 +58,7 @@ function XPValue({ xp, compact = false }: { xp: number; compact?: boolean }) {
         compact ? "px-2 py-1 text-xs" : "px-2.5 py-1 text-sm"
       }`}
     >
-      <Icon name="award" size={compact ? 14 : 16} aria-hidden="true" />
+      <Icon name="xp-coin" size={compact ? 14 : 16} aria-hidden="true" />
       {formatXP(xp)}
     </span>
   );
@@ -103,9 +100,6 @@ function PodiumCard({
           {entry.rank}
         </span>
       </div>
-      <p className="mt-3 rounded-full bg-neutral-0/75 px-3 py-1 text-xs font-bold text-clay-700 shadow-sm">
-        {style.title}
-      </p>
       <p
         className="mt-2 min-w-0 max-w-full truncate px-1 text-sm font-bold leading-tight text-foreground"
         title={name}
@@ -134,7 +128,7 @@ function LeaderboardRow({
     <button
       type="button"
       onClick={onOpen}
-      className={`grid w-full grid-cols-[2.25rem_2.75rem_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.995] ${
+      className={`grid w-full grid-cols-[2.25rem_2.75rem_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border p-3 text-left shadow-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.995] ${
         highlight
           ? "border-primary bg-primary-50"
           : "border-border bg-surface hover:border-primary-200"
@@ -170,14 +164,14 @@ function LeaderboardRow({
 function HeaderStats({ entries, me }: { entries: LeaderboardEntry[]; me?: LeaderboardEntry }) {
   const topXP = entries[0]?.total_xp ?? 0;
   return (
-    <section className="overflow-hidden rounded-2xl border border-primary-100 bg-gradient-to-br from-primary-50 via-neutral-0 to-green-50 p-4 shadow-card">
+    <section className="overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-card">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="inline-flex items-center gap-1 rounded-full bg-neutral-0/80 px-2.5 py-1 text-xs font-semibold text-clay-600">
-            <Icon name="sparkles" size={14} aria-hidden="true" />
+          <p className="inline-flex items-center gap-1 rounded-full bg-neutral-0/80 py-1 text-xs font-semibold text-clay-600">
+            <Icon name="calendar" size={14} aria-hidden="true" />
             Tuần khám phá
           </p>
-          <h1 className="mt-2 flex items-center gap-2 font-display text-3xl font-black text-clay-800">
+          <h1 className="flex items-center gap-2 font-display text-3xl font-black text-clay-800">
             Bảng xếp hạng
           </h1>
         </div>
@@ -189,7 +183,7 @@ function HeaderStats({ entries, me }: { entries: LeaderboardEntry[]; me?: Leader
       <div className="mt-4 grid grid-cols-3 gap-2">
         <div className="rounded-xl border border-primary-100 bg-neutral-0/70 p-2">
           <p className="text-[11px] font-semibold text-muted-foreground">Top XP</p>
-          <p className="mt-1 truncate font-display text-base font-black text-primary-600">
+            <p className="mt-1 truncate font-display text-base font-black text-primary">
             {formatXP(topXP)}
           </p>
         </div>
@@ -261,7 +255,7 @@ export function LeaderboardPage() {
         <LoadingState />
       ) : entries.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-primary-200 bg-surface-muted p-6 text-center">
-          <Icon name="mountain" size={34} className="mx-auto text-primary-500" aria-hidden="true" />
+          <Icon name="mountain" size={34} className="mx-auto text-primary" aria-hidden="true" />
           <p className="mt-3 font-bold text-foreground">Chưa có ai trên bảng xếp hạng</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Check-in đầu tiên sẽ mở màn cuộc đua XP.
@@ -271,7 +265,7 @@ export function LeaderboardPage() {
         <>
           {top3.length > 0 && (
             <section aria-label="Top 3 nhà khám phá">
-              <div className="flex min-h-[19rem] items-end gap-2 mt-[-30px]">
+              <div className="flex min-h-[14rem] items-end gap-2 mt-1">
                 {top3.map((entry, index) => (
                   <PodiumCard
                     key={entry.user_id}
@@ -288,7 +282,7 @@ export function LeaderboardPage() {
           {rest.length > 0 && (
             <section className="flex flex-col gap-2" aria-label="Top nhà khám phá">
               <div className="flex items-center gap-2">
-                <Icon name="compass" size={22} className="text-primary-500" aria-hidden="true" />
+                <Icon name="compass" size={22} className="text-primary" aria-hidden="true" />
                 <h2 className="font-display text-lg font-black text-clay-800">
                   Top nhà khám phá
                 </h2>

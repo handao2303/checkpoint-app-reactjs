@@ -108,7 +108,6 @@ function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 
           name={name}
           username={entry.username}
           className="h-11 w-11"
-          shape="none"
           fallbackClassName={`h-10 w-10 ring-2 ${ringClass}`}
         />
         <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-surface px-1 text-[10px] font-bold text-muted-foreground shadow-sm">
@@ -193,13 +192,13 @@ export function ProfilePage() {
       {user.is_anonymous && <UpgradeBanner />}
 
       {/* Hero card */}
-      <div className="relative rounded-2xl bg-[image:var(--gradient-passport)] p-5 text-white shadow-card">
+      <div className="relative rounded-2xl border border-border bg-surface p-5 text-foreground shadow-card">
         <button
           onClick={() => {
             trackEvent("profile_edit_open");
             setEditing(true);
           }}
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
+          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary"
           aria-label="Sửa hồ sơ"
         >
           <Icon name="pencil" size={16} />
@@ -213,37 +212,36 @@ export function ProfilePage() {
               name={user.display_name}
               username={user.username}
               className="h-28 w-28"
-              shape="none"
               loading="eager"
-              fallbackClassName={`h-24 w-24 bg-white/20 text-white ${avatarRingClass(user.level)}`}
+              fallbackClassName={`h-24 w-24 bg-primary-50 text-primary ${avatarRingClass(user.level)}`}
             />
-            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-bold text-clay-600 shadow-sm">
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-xs font-extrabold text-primary shadow-sm">
               Cấp {user.level}
             </span>
           </div>
-          <div className="min-w-0 flex-1 pt-1">
+          <div className="min-w-0 flex-1 justify-between mt-3 gap-4">
             <h2 className="font-display text-xl font-bold leading-tight">
               {user.display_name || user.username}
             </h2>
-            <p className="text-sm text-white/70">@{user.username}</p>
+            <p className="text-sm text-muted-foreground">@{user.username}</p>
+            {firstProvince && (
+              <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Icon name="pin" size={12} />
+                {firstProvince}
+              </span>
+            )}
             {user.bio && (
-              <p className="mt-1 line-clamp-2 text-xs text-white/80">{user.bio}</p>
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{user.bio}</p>
             )}
           </div>
         </div>
 
         {/* Tags */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/80">
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
           {user.checkin_streak > 0 && (
             <span className="flex items-center gap-1">
-              <Icon name="fire" size={12} className="text-orange-300" />
+              <Icon name="fire" size={12} className="text-primary" />
               {user.checkin_streak} ngày liên tiếp
-            </span>
-          )}
-          {firstProvince && (
-            <span className="flex items-center gap-1">
-              <Icon name="map-pin" size={12} />
-              {firstProvince}
             </span>
           )}
           <span className="flex items-center gap-1">
@@ -255,24 +253,74 @@ export function ProfilePage() {
         {/* Stats */}
         <div className="mt-4 grid grid-cols-4 gap-2">
           {[
-            { label: "TỔNG XP", value: user.total_xp.toLocaleString() },
-            { label: "SỐ CỜ", value: user.checkpoint_count.toString() },
-            { label: "HÀNH TRÌNH", value: user.journey_count.toString() },
-            { label: "CẤP", value: user.level.toString() },
+            { label: "XP", value: user.total_xp.toLocaleString() },
+            { label: "Cờ", value: user.checkpoint_count.toString() },
+            { label: "Hành trình", value: user.journey_count.toString() },
+            { label: "Cấp", value: user.level.toString() },
           ].map((s) => (
-            <div key={s.label} className="rounded-lg bg-white/10 py-2 text-center">
-              <p className="text-[10px] text-white/70">{s.label}</p>
-              <p className="font-display text-base font-bold">{s.value}</p>
+            <div key={s.label} className="rounded-xl border border-border bg-surface-muted py-2 text-center">
+              <p className="text-[10px] font-semibold text-muted-foreground">{s.label}</p>
+              <p className="font-display text-base font-extrabold text-clay-800">{s.value}</p>
             </div>
           ))}
         </div>
       </div>
 
+      {/* Level card */}
+      <Card>
+        <div className="flex items-center gap-4">
+          <div className="relative h-16 w-16 shrink-0">
+            {!levelIconLoaded && (
+              <span
+                className="absolute inset-0 h-full w-full shrink-0"
+                style={{ clipPath: "polygon(50% 5.47%, 85.16% 25.39%, 85.16% 65.23%, 50% 85.16%, 14.84% 65.23%, 14.84% 25.39%)" }}
+              >
+                <Skeleton className="h-full w-full rounded-none" />
+              </span>
+            )}
+            <img
+              src={levelTierIconUrl(user.level)}
+              alt=""
+              aria-hidden="true"
+              onLoad={() => setLevelIconLoaded(true)}
+              className={cn(
+                "absolute inset-0 h-full w-full object-contain transition-opacity duration-200",
+                levelIconLoaded ? "opacity-100" : "opacity-0",
+              )}
+            />
+            {levelIconLoaded && (
+              <span className="absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 font-display text-xl font-bold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]">
+                {user.level}
+              </span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="font-semibold text-foreground">Cấp độ hiện tại</p>
+              <p className="text-sm text-muted-foreground">{user.total_xp.toLocaleString()} XP</p>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-primary-100">
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-500"
+                style={{
+                  width: `${Math.round(Math.min(1, Math.max(0, user.level_progress)) * 100)}%`,
+                }}
+              />
+            </div>
+            <p className="mt-1 text-xs italic text-muted-foreground">
+              {user.xp_to_next > 0
+                ? `Còn ${user.xp_to_next.toLocaleString()} XP nữa để lên cấp ${user.level + 1}`
+                : "Bạn đã đạt cấp tối đa! 🏆"}
+            </p>
+          </div>
+        </div>
+      </Card>
+
       {/* Badges preview — horizontal scroll */}
       <Card>
         <div className="mb-3 flex items-center justify-between">
           <h3 className="flex items-center gap-2 font-display text-lg font-bold">
-            <Icon name="award" size={20} className="text-gold" /> Huy hiệu
+            <Icon name="badge" size={20} className="text-gold" /> Huy hiệu
           </h3>
           <button
             type="button"
@@ -318,55 +366,7 @@ export function ProfilePage() {
         )}
       </Card>
 
-      {/* Level card */}
-      <Card>
-        <div className="flex items-center gap-4">
-          <div className="relative h-16 w-16 shrink-0">
-            {!levelIconLoaded && (
-              <span
-                className="absolute inset-0 h-full w-full shrink-0"
-                style={{ clipPath: "polygon(50% 5.47%, 85.16% 25.39%, 85.16% 65.23%, 50% 85.16%, 14.84% 65.23%, 14.84% 25.39%)" }}
-              >
-                <Skeleton className="h-full w-full rounded-none" />
-              </span>
-            )}
-            <img
-              src={levelTierIconUrl(user.level)}
-              alt=""
-              aria-hidden="true"
-              onLoad={() => setLevelIconLoaded(true)}
-              className={cn(
-                "absolute inset-0 h-full w-full object-contain transition-opacity duration-200",
-                levelIconLoaded ? "opacity-100" : "opacity-0",
-              )}
-            />
-            {levelIconLoaded && (
-              <span className="absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 font-display text-xl font-bold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]">
-                {user.level}
-              </span>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="mb-1 flex items-center justify-between">
-              <p className="font-semibold text-foreground">Cấp độ hiện tại</p>
-              <p className="text-sm text-muted-foreground">{user.total_xp.toLocaleString()} XP</p>
-            </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-green-100">
-              <div
-                className="h-full rounded-full bg-[image:var(--gradient-xp)] transition-[width] duration-500"
-                style={{
-                  width: `${Math.round(Math.min(1, Math.max(0, user.level_progress)) * 100)}%`,
-                }}
-              />
-            </div>
-            <p className="mt-1 text-xs italic text-muted-foreground">
-              {user.xp_to_next > 0
-                ? `Còn ${user.xp_to_next.toLocaleString()} XP nữa để lên cấp ${user.level + 1}`
-                : "Bạn đã đạt cấp tối đa! 🏆"}
-            </p>
-          </div>
-        </div>
-      </Card>
+
 
       {/* Journeys */}
       <JourneysSection />
@@ -448,7 +448,7 @@ export function ProfilePage() {
       {/* Integrations */}
       <Card>
         <div className="mb-1 flex items-center gap-2">
-          <Icon name="sparkles" size={18} className="text-clay-600" />
+          <Icon name="sparkle" size={18} className="text-clay-600" />
           <h3 className="font-display text-lg font-bold">Tích hợp</h3>
         </div>
         <div className="divide-y divide-border">

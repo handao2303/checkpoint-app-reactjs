@@ -15,7 +15,7 @@ const tabs: Tab[] = [
   { to: "/discover", label: "Discover", icon: "compass", tone: "primary" },
   { to: "/create", label: "Create", icon: "plus-circle", tone: "primary" },
   { to: "/leaderboard", label: "Bảng XH", icon: "trophy", tone: "primary" },
-  { to: "/profile", label: "Profile", icon: "user", tone: "primary" },
+  { to: "/profile", label: "Profile", icon: "profile", tone: "primary" },
 ];
 
 export function BottomNav() {
@@ -39,15 +39,15 @@ export function BottomNav() {
               {({ isActive }) => (
                 <span
                   className={cn(
-                    "flex min-w-16 flex-col items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition",
+                    "flex min-w-16 flex-col items-center gap-1 rounded-2xl px-3 py-1.5 text-xs font-semibold transition-colors",
                     isActive
                       ? tone === "green"
-                        ? "text-secondary"
-                        : "text-primary"
+                        ? "bg-green-50 text-secondary"
+                        : "bg-primary-50 text-primary shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <Icon name={icon} size={22} strokeWidth={isActive ? 2.4 : 2} />
+                  <Icon name={icon} size={22} strokeWidth={isActive ? 2.4 : 2.1} />
                   {label}
                 </span>
               )}

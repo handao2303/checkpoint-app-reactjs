@@ -59,10 +59,12 @@ export function AppLayout() {
       <LocationProvider>
         <NotificationProvider>
           <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden bg-background">
-            <header className="shrink-0 sticky top-0 z-20 flex items-center justify-between border-b border-border bg-surface/95 px-4 py-3 backdrop-blur pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
+            <header className="shrink-0 sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
               <div className="flex items-center gap-2">
-                <img src="/pin.svg" alt="" className="h-7 w-7" />
-                <span className="font-display text-xl font-bold text-clay-600">Checkpoint</span>
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-cta">
+                  <img src="/pin.svg" alt="" className="h-6 w-6 brightness-0 invert" />
+                </span>
+                <span className="font-display text-2xl font-extrabold text-foreground">Checkpoint</span>
               </div>
               <NotificationBell />
             </header>

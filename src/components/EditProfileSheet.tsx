@@ -126,7 +126,6 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
               name={user.display_name}
               username={user.username}
               className="h-28 w-28"
-              shape="none"
               loading="eager"
               fallbackClassName="h-24 w-24 border-4 border-border bg-surface-muted text-muted-foreground"
             />
