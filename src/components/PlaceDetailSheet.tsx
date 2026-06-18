@@ -2,6 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { useUserProfile } from "../context/UserProfileProvider";
 import { getPlace, API_URL } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { trackEvent } from "../lib/observability";
@@ -51,6 +52,7 @@ function formatRelativeTime(value: string): string {
 
 export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const { user } = useAuth();
+  const { showProfile } = useUserProfile();
   const navigate = useNavigate();
   const { coords } = useUserLocation();
 
@@ -143,7 +145,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <Sheet onClose={onClose} className="h-full">
+    <Sheet onClose={onClose} className="h-[90dvh]">
       {isLoading || !firstPage ? (
         <DetailSheetSkeleton />
       ) : checkingIn ? (
@@ -290,7 +292,11 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
                     <Card key={c.id} className="flex flex-col gap-3 rounded-2xl p-4">
                       {/* Author Header */}
                       <div className="flex items-center justify-between gap-3">
-                        <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                        <button
+                          type="button"
+                          onClick={() => showProfile(c.author.username)}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-80"
+                        >
                           <UserAvatar
                             src={c.author.avatar_url}
                             name={authorName}
@@ -304,7 +310,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
                             <p className="truncate font-semibold text-foreground text-sm">{authorName}</p>
                             {c.address && <p className="truncate text-[11px] text-muted-foreground">{c.address}</p>}
                           </div>
-                        </div>
+                        </button>
                       </div>
 
                       {/* Media Preview (only if it has an image or thumbnail) */}

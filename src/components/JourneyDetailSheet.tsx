@@ -48,7 +48,7 @@ export function JourneyDetailSheet({
   };
 
   return (
-    <Sheet grow className="h-full" onClose={onClose}>
+    <Sheet grow className="h-[90dvh]" onClose={onClose}>
       {isLoading || !data ? (
         <div className="flex min-h-0 flex-1 flex-col gap-3">
           <Skeleton className="h-6 w-48" />

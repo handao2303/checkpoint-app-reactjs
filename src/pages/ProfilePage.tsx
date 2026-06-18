@@ -17,6 +17,7 @@ import { Toast } from "../components/ui/Toast";
 import { UserAvatar } from "../components/ui/UserAvatar";
 import { UpgradeBanner } from "../components/UpgradeBanner";
 import { useCheckin } from "../hooks/useCheckin";
+import { useUserProfile } from "../context/UserProfileProvider";
 import {
   API_URL,
   getBadges,
@@ -60,10 +61,15 @@ function formatMemberSince(dateStr: string): string {
 }
 
 function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 }) {
+  const { showProfile } = useUserProfile();
   const ringClass = { 1: "ring-yellow-400", 2: "ring-slate-400", 3: "ring-amber-600" }[rank];
   const name = entry.display_name || entry.username;
   return (
-    <div className="flex flex-1 flex-col items-center gap-1 px-1">
+    <button
+      type="button"
+      onClick={() => showProfile(entry.username)}
+      className="flex flex-1 flex-col items-center gap-1 px-1 transition hover:opacity-80 text-center cursor-pointer outline-none"
+    >
       <div className="relative">
         <UserAvatar
           src={entry.avatar_url}
@@ -76,14 +82,15 @@ function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 
           #{rank}
         </span>
       </div>
-      <p className="mt-2 w-full truncate text-center text-xs font-semibold text-foreground">{name}</p>
+      <p className="mt-2 w-full truncate text-xs font-semibold text-foreground">{name}</p>
       <p className="text-[10px] text-muted-foreground">{entry.total_xp.toLocaleString()} XP</p>
-    </div>
+    </button>
   );
 }
 
 export function ProfilePage() {
   const { user, signOut } = useAuth();
+  const { showProfile } = useUserProfile();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [settingsSheetOpen, setSettingsSheetOpen] = useState(false);
@@ -172,7 +179,12 @@ export function ProfilePage() {
 
         {/* Avatar + info */}
         <div className="flex items-start gap-1">
-          <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => showProfile(user.username)}
+            className="relative shrink-0 text-left transition hover:opacity-80 cursor-pointer outline-none"
+            aria-label="Xem hồ sơ công khai"
+          >
             <UserAvatar
               src={user.avatar_url}
               name={user.display_name}
@@ -184,7 +196,7 @@ export function ProfilePage() {
             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-xs font-extrabold text-primary shadow-sm">
               Cấp {user.level}
             </span>
-          </div>
+          </button>
           <div className="min-w-0 flex-1 justify-between mt-3 gap-4">
             <h2 className="font-display text-xl font-bold leading-tight">
               {user.display_name || user.username}
