@@ -1,8 +1,8 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
-import { useDismissableLayer } from "../hooks/useDismissableLayer";
 import {
   getMyCheckpointPage,
   updateCheckpoint,
@@ -244,13 +244,53 @@ function CheckpointManageRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const { requestDelete, confirming, confirmBox } = useDeleteCheckpoint(checkpoint.id, { onDeleted });
 
-  useDismissableLayer({
-    ref: menuRef,
-    open: menuOpen,
-    onDismiss: () => setMenuOpen(false),
-  });
+  function positionMenu() {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const gap = 4;
+    const viewportPadding = 8;
+    const menuHeight = dropdownRef.current?.offsetHeight ?? 96;
+    const top = rect.bottom + gap + menuHeight > window.innerHeight - viewportPadding
+      ? Math.max(viewportPadding, rect.top - menuHeight - gap)
+      : rect.bottom + gap;
+    setMenuPosition({
+      top,
+      right: Math.max(viewportPadding, window.innerWidth - rect.right),
+    });
+  }
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    positionMenu();
+
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+
+    window.addEventListener("resize", positionMenu);
+    document.addEventListener("scroll", positionMenu, true);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("resize", positionMenu);
+      document.removeEventListener("scroll", positionMenu, true);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
 
   return (
     <div className="relative rounded-2xl border border-border/80 bg-surface px-3 py-2.5 pr-10 shadow-sm">
@@ -281,16 +321,24 @@ function CheckpointManageRow({
         </button>
         <div ref={menuRef} className="absolute right-2 top-2 z-30">
           <button
+            ref={buttonRef}
             type="button"
-            onClick={() => setMenuOpen((open) => !open)}
+            onClick={() => {
+              if (!menuOpen) positionMenu();
+              setMenuOpen((open) => !open);
+            }}
             className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-muted"
             aria-label="Tùy chọn check-in"
             aria-expanded={menuOpen}
           >
             <Icon name="more-vertical" size={18} />
           </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-full z-[100] mt-1 min-w-40 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+          {menuOpen && menuPosition && createPortal(
+            <div
+              ref={dropdownRef}
+              className="fixed z-[9999] min-w-40 overflow-hidden rounded-xl border border-border bg-surface shadow-xl"
+              style={{ top: menuPosition.top, right: menuPosition.right }}
+            >
               <button
                 type="button"
                 onClick={() => {
@@ -311,7 +359,8 @@ function CheckpointManageRow({
               >
                 <Icon name="trash" size={16} /> Xóa
               </button>
-            </div>
+            </div>,
+            document.body,
           )}
         </div>
       </div>
