@@ -64,7 +64,7 @@ export function MediaPreview({
             <button
               type="button"
               onClick={() => onRotate(rotate - 90)}
-              className="flex h-10 w-10 items-center justify-center text-white/90 transition hover:text-white"
+              className="flex h-10 w-10 items-center justify-center text-white/90 transition-colors hover:text-white"
               aria-label="Xoay trái"
             >
               <Icon name="rotate-ccw" size={22} />
@@ -72,7 +72,7 @@ export function MediaPreview({
             <button
               type="button"
               onClick={() => onRotate(rotate + 90)}
-              className="flex h-10 w-10 items-center justify-center text-white/90 transition hover:text-white"
+              className="flex h-10 w-10 items-center justify-center text-white/90 transition-colors hover:text-white"
               aria-label="Xoay phải"
             >
               <Icon name="rotate-cw" size={22} />
@@ -114,6 +114,9 @@ export function MediaPreview({
                 <img
                   src={previewUrl}
                   alt={alt}
+                  width={640}
+                  height={480}
+                  loading="lazy"
                   className={cn("h-full w-full object-cover", imageClassName)}
                 />
               ) : (

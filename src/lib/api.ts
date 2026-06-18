@@ -541,6 +541,11 @@ export interface Place {
   lng: number;
   address?: string;
   checkin_count: number;
+  avg_rating?: number;
+  image_count: number;
+  cover_image_url?: string;
+  cover_thumbnail_url?: string;
+  viewer_has_checked_in?: boolean;
   created_at: string;
   updated_at: string;
 }
