@@ -301,9 +301,10 @@ export function DiscoverPage() {
             {(isPopularLoading || hotPlaces.length > 0) && filters.active !== "hot" && (
               <section className="flex flex-col gap-3">
                 <div className="flex items-end justify-between px-1">
-                  <div>
+                  <div className="w-full">
                     <h2 className="flex items-center gap-2 font-display text-xl font-extrabold text-foreground">
                       <Icon name="star" size={22} className="fill-gold text-gold" /> {t('dang_hot_gan_ban')}
+                      <span className="h-px flex-1 border-t border-dashed border-primary-200" />
                     </h2>
                     <p className="text-xs text-muted-foreground">{t('nhieu_nguoi_vua_cam_co')}</p>
                   </div>
@@ -312,27 +313,28 @@ export function DiscoverPage() {
                   {isPopularLoading
                     ? Array.from({ length: 3 }).map((_, i) => <HotPlaceSkeleton key={i} />)
                     : hotPlaces.map((p) => (
-                        <PlaceCard
-                          key={p.id}
-                          place={p}
-                          distance={formatDistance(haversine(at.lat, at.lng, p.lat, p.lng))}
-                          signedIn={!!user}
-                          onOpen={() => {
-                            trackEvent("discover_hot_place_open", { place_id: p.id });
-                            setPlaceId(p.id);
-                          }}
-                          variant="hot"
-                        />
-                      ))}
+                      <PlaceCard
+                        key={p.id}
+                        place={p}
+                        distance={formatDistance(haversine(at.lat, at.lng, p.lat, p.lng))}
+                        signedIn={!!user}
+                        onOpen={() => {
+                          trackEvent("discover_hot_place_open", { place_id: p.id });
+                          setPlaceId(p.id);
+                        }}
+                        variant="hot"
+                      />
+                    ))}
                 </div>
               </section>
             )}
 
             <section className="flex items-end justify-between px-1">
-              <div>
+              <div className="w-full">
                 <h2 className="flex items-center gap-2 font-display text-xl font-extrabold text-foreground">
                   <Icon name="pin-filled" size={22} className="text-primary" />
                   {filters.active === "hot" ? t('dia_diem_dang_hot') : t('dia_diem_gan_ban')}
+                  <span className="h-px flex-1 border-t border-dashed border-primary-200" />
                 </h2>
                 <p className="text-xs text-muted-foreground">
                   {t('dia_diem_trong_danh_sach', { count: visiblePlaces.length })}
@@ -485,7 +487,7 @@ function PlaceCard({
           <div className="flex min-w-0 items-center gap-2 text-[11px] font-medium text-muted-foreground">
             {place.avg_rating != null && (
               <span className="flex items-center gap-0.5 text-foreground">
-              <Icon name="star" size={12} className="fill-gold text-gold" /> {place.avg_rating.toFixed(1)}
+                <Icon name="star" size={12} className="fill-gold text-gold" /> {place.avg_rating.toFixed(1)}
               </span>
             )}
             <span className="flex items-center gap-0.5">
@@ -537,13 +539,12 @@ function PlaceCard({
       </div>
 
       <span
-        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${
-          place.viewer_has_checked_in
-            ? "border border-green-100 bg-green-50 text-green-700"
-            : signedIn
-              ? "border border-primary bg-primary-50 text-primary"
-              : "border border-border bg-surface-muted text-muted-foreground"
-        }`}
+        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${place.viewer_has_checked_in
+          ? "border border-green-100 bg-green-50 text-green-700"
+          : signedIn
+            ? "border border-primary bg-primary-50 text-primary"
+            : "border border-border bg-surface-muted text-muted-foreground"
+          }`}
       >
         {cta}
       </span>

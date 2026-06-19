@@ -183,9 +183,9 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
                 <div className="min-w-0 flex-1">
                   <h2 className="font-display text-xl font-bold leading-tight text-foreground">{placeInfo?.name}</h2>
                   {placeInfo?.address && (
-                    <p className="mt-1 flex items-start gap-1.5 text-sm text-muted-foreground">
-                      <Icon name="pin" size={14} className="mt-0.5 shrink-0 text-primary" />
-                      <span className="min-w-0 break-words">{placeInfo.address}</span>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      <Icon name="pin" size={14} className="float-left mr-1.5 mt-0.5 text-primary" />
+                      {placeInfo.address}
                     </p>
                   )}
                 </div>

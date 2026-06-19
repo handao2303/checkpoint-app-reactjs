@@ -98,8 +98,9 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
             )}
             {data.checkpoint.note && <p className="text-sm text-foreground">{data.checkpoint.note}</p>}
             {data.checkpoint.address && (
-              <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Icon name="map-pin" size={14} /> {data.checkpoint.address}
+              <p className="text-sm text-muted-foreground">
+                <Icon name="map-pin" size={14} className="float-left mr-1 mt-0.5" />
+                {data.checkpoint.address}
               </p>
             )}
 
