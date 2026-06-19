@@ -116,8 +116,8 @@ export function PassportStampIcon({
     case 1: // Shield / Arch style
       return (
         <svg viewBox="0 0 48 40" className="w-full h-full text-current" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 34V12C12 7 18 5 24 5s12 2 12 7v22z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-          <path d="M15 32V13C15 9 20 7 24 7s9 2 9 6v19" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 1" />
+          <path d="M12 12C12 7 18 5 24 5S36 7 36 12V25C36 30 31 34 24 37 17 34 12 30 12 25Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+          <path d="M15 14C15 10 19 8 24 8S33 10 33 14V24C33 28 29 31 24 34 19 31 15 28 15 24Z" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 1" />
           <text
             x="24"
             y="18"
