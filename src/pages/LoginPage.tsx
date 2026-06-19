@@ -6,10 +6,12 @@ import { Button } from "../components/ui/Button";
 import { Icon } from "../components/ui/Icon";
 import { authErrorMessage } from "../lib/authErrors";
 import { trackEvent } from "../lib/observability";
+import { getPlatform, isInAppBrowser } from "../lib/platform";
 
 export function LoginPage() {
   const { t } = useTranslation();
   const { loginIdentifier, signupEmail, loginGoogle, loginAnonymous } = useAuth();
+  const inApp = isInAppBrowser();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,6 +41,38 @@ export function LoginPage() {
       setError(authErrorMessage(err));
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Google blocks OAuth in embedded webviews (Messenger, Facebook…). When we're
+  // inside one, steer the user to a real browser instead of redirecting (which
+  // Google rejects with "Use secure browsers").
+  async function openInBrowser() {
+    const url = window.location.href;
+    if (getPlatform() === "android") {
+      const noScheme = url.replace(/^https?:\/\//, "");
+      window.location.href = `intent://${noScheme}#Intent;scheme=https;package=com.android.chrome;end`;
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      /* clipboard may be blocked in webview — message still tells them to open a browser */
+    }
+    setError(t("da_sao_chep_lien_ket"));
+  }
+
+  async function onGoogle() {
+    setError(null);
+    if (inApp) {
+      trackEvent("login_blocked_inapp", { method: "google" });
+      await openInBrowser();
+      return;
+    }
+    try {
+      await loginGoogle();
+    } catch (err) {
+      setError(authErrorMessage(err));
     }
   }
 
@@ -86,7 +120,16 @@ export function LoginPage() {
         <span className="h-px flex-1 bg-border" />
       </div>
 
-      <Button variant="outline" size="lg" onClick={loginGoogle}>
+      {inApp && (
+        <div className="flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <p>{t('google_can_trinh_duyet')}</p>
+          <Button variant="outline" size="sm" onClick={openInBrowser}>
+            {t('mo_bang_trinh_duyet')}
+          </Button>
+        </div>
+      )}
+
+      <Button variant="outline" size="lg" onClick={onGoogle}>
         {t('tiep_tuc_voi_google')}
       </Button>
 
