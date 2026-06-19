@@ -67,9 +67,8 @@ export function PhotoCheckinTab({
       <input
         ref={fileRef}
         type="file"
-        // On Android, we use "image/*,application/pdf" to force the System File Picker (preserving EXIF metadata)
-        // while still filtering for images so camera photos show up in the default view.
-        accept={isAndroid ? "image/*,application/pdf" : "image/*"}
+        // On Android, we omit accept="image/*" to invoke File manager instead of Photo Picker (which strips GPS metadata).
+        accept={isAndroid ? undefined : "image/*"}
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
