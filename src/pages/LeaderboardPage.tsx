@@ -172,7 +172,7 @@ function LeaderboardRow({
         <XPValue xp={entry.total_xp} compact />
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
           <Icon name="flag" size={14} aria-hidden="true" />
-          {t('hang_entryrank', { rank: entry.rank })}
+          {t('hang_rank', { rank: entry.rank })}
         </span>
       </span>
     </button>

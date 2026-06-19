@@ -302,7 +302,7 @@ export function CreateCheckpointForm({
         }
 
         if (nextImageCount >= maxImages) {
-          setErr(t('toi_da_maximages_anhcheckin', { maxImages: maxImages }));
+          setErr(t('toi_da_anh_checkin', { maxImages: maxImages }));
           continue;
         }
         const { original, thumbnail } = await prepareCheckpointImage(file);
@@ -458,7 +458,7 @@ export function CreateCheckpointForm({
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-sm font-semibold text-foreground">{p.name}</p>
                       <span className="shrink-0 text-xs font-semibold text-primary">
-                        {t('cach_mathroundpdistancem', { distance: Math.round(p.distance) })}
+                        {t('cach_khoang_cach_m', { distance: Math.round(p.distance) })}
                       </span>
                     </div>
                     {p.address && <p className="truncate text-xs text-muted-foreground mt-0.5">{p.address}</p>}
@@ -618,7 +618,7 @@ export function CreateCheckpointForm({
           <span className="flex items-center gap-2 font-display text-lg font-extrabold text-foreground">
             <Icon name="camera" size={20} className="text-primary" /> {t('them_anh')}
           </span>
-          <span className="text-xs font-semibold text-primary">{t('imagecountmaximages_anh', { count: imageCount, max: maxImages })}</span>
+          <span className="text-xs font-semibold text-primary">{t('anh_count_tren_max', { count: imageCount, max: maxImages })}</span>
         </span>
         <div className="flex flex-wrap gap-2">
         {picked.map((p, i) => (

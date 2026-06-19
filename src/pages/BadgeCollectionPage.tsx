@@ -50,9 +50,9 @@ export function BadgeCollectionPage() {
     filter === "unlocked" ? unlocked : filter === "locked" ? locked : badges;
 
   const FILTERS: { key: Filter; label: string }[] = [
-    { key: "all", label: t('tat_ca_badgeslength', { length: badges.length }) },
-    { key: "unlocked", label: t('da_mo_khoa_unlockedlength', { length: unlocked.length }) },
-    { key: "locked", label: t('chua_mo_khoa_lockedlength', { length: locked.length }) },
+    { key: "all", label: t('tat_ca_count', { length: badges.length }) },
+    { key: "unlocked", label: t('da_mo_khoa_count', { length: unlocked.length }) },
+    { key: "locked", label: t('chua_mo_khoa_count', { length: locked.length }) },
   ];
 
   return (
@@ -60,7 +60,7 @@ export function BadgeCollectionPage() {
       <div>
         <h1 className="font-display text-2xl font-bold text-foreground">{t('bo_suu_tap_huy_hieu')}</h1>
         <p className="text-sm text-muted-foreground">
-          {t('unlockedlengthbadgeslength_huy_hieu_da_mo', { unlocked: unlocked.length, total: badges.length })}
+          {t('huy_hieu_da_mo_count', { unlocked: unlocked.length, total: badges.length })}
         </p>
       </div>
 

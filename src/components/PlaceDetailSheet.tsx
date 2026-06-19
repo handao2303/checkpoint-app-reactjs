@@ -119,7 +119,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
       if (navigator.share) {
         await navigator.share({
           title: placeInfo.name,
-          text: t('placeinfoname_tren_checkpoint', { name: placeInfo.name }),
+          text: t('place_ten_tren_checkpoint', { name: placeInfo.name }),
           url,
         });
         trackEvent("place_share_success", { place_id: placeInfo.id, source: "native" });
@@ -152,7 +152,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
         <DetailSheetSkeleton />
       ) : checkingIn ? (
         <>
-          <h2 className="mb-3 font-display text-lg font-bold">{t('cam_co_placeinfoname', { name: placeInfo?.name })}</h2>
+          <h2 className="mb-3 font-display text-lg font-bold">{t('cam_co_place_name', { name: placeInfo?.name })}</h2>
           <CreateCheckpointForm
             at={{ lat: placeInfo?.lat ?? 0, lng: placeInfo?.lng ?? 0 }}
             place={placeInfo ? { id: placeInfo.id, name: placeInfo.name, category: placeInfo.category } : undefined}
@@ -198,10 +198,10 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
                   </span>
                 )}
                 <span className="flex items-center gap-1">
-                  <Icon name="flag" size={14} /> {t('placeinfocheckin_count_luot_cam_co', { count: placeInfo?.checkin_count })}
+                  <Icon name="flag" size={14} /> {t('luot_cam_co_count', { count: placeInfo?.checkin_count })}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Icon name="image" size={14} /> {t('placeinfoimage_count_galleryitemslength_anh', { count: placeInfo?.image_count ?? galleryItems.length })}
+                  <Icon name="image" size={14} /> {t('place_anh_count', { count: placeInfo?.image_count ?? galleryItems.length })}
                 </span>
                 {distanceStr && (
                   <span className="flex items-center gap-1">

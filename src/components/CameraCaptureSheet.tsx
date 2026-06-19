@@ -515,7 +515,7 @@ export function CameraCaptureSheet({
                     key={device.info.deviceId}
                     type="button"
                     onClick={() => selectLens(device.info.deviceId)}
-                    aria-label={t('chon_camera_index_1', { index1: index + 1 })}
+                    aria-label={t('chon_camera_index_1', { number: index + 1 })}
                     aria-pressed={active}
                     className={`flex h-9 min-w-9 items-center justify-center rounded-full px-3 text-sm font-semibold ${
                       active ? "bg-white text-black" : "bg-white/15 text-white"

@@ -422,7 +422,7 @@ export function renderCheckpointCard(data: {
         photos(imgs),
         header({ emoji: categoryEmoji(data.category), title: data.name, subtitle: data.address ? `📍 ${data.address}` : undefined }),
         data.note ? quote(data.note) : null,
-        footer({ left: `+${data.xp} XP`, center: t('boi_dataauthor', { author: data.author }), right: data.date }),
+        footer({ left: `+${data.xp} XP`, center: t('boi_author', { author: data.author }), right: data.date }),
       ],
       data.url,
     ),

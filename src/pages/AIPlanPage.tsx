@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Icon } from "../components/ui/Icon";
 import { trackEvent } from "../lib/observability";
 const teasers = [
-  t('len_lich_trinh_tu_data'),
+  t('len_lich_trinh_cong_dong'),
   t('goi_y_dia_diem_hop'),
   t('tu_xep_anh_theo_hanh'),
 ];

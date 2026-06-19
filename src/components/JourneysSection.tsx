@@ -507,7 +507,7 @@ export function JourneysSection() {
               <div className="flex items-center gap-2 rounded-xl bg-surface-muted px-3 py-2 text-sm text-muted-foreground">
                 <Icon name="route" size={16} />
                 <span>
-                  {t('thoi_gian_hanh_trinh_selecteddatespan', { dateSpan: selectedDateSpan })}
+                  {t('thoi_gian_hanh_trinh', { dateSpan: selectedDateSpan })}
                 </span>
               </div>
             )}
@@ -610,7 +610,7 @@ export function JourneysSection() {
         <Sheet title={t('xoa_hanh_trinh')} onClose={() => setActions(emptyActions)}>
           <div className="flex flex-col gap-3">
             <div className="rounded-xl bg-accent-50 p-3 text-sm text-accent-700">
-              <p className="font-semibold">{t('xoa_actionsdeletingtitle', { title: actions.deleting.title })}</p>
+              <p className="font-semibold">{t('xoa_title_hoi', { title: actions.deleting.title })}</p>
               <p className="mt-1">
                 {t('ban_co_the_chi_xoa')}
               </p>
@@ -765,7 +765,7 @@ function CheckpointPickerModal({
         </div>
 
         <div className="flex shrink-0 items-center justify-between border-t border-border p-4">
-          <span className="text-sm font-semibold text-muted-foreground">{t('da_chon_selectedcount', { count: selectedCount })}</span>
+          <span className="text-sm font-semibold text-muted-foreground">{t('da_chon_count', { count: selectedCount })}</span>
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClose}>
               {t('huy')}
@@ -816,7 +816,7 @@ function SelectedCheckpointRow({
       <button
         type="button"
         onClick={onRemove}
-        aria-label={t('bo_checkpointname', { name: checkpoint.name })}
+        aria-label={t('bo_checkpoint_name', { name: checkpoint.name })}
         className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
       >
         <Icon name="x" size={16} />

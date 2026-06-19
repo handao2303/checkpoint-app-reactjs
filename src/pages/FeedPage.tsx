@@ -349,7 +349,7 @@ function PendingCheckinStatus({ count }: { count: number }) {
     >
       <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-border border-t-primary" />
       <span className="truncate font-medium">
-        {count === 1 ? t('dang_dang_checkin') : t('dang_dang_count_checkin', { count: count })}
+        {count === 1 ? t('dang_dang_checkin') : t('dang_dang_checkin', { count: count })}
       </span>
     </div>
   );

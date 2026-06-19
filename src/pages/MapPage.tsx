@@ -342,7 +342,7 @@ export function MapPage() {
       <div ref={filterControlRef} className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
         <button
           type="button"
-          aria-label={activeCategory ? t('loc_activecategorylabel', { label: activeCategory.label }) : t('loc_theo_danh_muc')}
+          aria-label={activeCategory ? t('loc_label', { label: activeCategory.label }) : t('loc_theo_danh_muc')}
           aria-expanded={categoryMenuOpen}
           aria-haspopup="menu"
           title={activeCategory ? activeCategory.label : t('tat_ca_danh_muc')}
@@ -487,7 +487,7 @@ function ClusterSheet({
           <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-border" />
           <div className="flex items-center justify-between">
             <h2 className="font-display text-base font-bold text-foreground">
-              {t('checkpointslength_dia_diem', { count: checkpoints.length })}
+              {t('so_dia_diem', { count: checkpoints.length })}
             </h2>
             <button onClick={onClose} className="rounded-full p-1 text-muted-foreground hover:bg-surface-muted">
               <Icon name="x" size={18} />

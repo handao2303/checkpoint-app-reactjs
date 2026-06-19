@@ -171,7 +171,7 @@ function CommentRow({
         onClick={() => onOpenProfile?.(comment.username)}
         className="shrink-0 transition hover:opacity-80"
         type="button"
-        aria-label={t('mo_ho_so_commentdisplay_name', { name: comment.display_name || comment.username })}
+        aria-label={t('mo_ho_so_name', { name: comment.display_name || comment.username })}
       >
         <UserAvatar
           src={comment.avatar_url}

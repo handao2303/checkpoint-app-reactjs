@@ -1,14 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Icon } from "../components/ui/Icon";
 import { useAuth } from "../auth/AuthContext";
-import { authErrorMessage } from "../lib/authErrors";
 import { Button } from "../components/ui/Button";
+import { Icon } from "../components/ui/Icon";
+import { authErrorMessage } from "../lib/authErrors";
 import { trackEvent } from "../lib/observability";
 
 export function LoginPage() {
   const { t } = useTranslation();
-  const { loginEmail, signupEmail, loginGoogle, loginAnonymous } = useAuth();
+  const { loginEmail, signupEmail, loginGoogle } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -74,25 +74,6 @@ export function LoginPage() {
       <Button variant="outline" size="lg" onClick={loginGoogle}>
         {t('tiep_tuc_voi_google')}
       </Button>
-
-      <button
-        type="button"
-        onClick={async () => {
-          setError(null);
-          setBusy(true);
-          try {
-            await loginAnonymous();
-          } catch (err) {
-            setError(authErrorMessage(err));
-          } finally {
-            setBusy(false);
-          }
-        }}
-        disabled={busy}
-        className="text-center text-sm font-medium text-muted-foreground underline-offset-2 hover:underline disabled:opacity-60"
-      >
-        {t('dung_thu_khong_can_dang')}
-      </button>
 
       <p className="text-center text-sm text-muted-foreground">
         {mode === "signin" ? t('ban_chua_co_tai_khoan') : t('da_co_tai_khoan')}{" "}

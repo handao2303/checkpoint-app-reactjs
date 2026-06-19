@@ -220,7 +220,7 @@ function getStopMarkerMeta(index: number, total: number): StopMarkerMeta {
     kind: "number",
     label: String(index + 1),
     tone: "bg-primary text-primary-foreground",
-    ariaLabel: t('diem_so_index_1', { index1: index + 1 }),
+    ariaLabel: t('diem_so_index_1', { number: index + 1 }),
   };
 }
 

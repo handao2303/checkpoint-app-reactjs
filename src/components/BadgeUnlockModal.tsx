@@ -90,7 +90,7 @@ export function BadgeUnlockModal({
           {/* Header */}
           <p className="mb-6 text-center text-xs font-bold uppercase tracking-widest text-gold">
             <Icon name="party" size={14} className="mr-1 inline" />
-            {t('huy_hieu_moibadgeslength_1_idx', { progress: badges.length > 1 ? ` · ${idx + 1}/${badges.length}` : '' })}
+            {t('huy_hieu_moi', { progress: badges.length > 1 ? ` · ${idx + 1}/${badges.length}` : '' })}
           </p>
 
           {/* Badge with glow + scale-pop */}
@@ -108,7 +108,7 @@ export function BadgeUnlockModal({
             <p className="mt-1 text-sm text-muted-foreground">{t(badge.description)}</p>
             {badge.level != null && (
               <span className="mt-2 inline-block rounded-full bg-surface-muted px-3 py-0.5 text-xs font-semibold text-muted-foreground">
-                {t('cap_badgelevel', { level: badge.level })}
+                {t('cap_level', { level: badge.level })}
               </span>
             )}
           </div>

@@ -136,7 +136,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
             <ShareButton
               filename={`checkpoint-${data.checkpoint.id}.png`}
               title={data.checkpoint.name}
-              text={t('minh_vua_checkin_tai_datacheckpointname', { name: data.checkpoint.name })}
+              text={t('minh_vua_checkin_tai', { name: data.checkpoint.name })}
               url={`${API_URL}/share/checkpoint/${data.checkpoint.id}`}
               render={() =>
                 renderCheckpointCard({

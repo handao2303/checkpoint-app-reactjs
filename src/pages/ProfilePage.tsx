@@ -201,7 +201,7 @@ export function ProfilePage() {
               fallbackClassName={`h-24 w-24 bg-primary-50 text-primary ${avatarRingClass(user.level)}`}
             />
             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-xs font-extrabold text-primary shadow-sm">
-              {t('cap_userlevel', { level: user.level })}
+              {t('cap_level', { level: user.level })}
             </span>
           </button>
           <div className="min-w-0 flex-1 justify-between mt-3 gap-4">
@@ -226,12 +226,12 @@ export function ProfilePage() {
           {user.checkin_streak > 0 && (
             <span className="flex items-center gap-1">
               <Icon name="fire" size={12} className="text-primary" />
-              {t('usercheckin_streak_ngay_lien_tiep', { streak: user.checkin_streak })}
+              {t('streak_ngay_lien_tiep', { streak: user.checkin_streak })}
             </span>
           )}
           <span className="flex items-center gap-1">
             <Icon name="calendar" size={12} />
-            {t('thanh_vien_tu_formatmembersinceusercreated_at', { date: formatMemberSince(user.created_at) })}
+            {t('thanh_vien_tu', { date: formatMemberSince(user.created_at) })}
           </span>
         </div>
 

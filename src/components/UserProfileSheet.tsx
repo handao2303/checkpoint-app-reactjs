@@ -123,7 +123,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                   />
                 )}
                 <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-xs font-extrabold text-primary shadow-sm">
-                  {t('cap_ulevel', { level: u.level })}
+                  {t('cap_level', { level: u.level })}
                 </span>
               </div>
               <div className="min-w-0 flex-1 pt-1">
@@ -139,12 +139,12 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
               {u.checkin_streak > 0 && (
                 <span className="flex items-center gap-1">
                   <Icon name="fire" size={12} className="text-primary" />
-                  {t('ucheckin_streak_ngay_lien_tiep', { streak: u.checkin_streak })}
+                  {t('streak_ngay_lien_tiep', { streak: u.checkin_streak })}
                 </span>
               )}
               <span className="flex items-center gap-1">
                 <Icon name="calendar" size={12} />
-                {t('thanh_vien_tu_formatmembersinceucreated_at', { date: formatMemberSince(u.created_at) })}
+                {t('thanh_vien_tu', { date: formatMemberSince(u.created_at) })}
               </span>
             </div>
               </div>

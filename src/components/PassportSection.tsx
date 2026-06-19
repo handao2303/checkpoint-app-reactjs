@@ -241,7 +241,7 @@ export function PassportStamp({
       <button
         type="button"
         onClick={onClick}
-        title={unlocked ? t('stampname_da_ghe_tham_ngay', { name: stamp.name, date: stamp.date }) : t('cam_co_o_khu_vuc')}
+        title={unlocked ? t('stamp_da_ghe_tham_ngay', { name: stamp.name, date: stamp.date }) : t('cam_co_o_khu_vuc')}
         className={cn(
           "w-[64px] h-[64px] rounded-full border-[1.5px] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer"
         )}
@@ -471,7 +471,7 @@ export function PassportSection({ username }: PassportSectionProps) {
 
       {selectedStampForPhotos && (
         <Sheet
-          title={t('khoanh_khac_tai_selectedstampforphotosname', { name: selectedStampForPhotos.name })}
+          title={t('khoanh_khac_tai', { name: selectedStampForPhotos.name })}
           onClose={() => setSelectedStampForPhotos(null)}
         >
           <div className="py-4 max-h-[70vh] overflow-y-auto pr-1">

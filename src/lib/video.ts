@@ -21,7 +21,7 @@ export async function prepareCheckpointVideo(file: File): Promise<{ original: Fi
     throw new Error(t('file_khong_phai_video'));
   }
   if (file.size > MAX_INPUT_VIDEO_BYTES) {
-    throw new Error(t('video_qua_lon_toi_da', { roundMAX_INPUT_VIDEO_BYTES10241024: Math.round(MAX_INPUT_VIDEO_BYTES / (1024 * 1024)) }));
+    throw new Error(t('video_qua_lon_toi_da', { size: Math.round(MAX_INPUT_VIDEO_BYTES / (1024 * 1024)) }));
   }
   const video = document.createElement("video");
   video.preload = "metadata";
