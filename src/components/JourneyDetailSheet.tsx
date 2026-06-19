@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
+import { useCallback, useRef, useState } from "react";
 import Map, { Source, Layer, Marker } from "react-map-gl/maplibre";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { PhotoProvider, PhotoView } from "react-photo-view";
-import "react-photo-view/dist/react-photo-view.css";
-import { getJourney, type JourneyStop } from "../lib/api";
+import { getJourney, type JourneyStop, API_URL } from "../lib/api";
 import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { Icon } from "./ui/Icon";
+import { MediaPreview } from "./MediaPreview";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 import { ShareButton } from "./share/ShareButton";
@@ -24,8 +24,22 @@ export function JourneyDetailSheet({
 }) {
   const { data, isLoading } = useQuery({ queryKey: ["journey", id], queryFn: () => getJourney(id) });
   const stops = data?.checkpoints ?? [];
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const [focusedStopId, setFocusedStopId] = useState<string | null>(null);
+
+  const focusStop = useCallback((stop: JourneyStop) => {
+    setFocusedStopId(stop.id);
+    mapRef.current?.flyTo({
+      center: [stop.lng, stop.lat],
+      zoom: 16,
+      duration: 700,
+      essential: true,
+    });
+    trackEvent("journey_stop_focus", { checkpoint_id: stop.id });
+  }, []);
 
   const handleLoad = (map: MapLibreMap) => {
+    mapRef.current = map;
     if (stops?.length > 0) {
       const lngs = stops.map((s) => s.lng);
       const lats = stops.map((s) => s.lat);
@@ -49,7 +63,7 @@ export function JourneyDetailSheet({
   };
 
   return (
-    <Sheet grow onClose={onClose}>
+    <Sheet grow className="h-[94dvh]" onClose={onClose}>
       {isLoading || !data ? (
         <div className="flex min-h-0 flex-1 flex-col gap-3">
           <Skeleton className="h-6 w-48" />
@@ -75,7 +89,7 @@ export function JourneyDetailSheet({
           </div>
 
           {stops?.length > 0 && (
-            <div className="min-h-40 flex-1 overflow-hidden rounded-xl">
+            <div className="flex-1 overflow-hidden rounded-xl">
               <Map
                 initialViewState={DEFAULT_VIEW}
                 mapStyle={MAP_STYLE}
@@ -98,51 +112,49 @@ export function JourneyDetailSheet({
                 )}
                 {stops.map((s, i) => (
                   <Marker key={s.id} longitude={s.lng} latitude={s.lat} anchor="center">
-                    {s.image_url ? (
-                      <StopPhotoStack stop={s} />
-                    ) : (
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground ring-2 ring-white">
-                        {i + 1}
-                      </span>
-                    )}
+                    <StopMarker
+                      stop={s}
+                      stops={stops}
+                      index={i}
+                      total={stops.length}
+                      focused={focusedStopId === s.id}
+                    />
                   </Marker>
                 ))}
               </Map>
             </div>
           )}
 
-          <div className="max-h-44 shrink-0 overflow-y-auto border-l-2 border-border pl-4">
+          <div className="max-h-50 shrink-0 overflow-y-auto rounded-xl border border-border bg-surface">
             {stops.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Chưa có check-in nào trong hành trình.</p>
+              <p className="p-3 text-sm text-muted-foreground">Chưa có check-in nào trong hành trình.</p>
             ) : (
-              <div className="flex flex-col gap-2">
-                {stops.map((s) => (
-                  <button
+              <div className="py-1">
+                {stops.map((s, i) => (
+                  <StopListItem
                     key={s.id}
-                    onClick={() => {
+                    stop={s}
+                    index={i}
+                    total={stops.length}
+                    focused={focusedStopId === s.id}
+                    onFocus={() => focusStop(s)}
+                    onOpen={onOpenCheckpoint ? () => {
                       trackEvent("journey_stop_open", { checkpoint_id: s.id });
-                      onOpenCheckpoint?.(s.id);
-                    }}
-                    className="flex items-center gap-2 text-left text-sm"
-                  >
-                    <Icon name={categoryIcon(s.category)} size={18} className="text-muted-foreground" />
-                    <span className="flex-1 font-medium">{s.name}</span>
-                    <span className="text-xs text-subtle-foreground">
-                      {new Date(s.created_at).toLocaleDateString("vi-VN")}
-                    </span>
-                  </button>
+                      onOpenCheckpoint(s.id);
+                    } : undefined}
+                  />
                 ))}
               </div>
             )}
           </div>
 
-          <div className="shrink-0">
+          <div className="shrink-0 text-end">
             <ShareButton
               filename={`journey-${data.journey.id}.png`}
               title={data.journey.title}
               text={`Hành trình "${data.journey.title}" của mình trên Checkpoint!`}
               label="Chia sẻ hành trình"
-              url={`${window.location.origin}/j/${data.journey.id}`}
+              url={`${API_URL}/share/journey/${data.journey.id}`}
               render={() =>
                 renderJourneyCard({
                   title: data.journey.title,
@@ -152,8 +164,8 @@ export function JourneyDetailSheet({
                   date: new Date(
                     data.journey.started_at ?? data.journey.created_at,
                   ).toLocaleDateString("vi-VN"),
-                  imageUrls: stops.map((s) => s.image_url).filter(Boolean) as string[],
-                  url: `${window.location.origin}/j/${data.journey.id}`,
+                  imageUrls: stops.map((s) => s.thumbnail_url ?? s.image_url).filter(Boolean) as string[],
+                  url: `${API_URL}/share/journey/${data.journey.id}`,
                 })
               }
             />
@@ -164,34 +176,235 @@ export function JourneyDetailSheet({
   );
 }
 
-/** Cover photo for one journey stop, shown as a small rotated card. */
-function StopPhotoStack({ stop }: { stop: JourneyStop }) {
-  if (!stop.image_url) return null;
+type StopMarkerMeta =
+  | {
+      kind: "icon";
+      iconName: "play" | "flag";
+      tone: string;
+      ariaLabel: string;
+    }
+  | {
+      kind: "number";
+      label: string;
+      tone: string;
+      ariaLabel: string;
+    };
 
-  const caption = (
+function getStopMarkerMeta(index: number, total: number): StopMarkerMeta {
+  if (total <= 1) {
+    return {
+      kind: "number",
+      label: "1",
+      tone: "bg-primary text-primary-foreground",
+      ariaLabel: "Điểm duy nhất",
+    };
+  }
+  if (index === 0) {
+    return {
+      kind: "icon",
+      iconName: "play",
+      tone: "bg-emerald-600 text-white",
+      ariaLabel: "Điểm bắt đầu",
+    };
+  }
+  if (index === total - 1) {
+    return {
+      kind: "icon",
+      iconName: "flag",
+      tone: "bg-accent-600 text-white",
+      ariaLabel: "Điểm kết thúc",
+    };
+  }
+  return {
+    kind: "number",
+    label: String(index + 1),
+    tone: "bg-primary text-primary-foreground",
+    ariaLabel: `Điểm số ${index + 1}`,
+  };
+}
+
+function StopMarker({
+  stop,
+  stops,
+  index,
+  total,
+  focused,
+}: {
+  stop: JourneyStop;
+  stops: JourneyStop[];
+  index: number;
+  total: number;
+  focused: boolean;
+}) {
+  const meta = getStopMarkerMeta(index, total);
+
+  if (stop.image_url) {
+    return <StopPhotoStack stop={stop} stops={stops} index={index} total={total} focused={focused} />;
+  }
+
+  return (
+    <span
+      title={meta.ariaLabel}
+      className={`flex h-8 min-w-8 items-center justify-center rounded-full border-[3px] border-white px-1 shadow-lg transition-transform ${focused ? "scale-125 ring-4 ring-primary/30" : ""} ${meta.tone}`}
+    >
+      <StopMarkerBadgeContent meta={meta} />
+    </span>
+  );
+}
+
+/** Cover photo for one journey stop, shown as a small rotated card. */
+function StopPhotoStack({
+  stop,
+  stops,
+  index,
+  total,
+  focused,
+}: {
+  stop: JourneyStop;
+  stops: JourneyStop[];
+  index: number;
+  total: number;
+  focused: boolean;
+}) {
+  if (!stop.image_url) return null;
+  const meta = getStopMarkerMeta(index, total);
+
+  return (
+    <div
+      className={`relative h-14 w-14 translate-y-1.5 transition-transform ${focused ? "scale-125" : ""}`}
+      title={meta.ariaLabel}
+    >
+      <MediaPreview
+        url={stop.image_url}
+        thumbnailUrl={stop.thumbnail_url}
+        mediaType={stop.media_type}
+        alt={stop.name}
+        caption={<StopCaption stop={stop} />}
+        galleryItems={stops
+          .filter((item) => item.image_url)
+          .map((item) => ({
+            url: item.image_url,
+            thumbnailUrl: item.thumbnail_url,
+            mediaType: item.media_type,
+            alt: item.name,
+            caption: <StopCaption stop={item} />,
+          }))}
+        galleryIndex={stops.filter((item) => item.image_url).findIndex((item) => item.id === stop.id)}
+        className={`absolute h-10 w-10 -rotate-6 rounded-md border-2 border-white object-cover shadow-md ${focused ? "ring-4 ring-primary/30" : ""}`}
+      />
+      <StopMarkerBadge meta={meta} />
+    </div>
+  );
+}
+
+function StopMarkerBadge({ meta }: { meta: StopMarkerMeta }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none absolute bottom-5 left-6 z-20 flex h-5 min-w-5 -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full border-[2px] border-white px-1 shadow-lg ${meta.tone}`}
+    >
+      <StopMarkerBadgeContent meta={meta} />
+    </span>
+  );
+}
+
+function StopMarkerBadgeContent({
+  meta,
+  size = 10,
+  numberClassName = "text-sm",
+}: {
+  meta: StopMarkerMeta;
+  size?: number;
+  numberClassName?: string;
+}) {
+  if (meta.kind === "icon") {
+    return (
+      <Icon
+        name={meta.iconName}
+        size={size}
+        className={meta.iconName === "play" ? "ml-0.5 fill-white" : undefined}
+        strokeWidth={2.4}
+      />
+    );
+  }
+  return <span className={`${numberClassName} font-black leading-none`}>{meta.label}</span>;
+}
+
+function StopListItem({
+  stop,
+  index,
+  total,
+  focused,
+  onFocus,
+  onOpen,
+}: {
+  stop: JourneyStop;
+  index: number;
+  total: number;
+  focused: boolean;
+  onFocus: () => void;
+  onOpen?: () => void;
+}) {
+  const meta = getStopMarkerMeta(index, total);
+  const isFirst = index === 0;
+  const isLast = index === total - 1;
+
+  return (
+    <div
+      className={`flex w-full items-stretch transition-colors ${focused ? "bg-primary-50" : "hover:bg-surface-muted"}`}
+    >
+      <button
+        type="button"
+        onClick={onFocus}
+        className="group flex min-w-0 flex-1 items-stretch gap-3 px-3 text-left text-sm"
+      >
+        <span className="relative flex w-6 shrink-0 justify-center">
+          {!isFirst && <span className="absolute top-0 h-1/2 w-px bg-border" aria-hidden="true" />}
+          {!isLast && <span className="absolute bottom-0 h-1/2 w-px bg-border" aria-hidden="true" />}
+          <span
+            title={meta.ariaLabel}
+            className={`relative z-10 my-3 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 shadow-sm ${focused ? "ring-4 ring-primary/20" : ""} ${meta.tone}`}
+          >
+            <StopMarkerBadgeContent meta={meta} size={9} numberClassName="text-[11px]" />
+          </span>
+        </span>
+        <span className="my-2.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted-foreground">
+          <Icon name={categoryIcon(stop.category)} size={15} />
+        </span>
+        <span className="my-2.5 min-w-0 flex-1">
+          <span className="block truncate font-semibold text-foreground">{stop.name}</span>
+          {stop.address && <span className="block truncate text-xs text-muted-foreground">{stop.address}</span>}
+        </span>
+        <span className="my-2.5 shrink-0 text-xs text-subtle-foreground">
+          {new Date(stop.created_at).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })}
+        </span>
+      </button>
+      {onOpen && (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="my-2.5 mr-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted-foreground transition hover:bg-primary hover:text-primary-foreground"
+          aria-label={`Mở ${stop.name}`}
+        >
+          <Icon name="eye" size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function StopCaption({ stop }: { stop: JourneyStop }) {
+  return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] bg-gradient-to-t from-black/80 to-transparent p-4 pb-8 text-center text-white">
       <p className="font-display text-lg font-bold">{stop.name}</p>
       {stop.note && <p className="text-sm">{stop.note}</p>}
       {stop.address && (
-        <p className="mt-0.5 flex items-center justify-center gap-1 text-xs opacity-80">
-          <Icon name="map-pin" size={12} /> {stop.address}
-        </p>
+        <div className="mt-0.5 flex items-start justify-center gap-1 text-xs opacity-80">
+          <Icon name="map-pin" size={12} className="mt-0.5 shrink-0" />
+          <span>{stop.address}</span>
+        </div>
       )}
     </div>
-  );
-
-  return (
-    <PhotoProvider overlayRender={() => caption}>
-      <div className="relative h-12 w-12 translate-y-1.5">
-        <PhotoView src={stop.image_url}>
-          <img
-            src={stop.thumbnail_url ?? stop.image_url}
-            alt=""
-            className="absolute h-10 w-10 -rotate-6 cursor-zoom-in rounded-md border-2 border-white object-cover shadow-md"
-          />
-        </PhotoView>
-      </div>
-    </PhotoProvider>
   );
 }
 

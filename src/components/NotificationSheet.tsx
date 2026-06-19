@@ -6,6 +6,7 @@ import { useNotifications } from "../context/NotificationProvider";
 import { CheckpointDetailSheet } from "./CheckpointDetailSheet";
 import { UserProfileSheet } from "./UserProfileSheet";
 import { Icon, type IconName } from "./ui/Icon";
+import { UserAvatar } from "./ui/UserAvatar";
 import { trackEvent } from "../lib/observability";
 
 const REACTION_ICONS: Record<string, IconName> = {
@@ -127,11 +128,13 @@ function NotificationRow({
       }`}
     >
       <div className="relative shrink-0">
-        {notif.actor.avatar_url ? (
-          <img src={notif.actor.avatar_url} alt="" className="h-12 w-12 object-contain" />
-        ) : (
-          <span className="block h-11 w-11 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
-        )}
+        <UserAvatar
+          src={notif.actor.avatar_url}
+          name={name}
+          username={notif.actor.username}
+          className="h-12 w-12"
+          fallbackClassName="h-11 w-11"
+        />
         {notif.type === "reaction" && notif.reaction && REACTION_ICONS[notif.reaction] && (
           <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-surface shadow ring-1 ring-border">
             <Icon name={REACTION_ICONS[notif.reaction]} size={12} className="fill-current text-rose-500" />

@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { UserProfileSheet } from "../components/UserProfileSheet";
+import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
 
 // JourneyDetailSheet pulls in MapLibre — keep it lazy so deep links don't drag
 // the map bundle into the main chunk.
@@ -17,6 +18,14 @@ export function CheckpointLink() {
   const navigate = useNavigate();
   if (!id) return null;
   return <CheckpointDetailSheet id={id} onClose={() => navigate("/", { replace: true })} />;
+}
+
+/** Deep-link target for /p/:id — opens the place detail. */
+export function PlaceLink() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  if (!id) return null;
+  return <PlaceDetailSheet id={id} onClose={() => navigate("/", { replace: true })} />;
 }
 
 /** Deep-link target for /u/:username — opens a user's public profile. Closing

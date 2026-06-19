@@ -12,11 +12,17 @@ import { Button } from "../components/ui/Button";
 import { useCheckin } from "../hooks/useCheckin";
 import { getCheckpointsInBounds, getFollowing, type Bounds, type Checkpoint } from "../lib/api";
 import type { Coords } from "../lib/geo";
-import { DEFAULT_VIEW, MAP_STYLE, categoryIcon } from "../lib/maps";
+import { CATEGORIES, DEFAULT_VIEW, MAP_STYLE, categoryIcon } from "../lib/maps";
 import { useUserLocation } from "../location/LocationProvider";
 import { trackError, trackEvent } from "../lib/observability";
 
 type MapFilter = "all" | "following" | "mine";
+type CategoryFilter = "all" | (typeof CATEGORIES)[number]["key"];
+type MapFilters = {
+  map: MapFilter;
+  category: CategoryFilter;
+  categoryMenuOpen: boolean;
+};
 
 const BOUNDS_BUFFER_RATIO = 0.5;
 
@@ -49,16 +55,20 @@ function expandBounds(bounds: Bounds): Bounds {
 const getCheckpoints = (
   data: Checkpoint[],
   filter: MapFilter,
+  categoryFilter: CategoryFilter,
   userId?: string,
   followingIds: string[] = [],
 ) => {
+  let checkpoints = data;
   if (filter === "mine") {
-    return data.filter((cp) => cp.user_id === userId);
+    checkpoints = checkpoints.filter((cp) => cp.user_id === userId);
+  } else if (filter === "following") {
+    checkpoints = checkpoints.filter((cp) => followingIds.includes(cp.user_id));
   }
-  if (filter === "following") {
-    return data.filter((cp) => followingIds.includes(cp.user_id));
+  if (categoryFilter !== "all") {
+    checkpoints = checkpoints.filter((cp) => cp.category === categoryFilter);
   }
-  return data;
+  return checkpoints;
 };
 
 export function MapPage() {
@@ -68,7 +78,12 @@ export function MapPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [clusterLeaves, setClusterLeaves] = useState<Checkpoint[] | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  const [mapFilter, setMapFilter] = useState<MapFilter>("all");
+  const [filters, setFilters] = useState<MapFilters>({
+    map: "all",
+    category: "all",
+    categoryMenuOpen: false,
+  });
+  const { map: mapFilter, category: categoryFilter, categoryMenuOpen } = filters;
   const { start, sheets } = useCheckin();
   const { coords } = useUserLocation();
   const { user } = useAuth();
@@ -77,6 +92,7 @@ export function MapPage() {
   const coordsRef = useRef<Coords | null>(null);
   coordsRef.current = coords;
   const centeredRef = useRef(false);
+  const filterControlRef = useRef<HTMLDivElement | null>(null);
 
   const centerOnUser = useCallback((map: MapLibreMap, c: Coords) => {
     if (centeredRef.current) return;
@@ -112,7 +128,54 @@ export function MapPage() {
     staleTime: Infinity,
   });
 
-  const checkpoints = getCheckpoints(data, mapFilter, user?.id, followingIds);
+  const checkpoints = getCheckpoints(data, mapFilter, categoryFilter, user?.id, followingIds);
+  const activeCategory = CATEGORIES.find((category) => category.key === categoryFilter);
+  const categoryOptionCount = CATEGORIES.length + 1;
+
+  const categoryOptionDelay = useCallback(
+    (index: number) => {
+      const delayIndex = categoryMenuOpen ? index : categoryOptionCount - index - 1;
+      return `${delayIndex * 24}ms`;
+    },
+    [categoryMenuOpen, categoryOptionCount],
+  );
+
+  const closeCategoryMenu = useCallback(() => {
+    setFilters((current) =>
+      current.categoryMenuOpen ? { ...current, categoryMenuOpen: false } : current,
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!categoryMenuOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!filterControlRef.current?.contains(event.target as Node)) {
+        closeCategoryMenu();
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") closeCategoryMenu();
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [categoryMenuOpen, closeCategoryMenu]);
+
+  const selectCategory = useCallback((nextCategory: CategoryFilter) => {
+    setFilters((current) => ({
+      ...current,
+      category: nextCategory,
+      categoryMenuOpen: false,
+    }));
+    setClusterLeaves(null);
+    trackEvent("map_category_filter_change", { category: nextCategory });
+  }, []);
 
   // Build supercluster index and compute clusters for current viewport.
   const { clusters, sc } = useMemo(() => {
@@ -248,11 +311,18 @@ export function MapPage() {
               }}
             >
               {cp.thumbnail_url ? (
-                <img
-                  src={cp.thumbnail_url}
-                  alt=""
-                  className="h-10 w-10 -translate-y-1 cursor-pointer rounded-full object-cover shadow-md ring-2 ring-white transition-transform hover:scale-110 active:scale-95"
-                />
+                <span className="relative block h-10 w-10 -translate-y-1 cursor-pointer rounded-full shadow-md ring-2 ring-white transition-transform hover:scale-110 active:scale-95">
+                  <img
+                    src={cp.thumbnail_url}
+                    alt=""
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                  {cp.media_type === "video" && (
+                    <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/25 text-white">
+                      <Icon name="play" size={16} className="ml-0.5 fill-white" />
+                    </span>
+                  )}
+                </span>
               ) : (
                 <div className="flex h-9 w-9 -translate-y-1 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-white transition-transform hover:scale-110 active:scale-95">
                   <Icon name={categoryIcon(cp.category)} size={18} />
@@ -262,6 +332,77 @@ export function MapPage() {
           );
         })}
       </Map>
+
+      <div ref={filterControlRef} className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
+        <button
+          type="button"
+          aria-label={activeCategory ? `Lọc ${activeCategory.label}` : "Lọc theo danh mục"}
+          aria-expanded={categoryMenuOpen}
+          aria-haspopup="menu"
+          title={activeCategory ? activeCategory.label : "Tất cả danh mục"}
+          onClick={() =>
+            setFilters((current) => ({
+              ...current,
+              categoryMenuOpen: !current.categoryMenuOpen,
+            }))
+          }
+          className={`pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full shadow-md backdrop-blur transition-all duration-150 active:scale-95 ${
+            categoryFilter === "all"
+              ? "bg-surface/90 text-foreground hover:bg-surface"
+              : "bg-primary text-primary-foreground"
+          }`}
+        >
+          <Icon name={activeCategory?.icon ?? "map-pin"} size={20} />
+        </button>
+        <div
+          role="menu"
+          aria-hidden={!categoryMenuOpen}
+          style={{
+            transitionDelay: categoryMenuOpen ? "0ms" : `${categoryOptionCount * 24}ms`,
+          }}
+          className={`flex origin-top flex-col overflow-hidden rounded-full bg-surface/95 shadow-lg ring-1 ring-border backdrop-blur transition-all duration-150 ease-out ${
+            categoryMenuOpen
+              ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+              : "pointer-events-none -translate-y-1 scale-95 opacity-0"
+          }`}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            tabIndex={categoryMenuOpen ? 0 : -1}
+            aria-label="Tất cả danh mục"
+            title="Tất cả danh mục"
+            onClick={() => selectCategory("all")}
+            style={{ transitionDelay: categoryOptionDelay(0) }}
+            className={`flex h-10 w-10 items-center justify-center transition-all duration-150 ease-out hover:bg-surface-muted ${
+              categoryMenuOpen ? "translate-y-0 scale-100 opacity-100" : "-translate-y-2 scale-75 opacity-0"
+            } ${
+              categoryFilter === "all" ? "bg-primary text-primary-foreground" : "text-foreground"
+            }`}
+          >
+            <Icon name="map-pin" size={18} />
+          </button>
+          {CATEGORIES.map((category, index) => (
+            <button
+              key={category.key}
+              type="button"
+              role="menuitem"
+              tabIndex={categoryMenuOpen ? 0 : -1}
+              aria-label={category.label}
+              title={category.label}
+              onClick={() => selectCategory(category.key)}
+              style={{ transitionDelay: categoryOptionDelay(index + 1) }}
+              className={`flex h-10 w-10 items-center justify-center transition-all duration-150 ease-out hover:bg-surface-muted ${
+                categoryMenuOpen ? "translate-y-0 scale-100 opacity-100" : "-translate-y-2 scale-75 opacity-0"
+              } ${
+                categoryFilter === category.key ? "bg-primary text-primary-foreground" : "text-foreground"
+              }`}
+            >
+              <Icon name={category.icon} size={18} />
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Filter chips */}
       <div className="absolute inset-x-4 bottom-20 mx-auto flex max-w-md justify-center gap-2">
@@ -274,7 +415,7 @@ export function MapPage() {
         ).map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setMapFilter(key)}
+            onClick={() => setFilters((current) => ({ ...current, map: key }))}
             onMouseDown={() => trackEvent("map_filter_change", { filter: key })}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold shadow-md transition ${
               mapFilter === key
@@ -358,11 +499,18 @@ function ClusterSheet({
                 className="flex items-center gap-3 py-3 text-left"
               >
                 {cp.thumbnail_url || cp.image_url ? (
-                  <img
-                    src={cp.thumbnail_url ?? cp.image_url}
-                    alt=""
-                    className="h-14 w-14 shrink-0 rounded-xl object-cover"
-                  />
+                  <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl">
+                    <img
+                      src={cp.thumbnail_url ?? cp.image_url}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                    {cp.media_type === "video" && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-white">
+                        <Icon name="play" size={18} className="ml-0.5 fill-white" />
+                      </span>
+                    )}
+                  </span>
                 ) : (
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-surface-muted text-muted-foreground">
                     <Icon name={categoryIcon(cp.category)} size={24} />

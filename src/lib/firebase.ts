@@ -1,9 +1,6 @@
-// Firebase is initialized for Firestore-backed comments/notifications/remote
-// logs and optional Analytics. No Firebase Auth/FCM: identity comes from our
-// own Supabase/JWT auth, so Firestore writes carry app-level author fields.
 import { initializeApp } from "firebase/app";
 import { getAnalytics, isSupported, type Analytics } from "firebase/analytics";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
 const app = initializeApp({
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -12,7 +9,11 @@ const app = initializeApp({
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 });
 
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
+});
 
 export const analyticsPromise: Promise<Analytics | null> =
   import.meta.env.VITE_ANALYTICS_ENABLED === "false" ||

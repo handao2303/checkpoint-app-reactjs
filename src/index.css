@@ -15,14 +15,21 @@
   --font-body: "Montserrat", system-ui, -apple-system, sans-serif;
   --font-mono: "Be Vietnam Pro", ui-monospace, monospace;
 
-  --color-primary-50:  #FFF4EE;
-  --color-primary-100: #FFE6D5;
-  --color-primary-200: #FFC9A8;
-  --color-primary-300: #FFA877;
-  --color-primary-400: #FB8246;
-  --color-primary-500: #F4511E;
-  --color-primary-600: #D8400F;
-  --color-primary-700: #B3340D;
+  --font-weight-light: 300;
+  --font-weight-normal: 300;
+  --font-weight-medium: 400;
+  --font-weight-semibold: 500;
+  --font-weight-bold: 600;
+  --font-weight-extrabold: 700;
+
+  --color-primary-50:  #FFF0E8;
+  --color-primary-100: #FFE0D1;
+  --color-primary-200: #FFC2A8;
+  --color-primary-300: #FF9A70;
+  --color-primary-400: #FA7345;
+  --color-primary-500: #F05A28;
+  --color-primary-600: #D94C20;
+  --color-primary-700: #B83B18;
   --color-primary-800: #8F2A0C;
   --color-primary-900: #74240D;
 
@@ -42,9 +49,9 @@
   --color-green-200: #A6D4AE;
   --color-green-300: #6FB97C;
   --color-green-400: #3E9A50;
-  --color-green-500: #2E7D32;
-  --color-green-600: #246428;
-  --color-green-700: #1B5E20;
+  --color-green-500: #2F8A52;
+  --color-green-600: #287745;
+  --color-green-700: #216338;
   --color-green-800: #14501A;
   --color-green-900: #0E3D13;
 
@@ -57,17 +64,17 @@
   --color-accent-600: #D6361E;
   --color-accent-700: #B22A17;
 
-  --color-neutral-0:   #FFFFFF;
-  --color-neutral-50:  #FAF7F2;
-  --color-neutral-100: #F3EEE6;
-  --color-neutral-200: #E7E0D5;
-  --color-neutral-300: #D5CCBE;
-  --color-neutral-400: #A89E8E;
-  --color-neutral-500: #7C7567;
-  --color-neutral-600: #5C564B;
-  --color-neutral-700: #403B33;
-  --color-neutral-800: #2A2620;
-  --color-neutral-900: #1A1714;
+  --color-neutral-0:   #FFFDF8;
+  --color-neutral-50:  #FFF8F1;
+  --color-neutral-100: #F7EDE2;
+  --color-neutral-200: #EEDFD1;
+  --color-neutral-300: #E6CBB6;
+  --color-neutral-400: #BBAA9A;
+  --color-neutral-500: #7A6B5F;
+  --color-neutral-600: #5C4D42;
+  --color-neutral-700: #403229;
+  --color-neutral-800: #2A211C;
+  --color-neutral-900: #1D1511;
 
   --color-facebook: #1877F2;
   --color-apple:    #111111;
@@ -75,7 +82,7 @@
   --color-warning:  #F59E0B;
   --color-danger:   #DC2626;
   --color-info:     #2563EB;
-  --color-gold:     #E8A317;
+  --color-gold:     #E0A73A;
 
   --radius-xs: 6px;
   --radius-sm: 8px;
@@ -84,11 +91,11 @@
   --radius-xl: 20px;
   --radius-2xl: 28px;
 
-  --shadow-sm:   0 1px 2px rgba(31, 25, 20, 0.06);
-  --shadow-md:   0 4px 12px rgba(31, 25, 20, 0.08);
-  --shadow-lg:   0 12px 28px rgba(31, 25, 20, 0.12);
-  --shadow-card: 0 6px 20px rgba(120, 70, 40, 0.10);
-  --shadow-cta:  0 8px 20px rgba(244, 81, 30, 0.35);
+  --shadow-sm:   0 1px 2px rgba(74, 48, 31, 0.06);
+  --shadow-md:   0 4px 12px rgba(74, 48, 31, 0.08);
+  --shadow-lg:   0 12px 26px rgba(74, 48, 31, 0.12);
+  --shadow-card: 0 6px 18px rgba(74, 48, 31, 0.10);
+  --shadow-cta:  0 4px 10px rgba(240, 90, 40, 0.22);
 
   --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-emphasized: cubic-bezier(0.2, 0.9, 0.1, 1);
@@ -96,22 +103,22 @@
 
 /* ---- Semantic tokens (light) ---- */
 :root {
-  --background: var(--color-neutral-50);
-  --foreground: #211C17;
-  --surface: var(--color-neutral-0);
-  --surface-muted: #F5F1EA;
-  --border: #ECE5DA;
-  --input: #ECE5DA;
+  --background: #FFF8F1;
+  --foreground: #2A211C;
+  --surface: #FFFDF8;
+  --surface-muted: #FFF1EA;
+  --border: #EEDFD1;
+  --input: #EEDFD1;
 
-  --primary: var(--color-primary-500);
+  --primary: #F05A28;
   --primary-foreground: #FFFFFF;
   --secondary: var(--color-green-700);
   --secondary-foreground: #FFFFFF;
 
-  --muted: var(--color-neutral-100);
-  --muted-foreground: #6B6357;
-  --subtle-foreground: #A89E8E;
-  --ring: var(--color-primary-500);
+  --muted: #F7EDE2;
+  --muted-foreground: #7A6B5F;
+  --subtle-foreground: #9A8C80;
+  --ring: #F05A28;
 
   --gradient-primary: linear-gradient(135deg, #FF8A3D 0%, #F4511E 100%);
   --gradient-passport: linear-gradient(150deg, #C2410C 0%, #9A3412 100%);
@@ -238,4 +245,12 @@
     -webkit-user-select: text;
     user-select: text;
   }
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }

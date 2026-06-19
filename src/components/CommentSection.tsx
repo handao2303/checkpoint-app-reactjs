@@ -11,15 +11,18 @@ import {
 } from "../lib/comments";
 import { addCommentNotification } from "../lib/notifications";
 import { Skeleton } from "./ui/Skeleton";
+import { UserAvatar } from "./ui/UserAvatar";
 
 export function CommentSection({
   checkpointId,
   ownerUserId,
   checkpointName,
+  onOpenProfile,
 }: {
   checkpointId: string;
   ownerUserId: string;
   checkpointName: string;
+  onOpenProfile?: (username: string) => void;
 }) {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -36,6 +39,7 @@ export function CommentSection({
     queryFn: ({ pageParam }) => fetchComments(checkpointId, pageParam),
     initialPageParam: undefined as Awaited<ReturnType<typeof fetchComments>>["cursor"],
     getNextPageParam: (last) => last.cursor,
+    staleTime: 30000, // cache comments for 30s to prevent redundant refetches on reopen
   });
   const comments = data?.pages.flatMap((p) => p.items) ?? [];
 
@@ -136,6 +140,7 @@ export function CommentSection({
               comment={c}
               mine={c.user_id === user?.id}
               onDelete={() => remove(c.id)}
+              onOpenProfile={onOpenProfile}
             />
           ))}
           <div ref={sentinelRef} className="h-1" />
@@ -152,23 +157,39 @@ function CommentRow({
   comment,
   mine,
   onDelete,
+  onOpenProfile,
 }: {
   comment: Comment;
   mine: boolean;
   onDelete: () => void;
+  onOpenProfile?: (username: string) => void;
 }) {
   return (
     <div className="flex items-start gap-2">
-      {comment.avatar_url ? (
-        <img src={comment.avatar_url} alt="" className="h-9 w-9 shrink-0 object-contain" />
-      ) : (
-        <span className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
-      )}
+      <button
+        onClick={() => onOpenProfile?.(comment.username)}
+        className="shrink-0 transition hover:opacity-80"
+        type="button"
+        aria-label={`Mở hồ sơ ${comment.display_name || comment.username}`}
+      >
+        <UserAvatar
+          src={comment.avatar_url}
+          name={comment.display_name}
+          username={comment.username}
+          className="h-9 w-9"
+          fit="cover"
+          fallbackClassName="h-8 w-8"
+        />
+      </button>
       <div className="min-w-0 flex-1">
         <p className="text-sm">
-          <span className="font-semibold text-foreground">
+          <button
+            onClick={() => onOpenProfile?.(comment.username)}
+            className="font-semibold text-foreground hover:underline mr-1 text-left inline-block"
+            type="button"
+          >
             {comment.display_name || comment.username}
-          </span>{" "}
+          </button>
           <span className="break-words text-foreground">{comment.text}</span>
         </p>
         <p className="text-xs text-subtle-foreground">

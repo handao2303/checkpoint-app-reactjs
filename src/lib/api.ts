@@ -6,7 +6,7 @@ import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { supabase } from "./supabase";
 import { trackError, trackEvent } from "./observability";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 /** HTTP error with a status code — used to distinguish retryable (5xx) from
  *  non-retryable (4xx) failures in the background checkin queue. */
@@ -226,6 +226,14 @@ export async function getUserByUsername(username: string): Promise<User> {
   return res.data as User;
 }
 
+/** Fetch multiple user profiles by their IDs. */
+export async function getUsersByIDs(ids: string[]): Promise<User[]> {
+  if (ids.length === 0) return [];
+  const res = await apiFetch(`/users/by-ids?ids=${encodeURIComponent(ids.join(","))}`);
+  if (!isSuccessful(res)) throw new Error(`load users by ids failed: ${res.status}`);
+  return res.data as User[];
+}
+
 /** Update the caller's display name and/or bio. Returns the updated user. */
 export async function updateProfile(patch: {
   display_name?: string;
@@ -245,6 +253,7 @@ export async function updateProfile(patch: {
 /** One province the user has visited — a passport "stamp". */
 export interface PassportStamp {
   province: string;
+  province_code: string | null;
   checkin_count: number;
   first_at: string;
   last_at: string;
@@ -262,6 +271,14 @@ export async function getPassport(): Promise<Passport> {
   if (!isSuccessful(res)) throw new Error(`getPassport failed: ${res.status}`);
   return res.data as Passport;
 }
+
+/** Another user's digital passport (provinces visited) by their username. */
+export async function getUserPassport(username: string): Promise<Passport> {
+  const res = await apiFetch(`/users/${encodeURIComponent(username)}/passport`);
+  if (!isSuccessful(res)) throw new Error(`getUserPassport failed: ${res.status}`);
+  return res.data as Passport;
+}
+
 
 export interface LeaderboardEntry {
   rank: number;
@@ -331,10 +348,13 @@ export interface Checkpoint {
   lat: number;
   lng: number;
   address?: string;
+  journey_id?: string;
   image_url?: string;
   thumbnail_url?: string;
+  media_type?: "image" | "video";
   xp_awarded: number;
   view_count: number;
+  taken_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -343,7 +363,11 @@ export interface CheckpointImage {
   id: string;
   url: string;
   thumbnail_url?: string;
+  type: "image" | "video";
   sort_order: number;
+  /** True while the media is still being processed by the backend worker
+   *  (raw video awaiting MP4 transcode + thumbnail). */
+  pending?: boolean;
 }
 
 export interface CheckpointDetail {
@@ -388,14 +412,17 @@ export interface CheckinInput {
   rating?: number;
   lat: number;
   lng: number;
-  /** Resolved by the client via Photon before submit (photon.ts). */
+  /** Resolved by the client via BigDataCloud before submit. */
   address?: string;
   province?: string;
+  province_code?: string;
+  /** Photo capture timestamp from EXIF metadata; distinct from created_at. */
+  taken_at?: string;
   place_id?: string;
   /** Attach to one of the user's active journeys (chosen in the form). */
   journey_id?: string;
-  /** Keys for images already uploaded directly to R2 (required ≥ 1). */
-  images: { object_key: string; thumbnail_key?: string }[];
+  /** Keys for media already uploaded directly to R2 (required ≥ 1). */
+  images: { object_key: string; thumbnail_key?: string; type?: "image" | "video" }[];
 }
 
 export async function getCheckpointsInBounds(b: Bounds): Promise<Checkpoint[]> {
@@ -421,15 +448,52 @@ export async function getCheckpointDetail(id: string): Promise<CheckpointDetail>
   return res.data;
 }
 
-export async function getMyCheckpoints(limit = 30): Promise<Checkpoint[]> {
-  const res = await apiFetch(`/checkpoints/me?limit=${limit}`);
+export async function getMyCheckpoints(limit = 30, provinceCode?: string): Promise<Checkpoint[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (provinceCode) params.set("province_code", provinceCode);
+  const res = await apiFetch(`/checkpoints/me?${params}`);
   if (!isSuccessful(res)) throw new Error("load my checkpoints failed");
   return res.data.checkpoints ?? [];
 }
 
+export interface CheckpointPage {
+  checkpoints: Checkpoint[];
+  next_cursor?: string;
+}
+
+export async function getMyCheckpointPage({
+  limit = 20,
+  cursor,
+}: {
+  limit?: number;
+  cursor?: string;
+} = {}): Promise<CheckpointPage> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (cursor) params.set("cursor", cursor);
+  const res = await apiFetch(`/checkpoints/me?${params}`);
+  if (!isSuccessful(res)) throw new Error("load my checkpoints failed");
+  return { checkpoints: res.data.checkpoints ?? [], next_cursor: res.data.next_cursor };
+}
+
+export async function getMyUnassignedCheckpoints({
+  limit = 20,
+  cursor,
+}: {
+  limit?: number;
+  cursor?: string;
+} = {}): Promise<CheckpointPage> {
+  const params = new URLSearchParams({ limit: String(limit), journey: "none" });
+  if (cursor) params.set("cursor", cursor);
+  const res = await apiFetch(`/checkpoints/me?${params}`);
+  if (!isSuccessful(res)) throw new Error("load my unassigned checkpoints failed");
+  return { checkpoints: res.data.checkpoints ?? [], next_cursor: res.data.next_cursor };
+}
+
 /** Public list of a user's checkpoints (profile gallery), newest first. */
-export async function getUserCheckpoints(userId: string, limit = 30): Promise<Checkpoint[]> {
-  const res = await apiFetch(`/checkpoints/by-user?user_id=${encodeURIComponent(userId)}&limit=${limit}`);
+export async function getUserCheckpoints(userId: string, limit = 30, provinceCode?: string): Promise<Checkpoint[]> {
+  const params = new URLSearchParams({ user_id: userId, limit: String(limit) });
+  if (provinceCode) params.set("province_code", provinceCode);
+  const res = await apiFetch(`/checkpoints/by-user?${params}`);
   if (!isSuccessful(res)) throw new Error("load user checkpoints failed");
   return res.data.checkpoints ?? [];
 }
@@ -441,6 +505,19 @@ export async function deleteCheckpoint(id: string): Promise<void> {
   if (!isSuccessful(res)) throw new Error(`delete checkpoint failed: ${res.status}`);
 }
 
+export async function updateCheckpoint(
+  id: string,
+  patch: { name: string; note?: string | null; rating?: number | null },
+): Promise<Checkpoint> {
+  const res = await apiFetch(`/checkpoints/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!isSuccessful(res)) throw new Error(`update checkpoint failed: ${res.status}`);
+  return res.data as Checkpoint;
+}
+
 export interface UploadSlot {
   upload_url: string;
   object_key: string;
@@ -448,35 +525,50 @@ export interface UploadSlot {
   thumbnail_key: string;
 }
 
+export type UploadMediaType = "image" | "video";
+
 /** Request presigned R2 PUT URLs before the checkpoint is created.
  *  Upload files directly to R2, then pass the returned keys in createCheckpoint. */
-export async function getUploadSlots(count: number): Promise<UploadSlot[]> {
+export async function getUploadSlots(media: UploadMediaType[] | number): Promise<UploadSlot[]> {
+  const body =
+    typeof media === "number"
+      ? { count: media }
+      : { media: media.map((type) => ({ type })) };
   const res = await apiFetch("/checkpoints/upload-slots", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ count }),
+    body: JSON.stringify(body),
   });
   if (!isSuccessful(res)) throw new Error(`get upload slots failed: ${res.status}`);
   return res.data.slots as UploadSlot[];
 }
 
-/** Upload files to the presigned URLs returned by getUploadSlots. */
+/** Upload raw media to the presigned URLs returned by getUploadSlots. Images
+ *  upload their client-made thumbnail too; videos upload only the raw file — the
+ *  backend worker transcodes it to MP4 and generates the thumbnail. */
 export async function putFilesToSlots(
   slots: UploadSlot[],
-  files: { original: File; thumbnail: File }[],
+  files: { original: File; thumbnail?: File; type: UploadMediaType }[],
 ): Promise<void> {
-  const puts = slots.flatMap((slot, i) => [
-    fetch(slot.upload_url, {
-      method: "PUT",
-      body: files[i].original,
-      headers: { "Content-Type": files[i].original.type || "image/jpeg" },
-    }),
-    fetch(slot.thumbnail_upload_url, {
-      method: "PUT",
-      body: files[i].thumbnail,
-      headers: { "Content-Type": files[i].thumbnail.type || "image/jpeg" },
-    }),
-  ]);
+  const puts = slots.flatMap((slot, i) => {
+    const arr = [
+      fetch(slot.upload_url, {
+        method: "PUT",
+        body: files[i].original,
+        headers: { "Content-Type": files[i].original.type || "application/octet-stream" },
+      }),
+    ];
+    if (files[i].type === "image" && files[i].thumbnail) {
+      arr.push(
+        fetch(slot.thumbnail_upload_url, {
+          method: "PUT",
+          body: files[i].thumbnail,
+          headers: { "Content-Type": files[i].thumbnail.type || "image/jpeg" },
+        }),
+      );
+    }
+    return arr;
+  });
   const results = await Promise.all(puts);
   const failed = results.find((r) => !r.ok);
   if (failed) throw new Error(`R2 upload failed: ${failed.status}`);
@@ -492,6 +584,11 @@ export interface Place {
   lng: number;
   address?: string;
   checkin_count: number;
+  avg_rating?: number;
+  image_count: number;
+  cover_image_url?: string;
+  cover_thumbnail_url?: string;
+  viewer_has_checked_in?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -508,6 +605,7 @@ export interface PlaceDetail {
   avg_rating?: number;
   images: { id: string; url: string; thumbnail_url?: string }[];
   reviews: PlaceReview[];
+  checkins: FeedItem[];
 }
 
 export interface FeedItem {
@@ -526,6 +624,7 @@ export interface FeedItem {
   author: { username: string; display_name?: string; avatar_url?: string };
   image_url?: string;
   thumbnail_url?: string;
+  media_type?: "image" | "video";
   distance_m: number;
 }
 
@@ -641,8 +740,9 @@ export async function getPopularPlaces(near?: LatLng): Promise<Place[]> {
   return res.data.places ?? [];
 }
 
-export async function getPlace(id: string): Promise<PlaceDetail> {
-  const res = await apiFetch(`/places/${id}`);
+export async function getPlace(id: string, opts?: { limit?: number; offset?: number }): Promise<PlaceDetail> {
+  const { limit = 20, offset = 0 } = opts ?? {};
+  const res = await apiFetch(`/places/${id}?limit=${limit}&offset=${offset}`);
   if (!isSuccessful(res)) throw new Error("load place failed");
   return res.data;
 }
@@ -664,6 +764,34 @@ export async function getNearbyPlaces(lat: number, lng: number): Promise<PlaceSu
   } catch {
     return [];
   }
+}
+
+export interface NearbyPlacesResponse {
+  places: Place[];
+  next_offset?: number;
+}
+
+/** Returns nearby places (our own backend) for the Discover experience.
+   *  radius in meters, limit number of results.
+   */
+export async function getNearbyAppPlaces(
+  at: LatLng,
+  opts?: { limit?: number; offset?: number }
+): Promise<NearbyPlacesResponse> {
+  const { limit = 20, offset = 0 } = opts ?? {};
+  const p = new URLSearchParams({
+    lat: String(at.lat),
+    lng: String(at.lng),
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const res = await apiFetch(`/places/nearby?${p}`);
+  if (!isSuccessful(res)) throw new Error("load nearby places failed");
+  const places = res.data.places ?? [];
+  return {
+    places,
+    next_offset: places.length === limit ? offset + limit : undefined,
+  };
 }
 
 // ---- Journeys (Phase 3) ----
@@ -691,6 +819,7 @@ export interface JourneyStop {
   place_id?: string;
   image_url?: string;
   thumbnail_url?: string;
+  media_type?: "image" | "video";
   created_at: string;
 }
 
@@ -733,6 +862,24 @@ export async function updateJourney(
   });
   if (!isSuccessful(res)) throw new Error("update journey failed");
   return res.data;
+}
+
+export async function deleteJourney(
+  id: string,
+  { deleteCheckpoints = false }: { deleteCheckpoints?: boolean } = {},
+): Promise<void> {
+  const mode = deleteCheckpoints ? "delete" : "detach";
+  const res = await apiFetch(`/journeys/${id}?checkpoints=${mode}`, { method: "DELETE" });
+  if (!isSuccessful(res)) throw new Error(`delete journey failed: ${res.status}`);
+}
+
+export async function assignCheckpointsToJourney(journeyId: string, checkpointIds: string[]): Promise<void> {
+  const res = await apiFetch(`/journeys/${journeyId}/checkpoints`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ checkpoint_ids: checkpointIds }),
+  });
+  if (!isSuccessful(res)) throw new Error("assign checkpoints to journey failed");
 }
 
 // ---- Google Drive integration ----

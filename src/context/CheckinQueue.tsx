@@ -145,6 +145,9 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
             qc.invalidateQueries({ queryKey: ["checkpoints"] }),
             qc.invalidateQueries({ queryKey: ["feed"] }),
             qc.invalidateQueries({ queryKey: ["place"] }),
+            qc.invalidateQueries({ queryKey: ["places", "nearby"] }),
+            qc.invalidateQueries({ queryKey: ["places", "popular"] }),
+            qc.invalidateQueries({ queryKey: ["places-nearby-app"] }),
             qc.invalidateQueries({ queryKey: ["passport"] }),
             qc.invalidateQueries({ queryKey: ["badges"] }),
           ]);

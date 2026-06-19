@@ -1,53 +1,48 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { registerSW } from "virtual:pwa-register";
-import { Icon } from "./ui/Icon";
 import { trackEvent } from "../lib/observability";
 
 /**
- * Registers the service worker and shows a small toast when a new build is
- * available. With registerType:"prompt", the new SW waits until the user taps
- * "Tải lại" — important on iOS, where Safari caches hard and only re-checks the
- * SW on relaunch, so users otherwise get stuck on a stale build.
+ * Handles service worker registration and automatic updates.
+ * In autoUpdate mode, a new service worker will automatically activate (skipWaiting)
+ * and claim clients. We listen to the controllerchange event to reload the page
+ * exactly once, ensuring the user is immediately on the latest version.
  */
 export function PWAUpdatePrompt() {
-  const [needRefresh, setNeedRefresh] = useState(false);
-  const [updateSW, setUpdateSW] = useState<((reload?: boolean) => Promise<void>) | null>(null);
-
   useEffect(() => {
-    const fn = registerSW({
-      onNeedRefresh() {
-        trackEvent("pwa_update_prompt_shown");
-        setNeedRefresh(true);
+    // Register the Service Worker
+    registerSW({
+      onRegisteredSW(_, r) {
+        if (r) {
+          // Check for updates every 60 minutes
+          setInterval(() => {
+            r.update().catch((err) => {
+              console.error("Failed to check for PWA update:", err);
+            });
+          }, 60 * 60 * 1000);
+        }
       },
     });
-    setUpdateSW(() => fn);
+
+    let refreshing = false;
+    const handleControllerChange = () => {
+      if (!refreshing) {
+        refreshing = true;
+        trackEvent("pwa_update_auto_reload");
+        window.location.reload();
+      }
+    };
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+    }
+
+    return () => {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+      }
+    };
   }, []);
 
-  if (!needRefresh) return null;
-
-  return (
-    <div className="fixed inset-x-0 bottom-0 z-[120] mx-auto mb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex w-fit max-w-[92vw] items-center gap-3 rounded-full border border-border bg-surface px-4 py-2.5 shadow-lg">
-      <Icon name="sparkles" size={18} className="shrink-0 text-primary" />
-      <span className="text-sm font-medium text-foreground">Có bản cập nhật mới</span>
-      <button
-        onClick={() => {
-          trackEvent("pwa_update_accept");
-          updateSW?.(true);
-        }}
-        className="shrink-0 rounded-full bg-primary px-3 py-1 text-sm font-semibold text-primary-foreground"
-      >
-        Tải lại
-      </button>
-      <button
-        onClick={() => {
-          trackEvent("pwa_update_dismiss");
-          setNeedRefresh(false);
-        }}
-        aria-label="Đóng"
-        className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-surface-muted"
-      >
-        <Icon name="x" size={16} />
-      </button>
-    </div>
-  );
+  return null;
 }

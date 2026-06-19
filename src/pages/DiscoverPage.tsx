@@ -1,54 +1,77 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Icon } from "../components/ui/Icon";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useScrollContainer } from "../components/AppLayout";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { useScrollContainer } from "../components/AppLayout";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { PlaceDetailSheet } from "../components/PlaceDetailSheet";
-import { UserProfileSheet } from "../components/UserProfileSheet";
-import { Card, ImagePlaceholder } from "../components/ui/Card";
-import { XPBadge } from "../components/ui/Chip";
+import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
-import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
+import { Sheet } from "../components/ui/Sheet";
+import { UserProfileSheet } from "../components/UserProfileSheet";
+import { cn } from "../lib/cn";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { useOptionalCheckinQueue } from "../context/CheckinQueue";
 import {
-  followUser,
-  getFeed,
-  getFeedFollowing,
-  getFollowing,
+  getNearbyAppPlaces,
+  getPopularPlaces,
   searchPlaces,
-  unfollowUser,
-  type FeedItem,
   type LatLng,
+  type Place,
 } from "../lib/api";
-import { addFollowNotification } from "../lib/notifications";
-import { DEFAULT_VIEW, categoryIcon } from "../lib/maps";
+import { CATEGORIES, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
+import { trackEvent } from "../lib/observability";
 import { useUserLocation } from "../location/LocationProvider";
-import { trackError, trackEvent } from "../lib/observability";
 
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
+type FilterKey = "all" | "nearest" | "hot" | "cafe" | "food" | "photos";
+
+const FILTER_CHIPS: Array<{ key: FilterKey; label: string; icon?: "map-pin" | "flag" | "coffee" | "utensils" | "image" }> = [
+  { key: "all", label: "Tất cả" },
+  // { key: "nearest", label: "Gần nhất", icon: "map-pin" },
+  { key: "hot", label: "Đang hot", icon: "flag" },
+  { key: "cafe", label: "Cafe", icon: "coffee" },
+  { key: "food", label: "Ăn uống", icon: "utensils" },
+  { key: "photos", label: "Có ảnh", icon: "image" },
+];
 
 function formatDistance(m: number | null | undefined): string | null {
   if (m == null || !Number.isFinite(m) || m < 0) return null;
   return m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)}km`;
 }
 
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const r = 6371000.0; // Earth radius in meters
+  const phi1 = (lat1 * Math.PI) / 180.0;
+  const phi2 = (lat2 * Math.PI) / 180.0;
+  const dphi = ((lat2 - lat1) * Math.PI) / 180.0;
+  const dlambda = ((lon2 - lon1) * Math.PI) / 180.0;
+
+  const a =
+    Math.sin(dphi / 2.0) * Math.sin(dphi / 2.0) +
+    Math.cos(phi1) *
+    Math.cos(phi2) *
+    Math.sin(dlambda / 2.0) *
+    Math.sin(dlambda / 2.0);
+  const c = 2.0 * Math.atan2(Math.sqrt(a), Math.sqrt(1.0 - a));
+
+  return r * c;
+}
+
 export function DiscoverPage() {
-  const [tab, setTab] = useState<"for-you" | "following">("for-you");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placeId, setPlaceId] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const [query, _] = useState("");
+  const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
+  const [filters, setFilters] = useState<{ active: FilterKey }>({ active: "all" });
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const placeListRef = useRef<HTMLDivElement | null>(null);
+  const [placeListScrollMargin, setPlaceListScrollMargin] = useState(0);
+
   const { user } = useAuth();
   const pendingCount = useOptionalCheckinQueue()?.pendingCount ?? 0;
-  const queryClient = useQueryClient();
-
-  // Shared ambient location from the layout provider; fall back to the default
-  // view ("near you" sorting still works, just centred on HCMC) until known.
   const { coords } = useUserLocation();
   const at: LatLng = coords ?? FALLBACK;
 
@@ -57,110 +80,112 @@ export function DiscoverPage() {
     return () => clearTimeout(t);
   }, [query]);
 
-  const { data: results = [] } = useQuery({
+  // Search places query (when query is typed)
+  const { data: results = [], isLoading: isSearchLoading } = useQuery({
     queryKey: ["place-search", debounced, at],
     queryFn: () => searchPlaces(debounced, at),
     enabled: debounced?.length > 0,
   });
 
-  const { data: followingIds = [] } = useQuery({
-    queryKey: ["following"],
-    queryFn: getFollowing,
-    staleTime: Infinity,
+  // Nearby places infinite query (default travel-first Discover view)
+  const {
+    data,
+    isLoading: isNearbyLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["places", "nearby", at],
+    queryFn: ({ pageParam = 0 }) => getNearbyAppPlaces(at, { limit: 20, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.next_offset,
   });
 
-  const forYou = useInfiniteQuery({
-    queryKey: ["feed", at],
-    queryFn: async ({ pageParam }) => {
-      try {
-        const page = await getFeed(at, pageParam);
-        trackEvent("feed_load_success", { tab: "for_you", count: page.items.length, has_cursor: !!pageParam });
-        return page;
-      } catch (error) {
-        trackError(error, { feature: "discover", action: "feed_load", tab: "for_you" });
-        trackEvent("feed_load_failed", { tab: "for_you" });
-        throw error;
-      }
-    },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.next_cursor,
-  });
-  const followingFeed = useInfiniteQuery({
-    queryKey: ["feed-following", at],
-    queryFn: async ({ pageParam }) => {
-      try {
-        const page = await getFeedFollowing(at, pageParam);
-        trackEvent("feed_load_success", { tab: "following", count: page.items.length, has_cursor: !!pageParam });
-        return page;
-      } catch (error) {
-        trackError(error, { feature: "discover", action: "feed_load", tab: "following" });
-        trackEvent("feed_load_failed", { tab: "following" });
-        throw error;
-      }
-    },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.next_cursor,
-    enabled: tab === "following",
+  const nearbyPlaces = data?.pages.flatMap((page) => page.places) ?? [];
+  const { data: popularPlaces = [], isLoading: isPopularLoading } = useQuery({
+    queryKey: ["places", "popular", at],
+    queryFn: () => getPopularPlaces(at),
+    staleTime: 60_000,
   });
 
-  const active = tab === "following" ? followingFeed : forYou;
-  const { fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = active;
-  const items = active.data?.pages.flatMap((p) => p.items) ?? [];
+  const visiblePlaces = useMemo(() => {
+    const source = filters.active === "hot" ? popularPlaces : nearbyPlaces;
+    return filterPlaces(source, filters.active);
+  }, [filters.active, nearbyPlaces, popularPlaces]);
 
-  // Virtualize the feed: the app scrolls at the layout's <main>, so the
-  // virtualizer measures against that shared scroll element. Cards have variable
-  // height (optional note/rating/image) → measureElement corrects estimates.
+  const visibleResults = useMemo(
+    () => filterPlaces(results, filters.active === "hot" ? "all" : filters.active),
+    [filters.active, results],
+  );
+
+  const hotPlaces = useMemo(
+    () => popularPlaces.filter((p) => p.checkin_count > 0).slice(0, 10),
+    [popularPlaces],
+  );
+
   const scrollEl = useScrollContainer();
-  const listRef = useRef<HTMLDivElement | null>(null);
-  const [scrollMargin, setScrollMargin] = useState(0);
+  const canLoadMorePlaces = !debounced && filters.active !== "hot" && hasNextPage;
+  const virtualPlaceCount = visiblePlaces.length + (canLoadMorePlaces ? 1 : 0);
+  const placeVirtualizer = useVirtualizer({
+    count: virtualPlaceCount,
+    getScrollElement: () => scrollEl,
+    estimateSize: () => 112,
+    overscan: 5,
+    scrollMargin: placeListScrollMargin,
+    getItemKey: (index) => visiblePlaces[index]?.id ?? `loader-${index}`,
+  });
+  const virtualPlaceItems = placeVirtualizer.getVirtualItems();
+
   const { pullDistance, pullProgress, isPulling, isRefreshing, isReady } = usePullToRefresh({
     scrollElement: scrollEl,
-    disabled: selectedId != null || placeId != null || profileUsername != null || debounced !== "",
+    disabled: placeId != null || profileUsername != null || selectedCheckpointId != null || debounced !== "",
     onRefresh: () => {
-      trackEvent("pull_to_refresh", { tab });
+      trackEvent("pull_to_refresh", { type: "nearby_places" });
       return queryClient.resetQueries({
-        queryKey: [tab === "following" ? "feed-following" : "feed", at],
+        queryKey: ["places", "nearby", at],
         exact: true,
       });
     },
   });
 
-  const virtualizer = useVirtualizer({
-    count: items.length,
-    getScrollElement: () => scrollEl,
-    estimateSize: () => 420,
-    overscan: 4,
-    scrollMargin,
-    getItemKey: (i) => items[i]?.id ?? i,
-  });
-  const virtualItems = virtualizer.getVirtualItems();
-
-  // The list starts below the tabs header; record that offset (relative to the
-  // position:relative <main>) so virtual rows land in the right place.
-  useLayoutEffect(() => {
-    if (listRef.current) setScrollMargin(listRef.current.offsetTop);
-  }, [scrollEl, tab, items.length, pendingCount]);
-
-  // Infinite loading off the virtualizer: page in more as the last row nears.
   useEffect(() => {
-    const last = virtualItems.at(-1);
-    if (last && last.index >= items.length - 1 && hasNextPage && !isFetchingNextPage) {
-      trackEvent("feed_next_page", { tab });
-      fetchNextPage();
+    if (placeListRef.current) {
+      setPlaceListScrollMargin(placeListRef.current.offsetTop);
     }
-  }, [virtualItems, items.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  // Both tabs share one scroll element — start a freshly-selected feed at the top.
-  useEffect(() => {
-    scrollEl?.scrollTo({ top: 0 });
-  }, [tab, scrollEl]);
+  }, [scrollEl, debounced, filters.active, visiblePlaces.length, hotPlaces.length, isPopularLoading]);
 
   useEffect(() => {
-    if (!scrollEl) return;
-    const onScroll = () => setShowScrollTop(scrollEl.scrollTop > 600);
-    onScroll();
-    scrollEl.addEventListener("scroll", onScroll, { passive: true });
-    return () => scrollEl.removeEventListener("scroll", onScroll);
+    const last = virtualPlaceItems.at(-1);
+    if (
+      !last ||
+      debounced ||
+      filters.active === "hot" ||
+      !hasNextPage ||
+      isFetchingNextPage ||
+      last.index < visiblePlaces.length - 1
+    ) {
+      return;
+    }
+    trackEvent("discover_next_page", { count: visiblePlaces.length });
+    void fetchNextPage();
+  }, [
+    virtualPlaceItems,
+    debounced,
+    filters.active,
+    visiblePlaces.length,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  ]);
+
+  useEffect(() => {
+    const handleScrollToTop = () => {
+      scrollEl?.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    window.addEventListener("scroll-discover-to-top", handleScrollToTop);
+    return () => {
+      window.removeEventListener("scroll-discover-to-top", handleScrollToTop);
+    };
   }, [scrollEl]);
 
   return (
@@ -194,157 +219,385 @@ export function DiscoverPage() {
           </div>
         )}
 
-        {/* <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5">
-        <Search size={18} className="text-muted-foreground" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Tìm địa điểm..."
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-subtle-foreground"
-        />
-      </div> */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 shadow-card focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+            <Icon name="search" size={19} className="shrink-0 text-foreground" />
+            <input
+              name="place-search"
+              aria-label="Tìm địa điểm"
+              autoComplete="off"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Tìm địa điểm, quán cafe, nơi check-in…"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-subtle-foreground"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Xóa tìm kiếm"
+              >
+                <Icon name="x" size={16} />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsFilterSheetOpen(true)}
+            className={cn(
+              "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring relative cursor-pointer active:scale-95",
+              filters.active !== "all"
+                ? "border-primary bg-primary text-primary-foreground shadow-cta"
+                : "border-border bg-surface text-foreground shadow-card hover:border-primary/40"
+            )}
+            aria-label="Mở bộ lọc"
+          >
+            <Icon name="filter" size={18} strokeWidth={filters.active !== "all" ? 2.5 : 2.2} />
+            {filters.active !== "all" && (
+              <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-accent-500 ring-2 ring-primary" />
+            )}
+          </button>
+        </div>
 
         {debounced ? (
-          results?.length === 0 ? (
+          isSearchLoading ? (
+            <div className="flex flex-col gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <PlaceCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : visibleResults.length === 0 ? (
             <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
               Không tìm thấy địa điểm “{debounced}”.
             </p>
           ) : (
-            <div className="flex flex-col gap-2">
-              {results.map((p) => (
-                <button
+            <div className="flex flex-col gap-3">
+              {visibleResults.map((p) => (
+                <PlaceCard
                   key={p.id}
-                  onClick={() => {
+                  place={p}
+                  distance={formatDistance(haversine(at.lat, at.lng, p.lat, p.lng))}
+                  signedIn={!!user}
+                  onOpen={() => {
                     trackEvent("feed_place_open", { place_id: p.id });
                     setPlaceId(p.id);
                   }}
-                  className="flex items-center gap-3 rounded-xl bg-surface p-3 text-left shadow-card"
-                >
-                  <Icon name={categoryIcon(p.category)} size={24} className="text-muted-foreground" />
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground">{p.name}</p>
-                    {p.address && <p className="text-xs text-muted-foreground">{p.address}</p>}
-                  </div>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Icon name="flag" size={12} /> {p.checkin_count}
-                  </span>
-                </button>
+                />
               ))}
             </div>
           )
         ) : (
           <>
-          {/* "Following" tab only for signed-in users; anon sees just "for you". */}
-          <div className="flex items-center justify-around border-b border-border">
-            {(
-              [
-                ["for-you", "Dành cho bạn"],
-                ...(user ? [["following", "Đang theo dõi"] as const] : []),
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => {
-                  trackEvent("discover_tab_change", { tab: key });
-                  setTab(key);
-                }}
-                className={`relative pb-2 font-display text-lg font-bold transition ${
-                  tab === key ? "text-clay-600" : "text-subtle-foreground"
-                }`}
-              >
-                {label}
-                {tab === key && (
-                  <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-clay-600" />
-                )}
-              </button>
-            ))}
-          </div>
-
-          {tab === "for-you" && pendingCount > 0 && <PendingCheckinStatus count={pendingCount} />}
-
-          {isLoading ? (
-        <>
-          {Array.from({ length: 3 }).map((_, i) => (
-            <FeedCardSkeleton key={i} />
-          ))}
-        </>
-      ) : items?.length === 0 ? (
-        <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-          {tab === "following"
-            ? "Chưa theo dõi ai. Bấm ⋮ trên bài check-in để theo dõi."
-            : "Chưa có check-in nào quanh đây. Hãy là người cắm cờ đầu tiên!"}
-        </p>
-      ) : (
-        <>
-          <div ref={listRef} style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
-            {virtualItems.map((vi) => {
-              const it = items[vi.index];
-              return (
-                <div
-                  key={vi.key}
-                  data-index={vi.index}
-                  ref={virtualizer.measureElement}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${vi.start - scrollMargin}px)`,
-                  }}
-                >
-                  {/* pb-4 replaces the flex gap (rows are absolutely positioned). */}
-                  <div className="pb-4">
-                    <FeedCard
-                      item={it}
-                      mine={user != null && it.author.username === user.username}
-                      isFollowing={followingIds.includes(it.user_id)}
-                      onOpen={() => {
-                        trackEvent("feed_card_open", { checkpoint_id: it.id, category: it.category });
-                        setSelectedId(it.id);
-                      }}
-                      onOpenProfile={(username) => {
-                        trackEvent("feed_profile_open");
-                        setProfileUsername(username);
-                      }}
-                    />
+            {pendingCount > 0 && <PendingCheckinStatus count={pendingCount} />}
+            {(isPopularLoading || hotPlaces.length > 0) && filters.active !== "hot" && (
+              <section className="flex flex-col gap-3">
+                <div className="flex items-end justify-between px-1">
+                  <div>
+                    <h2 className="flex items-center gap-2 font-display text-xl font-extrabold text-foreground">
+                      <Icon name="star" size={22} className="fill-gold text-gold" /> Đang hot gần bạn
+                    </h2>
+                    <p className="text-xs text-muted-foreground">Nhiều người vừa cắm cờ</p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-          {isFetchingNextPage && <FeedCardSkeleton />}
-        </>
-      )}
+                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none">
+                  {isPopularLoading
+                    ? Array.from({ length: 3 }).map((_, i) => <HotPlaceSkeleton key={i} />)
+                    : hotPlaces.map((p) => (
+                        <PlaceCard
+                          key={p.id}
+                          place={p}
+                          distance={formatDistance(haversine(at.lat, at.lng, p.lat, p.lng))}
+                          signedIn={!!user}
+                          onOpen={() => {
+                            trackEvent("discover_hot_place_open", { place_id: p.id });
+                            setPlaceId(p.id);
+                          }}
+                          variant="hot"
+                        />
+                      ))}
+                </div>
+              </section>
+            )}
+
+            <section className="flex items-end justify-between px-1">
+              <div>
+                <h2 className="flex items-center gap-2 font-display text-xl font-extrabold text-foreground">
+                  <Icon name="pin-filled" size={22} className="text-primary" />
+                  {filters.active === "hot" ? "Địa điểm đang hot" : "Địa điểm gần bạn"}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {visiblePlaces.length} địa điểm trong danh sách hiện tại
+                </p>
+              </div>
+            </section>
+
+            {isNearbyLoading || (filters.active === "hot" && isPopularLoading) ? (
+              <div className="flex flex-col gap-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <PlaceCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : visiblePlaces.length === 0 ? (
+              <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
+                Chưa có địa điểm nào quanh đây. Hãy là người cắm cờ đầu tiên!
+              </p>
+            ) : (
+              <div
+                ref={placeListRef}
+                style={{ height: placeVirtualizer.getTotalSize(), position: "relative" }}
+              >
+                {virtualPlaceItems.map((virtualItem) => {
+                  const place = visiblePlaces[virtualItem.index];
+                  const isLoader = place == null;
+
+                  return (
+                    <div
+                      key={virtualItem.key}
+                      data-index={virtualItem.index}
+                      ref={placeVirtualizer.measureElement}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${virtualItem.start - placeListScrollMargin}px)`,
+                      }}
+                    >
+                      <div className="pb-3">
+                        {isLoader ? (
+                          <div className="flex justify-center p-4">
+                            <span className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+                          </div>
+                        ) : (
+                          <PlaceCard
+                            place={place}
+                            distance={formatDistance(haversine(at.lat, at.lng, place.lat, place.lng))}
+                            signedIn={!!user}
+                            onOpen={() => {
+                              trackEvent("discover_place_open", { place_id: place.id });
+                              setPlaceId(place.id);
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {selectedId && (
-        <CheckpointDetailSheet id={selectedId} onClose={() => setSelectedId(null)} />
-      )}
       {placeId && <PlaceDetailSheet id={placeId} onClose={() => setPlaceId(null)} />}
       {profileUsername && (
         <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
       )}
-
-      {showScrollTop && (
-        <button
-          type="button"
-          onClick={() => {
-            trackEvent("feed_scroll_top_click");
-            scrollEl?.scrollTo({ top: 0, behavior: "smooth" });
-          }}
-          aria-label="Cuộn lên đầu"
-          className={`fixed right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition hover:brightness-105 md:right-[calc(50%-13rem)] ${
-            user
-              ? "bottom-[calc(5rem+env(safe-area-inset-bottom,0px))]"
-              : "bottom-[calc(1rem+env(safe-area-inset-bottom,0px))]"
-          }`}
-        >
-          <Icon name="chevron-down" size={22} className="rotate-180" />
-        </button>
+      {selectedCheckpointId && (
+        <CheckpointDetailSheet id={selectedCheckpointId} onClose={() => setSelectedCheckpointId(null)} />
+      )}
+      {isFilterSheetOpen && (
+        <Sheet title="Bộ lọc tìm kiếm" onClose={() => setIsFilterSheetOpen(false)}>
+          <div className="flex flex-col gap-4 py-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Chọn danh mục lọc nhanh</p>
+            <div className="flex flex-wrap gap-2.5">
+              {FILTER_CHIPS.map((chip) => {
+                const active = filters.active === chip.key;
+                return (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => {
+                      setFilters({ active: chip.key });
+                      trackEvent("discover_filter_change", { filter: chip.key });
+                      setIsFilterSheetOpen(false);
+                    }}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-bold transition-all cursor-pointer hover:scale-[1.03] active:scale-[0.97]",
+                      active
+                        ? "border-primary bg-primary text-primary-foreground shadow-cta"
+                        : "border-border bg-surface text-clay-700 shadow-sm hover:border-primary/40 hover:text-foreground"
+                    )}
+                    aria-pressed={active}
+                  >
+                    {chip.icon && <Icon name={chip.icon} size={14} />}
+                    {chip.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </Sheet>
       )}
     </>
+  );
+}
+
+function filterPlaces(places: Place[], active: FilterKey): Place[] {
+  const filtered = places.filter((place) => {
+    if (active === "cafe" || active === "food") return place.category === active;
+    if (active === "photos") return (place.image_count ?? 0) > 0 || !!place.cover_thumbnail_url || !!place.cover_image_url;
+    return true;
+  });
+  if (active === "hot") {
+    return [...filtered].sort((a, b) => b.checkin_count - a.checkin_count);
+  }
+  return filtered;
+}
+
+function PlaceCard({
+  place,
+  distance,
+  signedIn,
+  onOpen,
+  variant = "compact",
+}: {
+  place: Place;
+  distance: string | null;
+  signedIn: boolean;
+  onOpen: () => void;
+  variant?: "compact" | "hot";
+}) {
+  const imageUrl = place.cover_thumbnail_url ?? place.cover_image_url;
+  const category = CATEGORIES.find((c) => c.key === place.category);
+  const cta = place.viewer_has_checked_in ? "Đã cắm" : signedIn ? "Cắm cờ" : "Xem";
+
+  if (variant === "hot") {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        className="group w-48 shrink-0 overflow-hidden rounded-2xl border border-border bg-surface text-left shadow-card transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <PlaceThumb place={place} imageUrl={imageUrl} className="h-28 w-full rounded-none" imageLoading="lazy" />
+        <div className="flex flex-col gap-1.5 p-3">
+          <p className="min-w-0 truncate font-display text-sm font-bold text-foreground">{place.name}</p>
+          <div className="flex min-w-0 items-center gap-2 text-[11px] font-medium text-muted-foreground">
+            {place.avg_rating != null && (
+              <span className="flex items-center gap-0.5 text-foreground">
+              <Icon name="star" size={12} className="fill-gold text-gold" /> {place.avg_rating.toFixed(1)}
+              </span>
+            )}
+            <span className="flex items-center gap-0.5">
+              <Icon name="flag" size={12} /> {place.checkin_count}
+            </span>
+            {distance && <span className="truncate">{distance}</span>}
+          </div>
+        </div>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex min-w-0 w-full items-center gap-3 rounded-2xl border border-border bg-surface p-3 text-left shadow-card transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <PlaceThumb place={place} imageUrl={imageUrl} className="h-16 w-16 rounded-xl" imageLoading="lazy" />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate font-display text-base font-bold text-foreground">{place.name}</p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {place.address || category?.label || "Checkpoint"}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-muted-foreground">
+          {place.avg_rating != null && (
+            <span className="flex items-center gap-1 text-foreground">
+              <Icon name="star" size={13} className="fill-gold text-gold" /> {place.avg_rating.toFixed(1)}
+            </span>
+          )}
+          <span className="flex items-center gap-1">
+            <Icon name="flag" size={13} /> {place.checkin_count}
+          </span>
+          <span className="flex items-center gap-1">
+            <Icon name="image" size={13} /> {place.image_count ?? 0}
+          </span>
+          {distance && (
+            <span className="flex items-center gap-1">
+              <Icon name="pin" size={13} /> {distance}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <span
+        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${
+          place.viewer_has_checked_in
+            ? "border border-green-100 bg-green-50 text-green-700"
+            : signedIn
+              ? "border border-primary bg-primary-50 text-primary"
+              : "border border-border bg-surface-muted text-muted-foreground"
+        }`}
+      >
+        {cta}
+      </span>
+    </button>
+  );
+}
+
+function PlaceThumb({
+  place,
+  imageUrl,
+  className,
+  imageLoading,
+}: {
+  place: Place;
+  imageUrl?: string;
+  className: string;
+  imageLoading?: "lazy" | "eager";
+}) {
+  return (
+    <span
+      className={`relative flex shrink-0 items-center justify-center overflow-hidden border border-border bg-primary-50 text-primary ${className}`}
+    >
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={place.name}
+          width={160}
+          height={120}
+          loading={imageLoading}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <Icon name={categoryIcon(place.category)} size={24} />
+      )}
+    </span>
+  );
+}
+
+function PlaceCardSkeleton() {
+  return (
+    <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
+      <Skeleton className="h-12 w-12 rounded-xl" />
+      <div className="flex-1 flex flex-col gap-2">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-3.5 w-60" />
+        <div className="flex gap-4 mt-1">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HotPlaceSkeleton() {
+  return (
+    <div className="w-48 shrink-0 overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
+      <Skeleton className="h-28 w-full rounded-none" />
+      <div className="flex flex-col gap-2 p-3">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+    </div>
   );
 }
 
@@ -360,181 +613,5 @@ function PendingCheckinStatus({ count }: { count: number }) {
         {count === 1 ? "Đang đăng check-in..." : `Đang đăng ${count} check-in...`}
       </span>
     </div>
-  );
-}
-
-function FeedCardSkeleton() {
-  return (
-    <Card className="flex flex-col gap-3 p-0">
-      <div className="flex items-center gap-3 px-4 pt-4">
-        <Skeleton className="h-10 w-10 rounded-full" />
-        <div className="flex flex-1 flex-col gap-1.5">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-3 w-40" />
-        </div>
-      </div>
-      <Skeleton className="h-56 w-full rounded-none" />
-      <div className="flex items-center gap-3 px-4 pb-4">
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-4 w-20" />
-      </div>
-    </Card>
-  );
-}
-
-function FeedCard({
-  item,
-  mine,
-  isFollowing,
-  onOpen,
-  onOpenProfile,
-}: {
-  item: FeedItem;
-  /** The feed item belongs to the signed-in user (delete allowed). */
-  mine: boolean;
-  /** The signed-in user already follows this item's author. */
-  isFollowing: boolean;
-  onOpen: () => void;
-  onOpenProfile: (username: string) => void;
-}) {
-  const author = item.author.display_name || item.author.username;
-  const distance = formatDistance(item.distance_m);
-  const { user: me } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [following, setFollowing] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
-  // Card disappears via the feed invalidation the hook performs.
-  const { requestDelete, confirming, confirmBox } = useDeleteCheckpoint(item.id);
-
-  async function toggleFollow() {
-    setMenuOpen(false);
-    setFollowing(true);
-    try {
-      if (isFollowing) await unfollowUser(item.author.username);
-      else await followUser(item.author.username);
-      trackEvent(isFollowing ? "unfollow_success" : "follow_success", { source: "feed_card" });
-      if (me) {
-        void addFollowNotification(item.user_id, isFollowing ? "unfollow" : "follow", {
-          id: me.id,
-          username: me.username,
-          display_name: me.display_name,
-          avatar_url: me.avatar_url,
-        });
-      }
-      queryClient.invalidateQueries({ queryKey: ["following"] });
-      queryClient.invalidateQueries({ queryKey: ["feed-following"] });
-    } catch {
-      trackEvent(isFollowing ? "unfollow_failed" : "follow_failed", { source: "feed_card" });
-      // best-effort; leave UI as-is on failure
-    } finally {
-      setFollowing(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [menuOpen]);
-
-  return (
-    <Card className="flex flex-col gap-3 p-0">
-      <div className="flex items-center gap-3 px-4 pt-4">
-        <button
-          onClick={() => onOpenProfile(item.author.username)}
-          className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-80"
-        >
-          {item.author.avatar_url ? (
-            <img src={item.author.avatar_url} alt="" className="h-11 w-11 shrink-0 object-contain" />
-          ) : (
-            <span className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-primary-300 to-clay-400" />
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold text-foreground">{author}</p>
-            {item.address && <p className="truncate text-xs text-muted-foreground">{item.address}</p>}
-          </div>
-        </button>
-        {me && !confirming && (
-          <div ref={menuRef} className="relative">
-            <button
-              onClick={() => setMenuOpen((o) => !o)}
-              className="rounded-full p-2 text-muted-foreground hover:bg-surface-muted"
-              aria-label="Tùy chọn"
-            >
-              <Icon name="more-vertical" size={18} />
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-full z-20 mt-1 min-w-40 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
-                {mine ? (
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      requestDelete();
-                    }}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-sm text-accent-600 hover:bg-accent-50"
-                  >
-                    <Icon name="trash" size={16} /> Xoá check-in
-                  </button>
-                ) : (
-                  <button
-                    onClick={toggleFollow}
-                    disabled={following}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-surface-muted disabled:opacity-50"
-                  >
-                    {isFollowing ? (
-                      <>
-                        <Icon name="user-minus" size={16} /> Bỏ theo dõi
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="user-plus" size={16} /> Theo dõi
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {confirming && <div className="mx-4">{confirmBox}</div>}
-
-      <button onClick={onOpen} className="relative block w-full text-left">
-        {item.image_url ? (
-          <img src={item.thumbnail_url ?? item.image_url} alt="" className="h-56 w-full object-cover" />
-        ) : (
-          <ImagePlaceholder className="h-56 w-full rounded-none" label={item.name} />
-        )}
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-surface/90 px-3 py-1 text-xs font-semibold text-clay-600">
-          <Icon name={categoryIcon(item.category)} size={14} /> {item.name}
-        </span>
-        <span className="absolute bottom-3 right-3">
-          <XPBadge xp={item.xp_awarded} />
-        </span>
-      </button>
-
-      <div className="flex items-center gap-3 px-4 text-sm text-muted-foreground">
-        {item.rating != null && (
-          <span className="flex items-center gap-1">
-            <Icon name="star" size={16} className="fill-gold text-gold" /> {item.rating}/5
-          </span>
-        )}
-        {distance && (
-          <span className="flex items-center gap-1">
-            <Icon name="map-pin" size={14} /> cách {distance}
-          </span>
-        )}
-        <span className="ml-auto text-xs">{new Date(item.created_at).toLocaleDateString("vi-VN")}</span>
-      </div>
-
-      {item.note && <p className="px-4 pb-4 text-sm text-foreground">{item.note}</p>}
-    </Card>
   );
 }

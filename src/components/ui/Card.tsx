@@ -4,7 +4,7 @@ import { cn } from "../../lib/cn";
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("rounded-xl bg-surface p-4 shadow-card", className)}
+      className={cn("rounded-xl border border-border bg-surface p-4 shadow-card", className)}
       {...props}
     />
   );
@@ -21,7 +21,7 @@ export function ImagePlaceholder({
   return (
     <div
       className={cn(
-        "flex items-center justify-center rounded-lg bg-gradient-to-br from-green-200 to-clay-200 text-sm font-medium text-clay-800/70",
+        "flex items-center justify-center rounded-lg border border-border bg-surface-muted text-sm font-medium text-clay-800/70",
         className,
       )}
     >

@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
+    "dev": "vite --host --port 5174",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
@@ -35,6 +35,9 @@
     "react-router-dom": "^7.1.1",
     "react-webcam": "^7.2.0",
     "supercluster": "^8.0.1"
+  },
+  "overrides": {
+    "sharp": "0.34.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",

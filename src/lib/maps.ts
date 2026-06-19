@@ -11,10 +11,10 @@ import type { IconName } from "../components/ui/Icon";
 // component can't be used.
 export const CATEGORIES = [
   { key: "cafe", label: "Cà phê", icon: "coffee", emoji: "☕" },
-  { key: "food", label: "Ăn uống", icon: "utensils", emoji: "🍜" },
+  { key: "food", label: "Ăn uống", icon: "food", emoji: "🍜" },
   { key: "view", label: "Ngắm cảnh", icon: "mountain", emoji: "🌄" },
   { key: "nature", label: "Thiên nhiên", icon: "tree", emoji: "🌲" },
-  { key: "other", label: "Khác", icon: "map-pin", emoji: "📍" },
+  { key: "other", label: "Khác", icon: "pin", emoji: "📍" },
 ] as const satisfies ReadonlyArray<{
   key: string;
   label: string;
@@ -24,7 +24,7 @@ export const CATEGORIES = [
 
 /** The SVG icon name for a category (for <Icon name=...>). */
 export function categoryIcon(category: string): IconName {
-  return CATEGORIES.find((c) => c.key === category)?.icon ?? "map-pin";
+  return CATEGORIES.find((c) => c.key === category)?.icon ?? "pin";
 }
 
 /** The emoji for a category — only for canvas drawing (shareCard.ts). */

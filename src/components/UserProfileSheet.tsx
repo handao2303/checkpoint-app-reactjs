@@ -16,9 +16,13 @@ import { addFollowNotification } from "../lib/notifications";
 import { Button } from "./ui/Button";
 import { ImagePlaceholder } from "./ui/Card";
 import { Icon } from "./ui/Icon";
+import { MediaPreview } from "./MediaPreview";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
+import { UserAvatar } from "./ui/UserAvatar";
 import { trackEvent } from "../lib/observability";
+import { PassportSection } from "./PassportSection";
+
 
 function avatarRingClass(level: number) {
   if (level >= 16) return "border-4 border-yellow-400";
@@ -54,6 +58,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
     queryKey: ["following"],
     queryFn: getFollowing,
     staleTime: Infinity,
+    enabled: !!me,
   });
 
   const isFollowing = u != null && followingIds.includes(u.id);
@@ -91,26 +96,31 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
       ) : (
         <div className="flex flex-col gap-5 pb-2">
           {/* Hero card — matches ProfilePage layout */}
-          <div className="relative rounded-2xl bg-[image:var(--gradient-passport)] p-5 text-white shadow-card">
+          <div className="relative rounded-2xl border border-border bg-surface p-5 text-foreground shadow-card">
             {/* Avatar + info row */}
             <div className="flex items-start gap-4">
               <div className="relative shrink-0">
                 {u.avatar_url ? (
                   <PhotoProvider>
                     <PhotoView src={u.avatar_url}>
-                      <img
+                      <UserAvatar
                         src={u.avatar_url}
-                        alt=""
-                        className={`h-24 w-24 object-contain`}
+                        name={u.display_name}
+                        username={u.username}
+                        className="h-24 w-24"
+                        loading="eager"
                       />
                     </PhotoView>
                   </PhotoProvider>
                 ) : (
-                  <span
-                    className={`block h-20 w-20 rounded-full bg-white/20 ${avatarRingClass(u.level)}`}
+                  <UserAvatar
+                    name={u.display_name}
+                    username={u.username}
+                    className="h-20 w-20"
+                    fallbackClassName={`bg-primary-50 text-primary ${avatarRingClass(u.level)}`}
                   />
                 )}
-                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-bold text-clay-600 shadow-sm">
+                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-xs font-extrabold text-primary shadow-sm">
                   Cấp {u.level}
                 </span>
               </div>
@@ -118,18 +128,15 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                 <h2 className="font-display text-xl font-bold leading-tight">
                   {u.display_name || u.username}
                 </h2>
-                <p className="text-sm text-white/70">@{u.username}</p>
+                <p className="text-sm text-muted-foreground">@{u.username}</p>
                 {u.bio && (
-                  <p className="mt-1 line-clamp-2 text-xs text-white/80">{u.bio}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{u.bio}</p>
                 )}
-              </div>
-            </div>
-
-            {/* Tags */}
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/80">
+                  {/* Tags */}
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
               {u.checkin_streak > 0 && (
                 <span className="flex items-center gap-1">
-                  <Icon name="fire" size={12} className="text-orange-300" />
+                  <Icon name="fire" size={12} className="text-primary" />
                   {u.checkin_streak} ngày liên tiếp
                 </span>
               )}
@@ -138,18 +145,22 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                 Thành viên từ {formatMemberSince(u.created_at)}
               </span>
             </div>
+              </div>
+            </div>
+
+          
 
             {/* Stats */}
             <div className="mt-4 grid grid-cols-4 gap-2">
               {[
-                { label: "TỔNG XP", value: u.total_xp.toLocaleString() },
-                { label: "SỐ CỜ", value: u.checkpoint_count.toString() },
-                { label: "HÀNH TRÌNH", value: u.journey_count.toString() },
-                { label: "CẤP", value: u.level.toString() },
+                { label: "XP", value: u.total_xp.toLocaleString() },
+                { label: "Cờ", value: u.checkpoint_count.toString() },
+                { label: "Hành trình", value: u.journey_count.toString() },
+                { label: "Cấp", value: u.level.toString() },
               ].map((s) => (
-                <div key={s.label} className="rounded-lg bg-white/10 py-2 text-center">
-                  <p className="text-[10px] text-white/70">{s.label}</p>
-                  <p className="font-display text-base font-bold">{s.value}</p>
+                <div key={s.label} className="rounded-xl border border-border bg-surface-muted py-2 text-center">
+                  <p className="text-[10px] font-semibold text-muted-foreground">{s.label}</p>
+                  <p className="font-display text-base font-extrabold text-clay-800">{s.value}</p>
                 </div>
               ))}
             </div>
@@ -173,6 +184,9 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
             </Button>
           )}
 
+          {/* Provinces visited */}
+          <PassportSection username={u.username} />
+
           {/* Check-in gallery */}
           <div>
             <h3 className="mb-2 font-display text-lg font-bold">Khoảnh khắc</h3>
@@ -183,35 +197,39 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                 Chưa có check-in nào.
               </p>
             ) : (
-              <PhotoProvider
-                overlayRender={({ index }) => (
-                  <MomentCaption cp={withImages(checkpoints)[index]} />
-                )}
-              >
-                <div className="grid grid-cols-2 gap-3">
-                  {checkpoints.map((cp) =>
-                    cp.image_url ? (
-                      <PhotoView key={cp.id} src={cp.image_url}>
-                        <img
-                          src={cp.thumbnail_url ?? cp.image_url}
-                          alt={cp.name}
-                          className="h-28 w-full cursor-zoom-in rounded-lg object-cover"
-                        />
-                      </PhotoView>
-                    ) : (
+              <div className="flex gap-3 overflow-x-auto px-4 -mx-4 pb-2 scrollbar-none ">
+                {checkpoints.map((cp) => (
+                  <MediaPreview
+                    key={cp.id}
+                    url={cp.image_url}
+                    thumbnailUrl={cp.thumbnail_url}
+                    mediaType={cp.media_type}
+                    alt={cp.name}
+                    caption={<MomentCaption cp={cp} />}
+                    galleryItems={checkpoints
+                      .filter((item) => item.image_url)
+                      .map((item) => ({
+                        url: item.image_url,
+                        thumbnailUrl: item.thumbnail_url,
+                        mediaType: item.media_type,
+                        alt: item.name,
+                        caption: <MomentCaption cp={item} />,
+                      }))}
+                    galleryIndex={checkpoints.filter((item) => item.image_url).findIndex((item) => item.id === cp.id)}
+                    className="h-28 w-[140px] shrink-0 rounded-lg object-cover snap-start"
+                    fallback={
                       <ImagePlaceholder
-                        key={cp.id}
-                        className="h-28"
+                        className="h-28 w-[140px] shrink-0 snap-start"
                         label={
-                          <span className="flex items-center gap-1">
-                            <Icon name={categoryIcon(cp.category)} size={16} /> {cp.name}
+                          <span className="flex items-center gap-1 text-[11px] truncate px-1.5">
+                            <Icon name={categoryIcon(cp.category)} size={14} /> {cp.name}
                           </span>
                         }
                       />
-                    ),
-                  )}
-                </div>
-              </PhotoProvider>
+                    }
+                  />
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -246,16 +264,12 @@ function UserProfileSkeleton() {
 
 function MomentGridSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="flex gap-3 overflow-x-auto px-4 -mx-4 pb-2 scrollbar-none ">
       {Array.from({ length: 4 }).map((_, i) => (
-        <Skeleton key={i} className="h-28 rounded-lg" />
+        <Skeleton key={i} className="h-28 w-[140px] shrink-0 rounded-lg snap-start" />
       ))}
     </div>
   );
-}
-
-function withImages(checkpoints: Checkpoint[]): Checkpoint[] {
-  return checkpoints.filter((cp) => cp.image_url);
 }
 
 function MomentCaption({ cp }: { cp?: Checkpoint }) {

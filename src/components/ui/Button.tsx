@@ -13,10 +13,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<Variant, string> = {
-  primary: "bg-primary text-primary-foreground shadow-cta hover:brightness-105",
-  accent: "bg-accent-500 text-white shadow-cta hover:brightness-105",
-  green: "bg-green-700 text-white hover:bg-green-800",
-  outline: "border border-border bg-surface text-foreground hover:bg-surface-muted",
+  primary: "border border-primary bg-primary text-primary-foreground shadow-cta hover:bg-primary-600",
+  accent: "border border-primary bg-primary text-white shadow-cta hover:bg-primary-600",
+  green: "border border-green-600 bg-green-600 text-white shadow-sm hover:bg-green-700",
+  outline: "border border-primary/45 bg-surface text-primary shadow-sm hover:bg-primary-50",
   ghost: "text-foreground hover:bg-surface-muted",
 };
 
@@ -38,7 +38,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 font-display font-bold transition",
+        "inline-flex items-center justify-center gap-2 font-display font-extrabold transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "disabled:pointer-events-none disabled:opacity-60",
         pill ? "rounded-full" : "rounded-xl",
