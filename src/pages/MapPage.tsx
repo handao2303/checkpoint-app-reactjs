@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import Map, { GeolocateControl, Marker, NavigationControl } from "react-map-gl/maplibre";
 import Supercluster from "supercluster";
 import { useAuth } from "../auth/AuthContext";
+import { useAuthGate } from "../context/AuthGate";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { MapSkeleton } from "../components/MapSkeleton";
 import { Button } from "../components/ui/Button";
@@ -90,6 +91,7 @@ export function MapPage() {
   const { start, sheets } = useCheckin();
   const { coords } = useUserLocation();
   const { user } = useAuth();
+  const { requireAuth } = useAuthGate();
 
   const mapRef = useRef<MapLibreMap | null>(null);
   const coordsRef = useRef<Coords | null>(null);
@@ -129,6 +131,7 @@ export function MapPage() {
     queryKey: ["following"],
     queryFn: getFollowing,
     staleTime: Infinity,
+    enabled: !!user, // /users/following is auth-only; skip for anonymous visitors
   });
 
   const checkpoints = getCheckpoints(data, mapFilter, categoryFilter, user?.id, followingIds);
@@ -435,7 +438,7 @@ export function MapPage() {
         size="lg"
         className="absolute inset-x-4 bottom-4 mx-auto max-w-md"
         icon={<Icon name="map-pin" size={22} />}
-        onClick={start}
+        onClick={() => requireAuth(start, { source: "map_checkin", reason: "login_prompt_create" })}
       >
         CHECK-IN
       </Button>

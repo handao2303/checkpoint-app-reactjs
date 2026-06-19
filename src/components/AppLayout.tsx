@@ -4,6 +4,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { Icon } from "./ui/Icon";
 import { BottomNav } from "./BottomNav";
 import { NotificationSheet } from "./NotificationSheet";
+import { useAuth } from "../auth/AuthContext";
 import { LocationProvider, useUserLocation } from "../location/LocationProvider";
 import { CheckinQueueProvider } from "../context/CheckinQueue";
 import { NotificationProvider, useNotifications } from "../context/NotificationProvider";
@@ -12,7 +13,6 @@ import { trackEvent } from "../lib/observability";
 
 // The app's single scrolling element is the layout's <main>. Pages reach it via
 // this context (e.g. to drive a virtualizer) since they render behind <Outlet/>.
-// Exported so other layouts (PublicShareLayout) can provide it too.
 export const ScrollContainerContext = createContext<HTMLElement | null>(null);
 
 /** The layout's scrolling <main> element, or null before it mounts. */
@@ -55,7 +55,7 @@ function ScrollToTop({ scrollEl }: { scrollEl: HTMLElement | null }) {
   return null;
 }
 
-function Header() {
+function Header({ showBell }: { showBell: boolean }) {
   const { pathname } = useLocation();
   const isDiscover = pathname === "/discover" || pathname === "/";
   const { coords } = useUserLocation();
@@ -77,32 +77,45 @@ function Header() {
           )}
         </div>
       </div>
-      <NotificationBell />
+      {/* The bell consumes NotificationProvider, which only mounts for signed-in
+          users — hide it for anonymous visitors. */}
+      {showBell && <NotificationBell />}
     </header>
   );
 }
 
 export function AppLayout() {
+  const { user } = useAuth();
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
+
+  const shell = (
+    <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden bg-background">
+      <Header showBell={!!user} />
+
+      <main ref={setScrollEl} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+        <ScrollContainerContext.Provider value={scrollEl}>
+          <ScrollToTop scrollEl={scrollEl} />
+          <Outlet />
+        </ScrollContainerContext.Provider>
+      </main>
+
+      <div className="shrink-0">
+        <BottomNav />
+      </div>
+    </div>
+  );
+
+  // Anonymous visitors browse public tabs (Map, Discover, Leaderboard) with only
+  // LocationProvider; the notification + check-in queue providers hit auth-only
+  // endpoints, so they mount only when signed in.
+  if (!user) {
+    return <LocationProvider>{shell}</LocationProvider>;
+  }
+
   return (
     <CheckinQueueProvider>
       <LocationProvider>
-        <NotificationProvider>
-          <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden bg-background">
-            <Header />
-
-            <main ref={setScrollEl} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
-              <ScrollContainerContext.Provider value={scrollEl}>
-                <ScrollToTop scrollEl={scrollEl} />
-                <Outlet />
-              </ScrollContainerContext.Provider>
-            </main>
-
-            <div className="shrink-0">
-              <BottomNav />
-            </div>
-          </div>
-        </NotificationProvider>
+        <NotificationProvider>{shell}</NotificationProvider>
       </LocationProvider>
     </CheckinQueueProvider>
   );
