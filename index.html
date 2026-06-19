@@ -1,37 +1,73 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
+
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+
     <!-- apple-touch-icon + apple-touch-startup-image links are injected at build
          by @vite-pwa/assets-generator (see pwa-assets.config.ts). -->
+
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
+
     <meta name="theme-color" content="#F4511E" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#15110D" />
-    <!-- Standalone install: standard tag + Apple's legacy equivalent. -->
+
+    <!-- PWA / Standalone -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Checkpoint" />
-    <meta name="description" content="Checkpoint — khám phá thế giới, lưu dấu hành trình." />
-    <title>Checkpoint</title>
-    <meta property="og:title" content="Checkpoint" />
-    <meta property="og:description" content="Checkpoint — khám phá thế giới, lưu dấu hành trình." />
+
+    <!-- Primary SEO -->
+    <title>Checkpoint — Digital Travel Passport</title>
+    <meta
+      name="description"
+      content="Collect real-world places, unlock city stamps, and share your travel journeys with Checkpoint."
+    />
+    <meta
+      name="keywords"
+      content="Checkpoint, travel passport, digital travel passport, travel app, check-in app, city stamps, travel journey, gamified travel"
+    />
+    <meta name="author" content="Checkpoint" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://checkpoint-web.dev-hongquan.workers.dev" />
+
+    <!-- Open Graph -->
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Checkpoint — Digital Travel Passport" />
+    <meta
+      property="og:description"
+      content="Collect real-world places, unlock city stamps, and share your travel journeys with Checkpoint."
+    />
     <meta property="og:image" content="https://checkpoint-web.dev-hongquan.workers.dev/og-image.jpg" />
     <meta property="og:image:secure_url" content="https://checkpoint-web.dev-hongquan.workers.dev/og-image.jpg" />
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:url" content="https://checkpoint-web.dev-hongquan.workers.dev/" />
+    <meta property="og:url" content="https://checkpoint-web.dev-hongquan.workers.dev" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Checkpoint" />
+
+    <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Checkpoint" />
-    <meta name="twitter:description" content="Checkpoint — khám phá thế giới, lưu dấu hành trình." />
+    <meta name="twitter:title" content="Checkpoint — Digital Travel Passport" />
+    <meta
+      name="twitter:description"
+      content="Collect real-world places, unlock city stamps, and share your travel journeys with Checkpoint."
+    />
     <meta name="twitter:image" content="https://checkpoint-web.dev-hongquan.workers.dev/og-image.jpg" />
+
+    <!-- App / Platform -->
+    <meta name="application-name" content="Checkpoint" />
+    <meta name="apple-mobile-web-app-title" content="Checkpoint" />
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -39,6 +75,7 @@
       rel="stylesheet"
     />
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
