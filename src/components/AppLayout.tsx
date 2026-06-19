@@ -62,7 +62,7 @@ function Header() {
   return (
     <header className="shrink-0 sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
       <div className="flex items-center gap-2 min-w-0">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-primary/20 bg-white p-0.5 ring-1 ring-primary/10">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-surface-muted">
           <img src="/logo.png" alt="" className="h-full w-full object-contain" />
         </span>
         <div className="flex flex-col min-w-0">

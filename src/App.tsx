@@ -32,7 +32,7 @@ function VersionTag() {
 function Splash() {
   return (
     <div className="relative flex min-h-full items-center justify-center bg-background">
-      <img src="/logo.png" alt="" className="h-20 w-auto animate-pulse object-contain" />
+      <img src="/logo.png" alt="" className="h-25 w-auto animate-pulse object-contain" />
       <VersionTag />
     </div>
   );
