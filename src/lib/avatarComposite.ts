@@ -6,6 +6,8 @@
 // no circular clip, so framed avatars display in full ("floating") rather than
 // being cropped to a circle.
 
+import axios from "axios";
+
 // Frame SVG geometry (all frames share the template, viewBox 0 0 220 220).
 const FRAME_VIEWBOX = 220;
 const HOLE_CX = 110;
@@ -37,9 +39,14 @@ function loadImage(src: string, crossOrigin?: "anonymous"): Promise<HTMLImageEle
 
 /** Load an SVG as a same-origin blob URL so drawing it never taints the canvas. */
 async function loadSvgImage(url: string): Promise<{ img: HTMLImageElement; revoke: () => void }> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`failed to fetch frame: ${url}`);
-  const text = await res.text();
+  // Distinct query so this CORS request never reuses a non-CORS copy the page
+  // already cached via a plain <img> (the frame preview). That cached response
+  // lacks Access-Control-Allow-Origin and would otherwise fail the CORS check.
+  const res = await axios.get(url + (url.includes("?") ? "&" : "?") + "cors=1", {
+    responseType: "text",
+  });
+  if (res.status !== 200) throw new Error(`failed to fetch frame: ${url}`);
+  const text = res.data as string;
   const blob = new Blob([text], { type: "image/svg+xml" });
   const objUrl = URL.createObjectURL(blob);
   try {
