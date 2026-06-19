@@ -80,10 +80,18 @@ function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: nu
   return R * c;
 }
 
+function formatTakenAt(takenAt: string): string {
+  return new Date(takenAt).toLocaleString("vi-VN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
 export function CreateCheckpointForm({
   at,
   place,
   initialFiles,
+  initialTakenAt,
   onUploaded,
   onReset,
   maxImages = MAX_IMAGES,
@@ -93,6 +101,8 @@ export function CreateCheckpointForm({
   place?: CheckinPlace;
   /** Pre-load these files into the image picker on mount (photo check-in flow). */
   initialFiles?: File[];
+  /** Capture timestamp read from the source photo's EXIF metadata. */
+  initialTakenAt?: string;
   onUploaded: () => void;
   /** Called when all images are removed (e.g. photo check-in flow → back to picker). */
   onReset?: () => void;
@@ -395,6 +405,7 @@ export function CreateCheckpointForm({
         province_code: geo?.province,
         place_id: selectedPlace?.id || undefined,
         journey_id: effectiveJourneyId ?? undefined,
+        taken_at: initialTakenAt,
         images,
       });
       onUploaded();
@@ -535,6 +546,15 @@ export function CreateCheckpointForm({
             ))}
           </select>
         </label>
+      )}
+
+      {initialTakenAt && (
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface p-3 text-sm text-muted-foreground shadow-card">
+          <Icon name="calendar" size={16} className="text-primary" />
+          <span>
+            Chụp lúc <span className="font-semibold text-foreground">{formatTakenAt(initialTakenAt)}</span>
+          </span>
+        </div>
       )}
 
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 shadow-card">

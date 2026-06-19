@@ -1,6 +1,6 @@
 import { Icon } from "./ui/Icon";
 import { useRef, useState } from "react";
-import { extractGPS } from "../lib/exif";
+import { extractPhotoMetadata } from "../lib/exif";
 import { CreateCheckpointForm } from "./CreateCheckpointForm";
 import { Button } from "./ui/Button";
 import { trackEvent } from "../lib/observability";
@@ -10,6 +10,7 @@ type Stage = "idle" | "reading" | "error" | "form";
 interface FormReady {
   gps: { lat: number; lng: number };
   file: File;
+  takenAt?: string;
 }
 
 const isValidGPS = (gps: { lat: number; lng: number } | null): gps is { lat: number; lng: number } => {
@@ -27,13 +28,14 @@ export function PhotoCheckinTab({
 
   async function handleFile(file: File) {
     setStage("reading");
-    const gps = await extractGPS(file);
+    const metadata = await extractPhotoMetadata(file);
+    const gps = metadata.gps;
     if (!isValidGPS(gps)) {
       setStage("error");
       trackEvent("photo_exif_read_failed");
       return;
     }
-    setFormData({ gps, file });
+    setFormData({ gps, file, takenAt: metadata.takenAt });
     setStage("form");
     trackEvent("photo_exif_read_success");
   }
@@ -44,6 +46,7 @@ export function PhotoCheckinTab({
         <CreateCheckpointForm
           at={formData.gps}
           initialFiles={[formData.file]}
+          initialTakenAt={formData.takenAt}
           onUploaded={onUploaded}
           onReset={() => { setStage("idle"); setFormData(null); }}
           maxImages={1}

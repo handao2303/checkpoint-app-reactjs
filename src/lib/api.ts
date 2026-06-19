@@ -354,6 +354,7 @@ export interface Checkpoint {
   media_type?: "image" | "video";
   xp_awarded: number;
   view_count: number;
+  taken_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -415,6 +416,8 @@ export interface CheckinInput {
   address?: string;
   province?: string;
   province_code?: string;
+  /** Photo capture timestamp from EXIF metadata; distinct from created_at. */
+  taken_at?: string;
   place_id?: string;
   /** Attach to one of the user's active journeys (chosen in the form). */
   journey_id?: string;

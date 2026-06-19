@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useCallback, useRef, useState } from "react";
 import Map, { Source, Layer, Marker } from "react-map-gl/maplibre";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -23,8 +24,22 @@ export function JourneyDetailSheet({
 }) {
   const { data, isLoading } = useQuery({ queryKey: ["journey", id], queryFn: () => getJourney(id) });
   const stops = data?.checkpoints ?? [];
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const [focusedStopId, setFocusedStopId] = useState<string | null>(null);
+
+  const focusStop = useCallback((stop: JourneyStop) => {
+    setFocusedStopId(stop.id);
+    mapRef.current?.flyTo({
+      center: [stop.lng, stop.lat],
+      zoom: 16,
+      duration: 700,
+      essential: true,
+    });
+    trackEvent("journey_stop_focus", { checkpoint_id: stop.id });
+  }, []);
 
   const handleLoad = (map: MapLibreMap) => {
+    mapRef.current = map;
     if (stops?.length > 0) {
       const lngs = stops.map((s) => s.lng);
       const lats = stops.map((s) => s.lat);
@@ -97,7 +112,13 @@ export function JourneyDetailSheet({
                 )}
                 {stops.map((s, i) => (
                   <Marker key={s.id} longitude={s.lng} latitude={s.lat} anchor="center">
-                    <StopMarker stop={s} stops={stops} index={i} total={stops.length} />
+                    <StopMarker
+                      stop={s}
+                      stops={stops}
+                      index={i}
+                      total={stops.length}
+                      focused={focusedStopId === s.id}
+                    />
                   </Marker>
                 ))}
               </Map>
@@ -115,10 +136,12 @@ export function JourneyDetailSheet({
                     stop={s}
                     index={i}
                     total={stops.length}
-                    onOpen={() => {
+                    focused={focusedStopId === s.id}
+                    onFocus={() => focusStop(s)}
+                    onOpen={onOpenCheckpoint ? () => {
                       trackEvent("journey_stop_open", { checkpoint_id: s.id });
-                      onOpenCheckpoint?.(s.id);
-                    }}
+                      onOpenCheckpoint(s.id);
+                    } : undefined}
                   />
                 ))}
               </div>
@@ -205,22 +228,24 @@ function StopMarker({
   stops,
   index,
   total,
+  focused,
 }: {
   stop: JourneyStop;
   stops: JourneyStop[];
   index: number;
   total: number;
+  focused: boolean;
 }) {
   const meta = getStopMarkerMeta(index, total);
 
   if (stop.image_url) {
-    return <StopPhotoStack stop={stop} stops={stops} index={index} total={total} />;
+    return <StopPhotoStack stop={stop} stops={stops} index={index} total={total} focused={focused} />;
   }
 
   return (
     <span
       title={meta.ariaLabel}
-      className={`flex h-8 min-w-8 items-center justify-center rounded-full border-[3px] border-white px-1 shadow-lg ${meta.tone}`}
+      className={`flex h-8 min-w-8 items-center justify-center rounded-full border-[3px] border-white px-1 shadow-lg transition-transform ${focused ? "scale-125 ring-4 ring-primary/30" : ""} ${meta.tone}`}
     >
       <StopMarkerBadgeContent meta={meta} />
     </span>
@@ -233,17 +258,22 @@ function StopPhotoStack({
   stops,
   index,
   total,
+  focused,
 }: {
   stop: JourneyStop;
   stops: JourneyStop[];
   index: number;
   total: number;
+  focused: boolean;
 }) {
   if (!stop.image_url) return null;
   const meta = getStopMarkerMeta(index, total);
 
   return (
-    <div className="relative h-14 w-14 translate-y-1.5" title={meta.ariaLabel}>
+    <div
+      className={`relative h-14 w-14 translate-y-1.5 transition-transform ${focused ? "scale-125" : ""}`}
+      title={meta.ariaLabel}
+    >
       <MediaPreview
         url={stop.image_url}
         thumbnailUrl={stop.thumbnail_url}
@@ -260,7 +290,7 @@ function StopPhotoStack({
             caption: <StopCaption stop={item} />,
           }))}
         galleryIndex={stops.filter((item) => item.image_url).findIndex((item) => item.id === stop.id)}
-        className="absolute h-10 w-10 -rotate-6 rounded-md border-2 border-white object-cover shadow-md"
+        className={`absolute h-10 w-10 -rotate-6 rounded-md border-2 border-white object-cover shadow-md ${focused ? "ring-4 ring-primary/30" : ""}`}
       />
       <StopMarkerBadge meta={meta} />
     </div>
@@ -304,44 +334,62 @@ function StopListItem({
   stop,
   index,
   total,
+  focused,
+  onFocus,
   onOpen,
 }: {
   stop: JourneyStop;
   index: number;
   total: number;
-  onOpen: () => void;
+  focused: boolean;
+  onFocus: () => void;
+  onOpen?: () => void;
 }) {
   const meta = getStopMarkerMeta(index, total);
   const isFirst = index === 0;
   const isLast = index === total - 1;
 
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group flex w-full items-stretch gap-3 px-3 text-left text-sm transition-colors hover:bg-surface-muted"
+    <div
+      className={`flex w-full items-stretch transition-colors ${focused ? "bg-primary-50" : "hover:bg-surface-muted"}`}
     >
-      <span className="relative flex w-6 shrink-0 justify-center">
-        {!isFirst && <span className="absolute top-0 h-1/2 w-px bg-border" aria-hidden="true" />}
-        {!isLast && <span className="absolute bottom-0 h-1/2 w-px bg-border" aria-hidden="true" />}
-        <span
-          title={meta.ariaLabel}
-          className={`relative z-10 my-3 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 shadow-sm ${meta.tone}`}
-        >
-          <StopMarkerBadgeContent meta={meta} size={9} numberClassName="text-[11px]" />
+      <button
+        type="button"
+        onClick={onFocus}
+        className="group flex min-w-0 flex-1 items-stretch gap-3 px-3 text-left text-sm"
+      >
+        <span className="relative flex w-6 shrink-0 justify-center">
+          {!isFirst && <span className="absolute top-0 h-1/2 w-px bg-border" aria-hidden="true" />}
+          {!isLast && <span className="absolute bottom-0 h-1/2 w-px bg-border" aria-hidden="true" />}
+          <span
+            title={meta.ariaLabel}
+            className={`relative z-10 my-3 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 shadow-sm ${focused ? "ring-4 ring-primary/20" : ""} ${meta.tone}`}
+          >
+            <StopMarkerBadgeContent meta={meta} size={9} numberClassName="text-[11px]" />
+          </span>
         </span>
-      </span>
-      <span className="my-2.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted-foreground">
-        <Icon name={categoryIcon(stop.category)} size={15} />
-      </span>
-      <span className="my-2.5 min-w-0 flex-1">
-        <span className="block truncate font-semibold text-foreground">{stop.name}</span>
-        {stop.address && <span className="block truncate text-xs text-muted-foreground">{stop.address}</span>}
-      </span>
-      <span className="my-2.5 shrink-0 text-xs text-subtle-foreground">
-        {new Date(stop.created_at).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })}
-      </span>
-    </button>
+        <span className="my-2.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted-foreground">
+          <Icon name={categoryIcon(stop.category)} size={15} />
+        </span>
+        <span className="my-2.5 min-w-0 flex-1">
+          <span className="block truncate font-semibold text-foreground">{stop.name}</span>
+          {stop.address && <span className="block truncate text-xs text-muted-foreground">{stop.address}</span>}
+        </span>
+        <span className="my-2.5 shrink-0 text-xs text-subtle-foreground">
+          {new Date(stop.created_at).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })}
+        </span>
+      </button>
+      {onOpen && (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="my-2.5 mr-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted-foreground transition hover:bg-primary hover:text-primary-foreground"
+          aria-label={`Mở ${stop.name}`}
+        >
+          <Icon name="eye" size={14} />
+        </button>
+      )}
+    </div>
   );
 }
 
