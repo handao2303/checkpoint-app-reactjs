@@ -10,6 +10,7 @@ const resources = {
         discover: "Khám phá",
         create: "Tạo mới",
         aiPlan: "AI Plan",
+        leaderboard: "Bảng XH",
         profile: "Cá nhân",
       },
       profile: {
@@ -48,6 +49,7 @@ const resources = {
         discover: "Discover",
         create: "Create",
         aiPlan: "AI Plan",
+        leaderboard: "Leader Board",
         profile: "Profile",
       },
       profile: {
