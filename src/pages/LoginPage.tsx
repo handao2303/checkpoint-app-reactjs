@@ -9,7 +9,7 @@ import { trackEvent } from "../lib/observability";
 
 export function LoginPage() {
   const { t } = useTranslation();
-  const { loginIdentifier, signupEmail, loginGoogle } = useAuth();
+  const { loginIdentifier, signupEmail, loginGoogle, loginAnonymous } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,6 +23,18 @@ export function LoginPage() {
     try {
       if (mode === "signin") await loginIdentifier(email, password);
       else await signupEmail(email, password);
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onGuest() {
+    setError(null);
+    setBusy(true);
+    try {
+      await loginAnonymous();
     } catch (err) {
       setError(authErrorMessage(err));
     } finally {
@@ -76,6 +88,10 @@ export function LoginPage() {
 
       <Button variant="outline" size="lg" onClick={loginGoogle}>
         {t('tiep_tuc_voi_google')}
+      </Button>
+
+      <Button variant="ghost" size="lg" disabled={busy} onClick={onGuest}>
+        {t('tiep_tuc_voi_khach')}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">
