@@ -90,7 +90,7 @@ function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 
 }
 
 export function ProfilePage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user, signOut } = useAuth();
   const { showProfile } = useUserProfile();
   const navigate = useNavigate();
