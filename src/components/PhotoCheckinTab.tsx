@@ -28,6 +28,11 @@ export function PhotoCheckinTab({
   const isAndroid = /android/i.test(navigator.userAgent);
 
   async function handleFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      setStage("error");
+      trackEvent("photo_exif_read_failed_invalid_type");
+      return;
+    }
     setStage("reading");
     const gps = await extractGPS(file);
     if (!isValidGPS(gps)) {
@@ -59,8 +64,9 @@ export function PhotoCheckinTab({
       <input
         ref={fileRef}
         type="file"
-        // On Android, we omit accept="image/*" to invoke File manager instead of Photo Picker (which strips GPS metadata).
-        accept={isAndroid ? undefined : "image/*"}
+        // On Android, we use "image/*,application/pdf" to force the System File Picker (preserving EXIF metadata)
+        // while still filtering for images so camera photos show up in the default view.
+        accept={isAndroid ? "image/*,application/pdf" : "image/*"}
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
