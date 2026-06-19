@@ -49,7 +49,7 @@ const resources = {
         discover: "Discover",
         create: "Create",
         aiPlan: "AI Plan",
-        leaderboard: "Leader Board",
+        leaderboard: "Rank",
         profile: "Profile",
       },
       profile: {

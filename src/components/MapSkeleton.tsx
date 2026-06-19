@@ -18,7 +18,7 @@ export function MapSkeleton({ hidden = false }: { hidden?: boolean }) {
         <div className="absolute left-2/3 top-0 h-full w-2 -rotate-2 bg-border/40" />
       </div>
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-        <img src="/logo_c.png" alt="" className="h-10 w-10 animate-pulse" />
+        <img src="/logo.png" alt="" className="h-20 w-auto animate-pulse object-contain" />
         <span className="text-sm font-medium text-muted-foreground">Đang tải bản đồ…</span>
       </div>
     </div>

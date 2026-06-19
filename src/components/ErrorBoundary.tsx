@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return (
       <div className="flex min-h-full flex-col items-center justify-center gap-4 bg-background p-6 text-center">
-        <img src="/logo_c.png" alt="" className="h-12 w-12 opacity-60" />
+        <img src="/logo.png" alt="" className="h-10 w-auto object-contain opacity-60" />
         <div>
           <h1 className="font-display text-xl font-bold text-foreground">Có lỗi xảy ra</h1>
           <p className="mt-1 text-sm text-muted-foreground">

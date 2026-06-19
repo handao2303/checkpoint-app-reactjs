@@ -24,16 +24,17 @@ export function BottomNav() {
 
   return (
     <nav className="sticky bottom-0 z-20 border-t border-border bg-surface/95 backdrop-blur">
-      <ul className="mx-auto flex max-w-md items-center justify-around px-2 pb-[env(safe-area-inset-bottom)] pt-2">
+      <ul className="mx-auto flex max-w-md items-center px-2 pb-[env(safe-area-inset-bottom)] pt-2">
         {tabs.map(({ to, translationKey, icon, tone }) => {
           const label = t(`bottomNav.${translationKey}`);
           return (
-            <li key={to}>
+            <li key={to} className="min-w-0 flex-1">
               <NavLink
                 to={to}
                 end={to === "/"}
-                className="block"
+                className="flex min-w-0 justify-center"
                 aria-label={label}
+                title={label}
                 onClick={() => {
                   trackEvent("nav_tab_click", { tab: label, target_route: to });
                   if (window.location.pathname === to && to === "/discover") {
@@ -44,7 +45,7 @@ export function BottomNav() {
                 {({ isActive }) => (
                   <span
                     className={cn(
-                      "flex min-w-16 flex-col items-center gap-1 rounded-2xl px-3 py-1.5 text-xs font-semibold transition-colors",
+                      "flex w-full min-w-0 flex-col items-center gap-1 rounded-2xl px-1.5 py-1.5 text-[10px] font-semibold leading-none transition-colors sm:text-xs",
                       isActive
                         ? tone === "green"
                           ? "bg-green-50 text-secondary"
@@ -52,8 +53,8 @@ export function BottomNav() {
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    <Icon name={icon} size={22} strokeWidth={isActive ? 2.4 : 2.1} />
-                    {label}
+                    <Icon name={icon} size={22} strokeWidth={isActive ? 2.4 : 2.1} className="shrink-0" />
+                    <span className="block max-w-full truncate whitespace-nowrap">{label}</span>
                   </span>
                 )}
               </NavLink>
@@ -64,4 +65,3 @@ export function BottomNav() {
     </nav>
   );
 }
-

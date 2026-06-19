@@ -352,7 +352,7 @@ async function render(gradient: [string, string], blocks: (Block | null)[], qrUr
   ctx.fillRect(0, 0, W, total);
 
   // Wordmark: pin + "Checkpoint".
-  const pin = await loadImage("/logo_c.png").catch(() => null);
+  const pin = await loadImage("/logo.png").catch(() => null);
   let wx = PAD;
   if (pin) {
     ctx.drawImage(pin, PAD, PAD, 30, 30);
