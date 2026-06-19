@@ -3,12 +3,15 @@ import { useTranslation } from "react-i18next";
 import { Outlet, useLocation } from "react-router-dom";
 import { Icon } from "./ui/Icon";
 import { BottomNav } from "./BottomNav";
+import { TopNav } from "./nav/TopNav";
+import { NavMenu } from "./nav/NavMenu";
 import { NotificationSheet } from "./NotificationSheet";
 import { useAuth } from "../auth/AuthContext";
 import { LocationProvider, useUserLocation } from "../location/LocationProvider";
 import { CheckinQueueProvider } from "../context/CheckinQueue";
 import { NotificationProvider, useNotifications } from "../context/NotificationProvider";
 import { useLocationLabel } from "../hooks/useLocationLabel";
+import { isStandalone } from "../lib/platform";
 import { trackEvent } from "../lib/observability";
 
 // The app's single scrolling element is the layout's <main>. Pages reach it via
@@ -55,28 +58,36 @@ function ScrollToTop({ scrollEl }: { scrollEl: HTMLElement | null }) {
   return null;
 }
 
-function Header({ showBell }: { showBell: boolean }) {
+/** Logo + wordmark + (on Map/Discover) the resolved location label. */
+function Brand() {
   const { pathname } = useLocation();
   const isDiscover = pathname === "/discover" || pathname === "/";
   const { coords } = useUserLocation();
   const { locationLabel } = useLocationLabel(coords);
 
   return (
-    <header className="shrink-0 sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-surface-muted">
-          <img src="/logo.png" alt="" className="h-full w-full object-contain" />
-        </span>
-        <div className="flex flex-col min-w-0">
-          <span className="font-display text-xl font-extrabold leading-none text-foreground">Checkpoint</span>
-          {isDiscover && (
-            <span className="mt-1 flex items-center gap-0.5 text-[10px] font-bold text-clay-600 min-w-0">
-              <Icon name="pin" size={10} className="shrink-0 text-primary" />
-              <span className="truncate">{locationLabel}</span>
-            </span>
-          )}
-        </div>
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-surface-muted">
+        <img src="/logo.png" alt="" className="h-full w-full object-contain" />
+      </span>
+      <div className="flex min-w-0 flex-col">
+        <span className="font-display text-xl font-extrabold leading-none text-foreground">Checkpoint</span>
+        {isDiscover && (
+          <span className="mt-1 flex min-w-0 items-center gap-0.5 text-[10px] font-bold text-clay-600">
+            <Icon name="pin" size={10} className="shrink-0 text-primary" />
+            <span className="truncate">{locationLabel}</span>
+          </span>
+        )}
       </div>
+    </div>
+  );
+}
+
+/** PWA / standalone header — brand + bell; navigation lives in the bottom bar. */
+function Header({ showBell }: { showBell: boolean }) {
+  return (
+    <header className="shrink-0 sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/95 px-4 py-4 backdrop-blur pt-[calc(1rem+env(safe-area-inset-top,0px))]">
+      <Brand />
       {/* The bell consumes NotificationProvider, which only mounts for signed-in
           users — hide it for anonymous visitors. */}
       {showBell && <NotificationBell />}
@@ -84,24 +95,56 @@ function Header({ showBell }: { showBell: boolean }) {
   );
 }
 
+/**
+ * Browser header (non-PWA) — navigation moves up here. Desktop shows an inline
+ * tab row beside the brand; mobile browsers get a full-width tab row underneath.
+ */
+function BrowserHeader({ showBell }: { showBell: boolean }) {
+  return (
+    <header className="shrink-0 sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur pt-[calc(1rem+env(safe-area-inset-top,0px))]">
+      <div className="mx-auto flex w-full max-w-5xl items-center gap-3 px-4 pb-4">
+        <Brand />
+        <div className="ml-auto flex items-center gap-1">
+          <TopNav className="hidden md:block" />
+          {showBell && <NotificationBell />}
+          <NavMenu className="md:hidden" />
+        </div>
+      </div>
+    </header>
+  );
+}
+
 export function AppLayout() {
   const { user } = useAuth();
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
+  const standalone = isStandalone();
 
-  const shell = (
-    <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden bg-background">
+  const content = (
+    <main
+      ref={setScrollEl}
+      className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 md:px-6"
+    >
+      <ScrollContainerContext.Provider value={scrollEl}>
+        <ScrollToTop scrollEl={scrollEl} />
+        <Outlet />
+      </ScrollContainerContext.Provider>
+    </main>
+  );
+
+  // PWA keeps the mobile shell + bottom nav; browsers get the top-nav shell with
+  // a wider content column on desktop.
+  const shell = standalone ? (
+    <div className="mx-auto flex h-full max-w-full flex-col overflow-hidden bg-background">
       <Header showBell={!!user} />
-
-      <main ref={setScrollEl} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
-        <ScrollContainerContext.Provider value={scrollEl}>
-          <ScrollToTop scrollEl={scrollEl} />
-          <Outlet />
-        </ScrollContainerContext.Provider>
-      </main>
-
+      {content}
       <div className="shrink-0">
         <BottomNav />
       </div>
+    </div>
+  ) : (
+    <div className="mx-auto flex h-full w-full max-w-full flex-col overflow-hidden bg-background md:max-w-5xl">
+      <BrowserHeader showBell={!!user} />
+      {content}
     </div>
   );
 

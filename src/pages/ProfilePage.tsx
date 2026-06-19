@@ -243,8 +243,8 @@ export function ProfilePage() {
             { label: t("profile.journeyCountLabel", t('hanh_trinh')), value: user.journey_count.toString() },
             { label: t("profile.levelLabel", t('cap')), value: user.level.toString() },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-border bg-surface-muted py-2 text-center">
-              <p className="text-[10px] font-semibold text-muted-foreground">{s.label}</p>
+            <div key={s.label} className="rounded-xl border border-border bg-surface-muted px-1 py-2 text-center">
+              <p className="break-words text-[10px] font-semibold leading-tight text-muted-foreground">{s.label}</p>
               <p className="font-display text-base font-extrabold text-clay-800">{s.value}</p>
             </div>
           ))}
