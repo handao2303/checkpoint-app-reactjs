@@ -1,8 +1,10 @@
 import { t } from "../lib/i18n";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthContext";
+import { getUsersByIDs, type User } from "../lib/api";
 import { getLastSeen, type AppNotification } from "../lib/notifications";
 import { useNotifications } from "../context/NotificationProvider";
 import { CheckpointDetailSheet } from "./CheckpointDetailSheet";
@@ -35,6 +37,24 @@ export function NotificationSheet({ onClose }: { onClose: () => void }) {
   const { items, markAllSeen } = useNotifications();
   const [checkpointId, setCheckpointId] = useState<string | null>(null);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
+
+  // The actor avatar/name stored on each notification is a snapshot from when it
+  // was written and can be stale. Re-fetch the actors by id so rows render the
+  // current avatar + display name (falls back to the stored snapshot on miss).
+  const actorIds = useMemo(
+    () => [...new Set(items.map((n) => n.actor.id).filter(Boolean))],
+    [items],
+  );
+  const { data: freshActors } = useQuery({
+    queryKey: ["notif-actors", actorIds],
+    queryFn: () => getUsersByIDs(actorIds),
+    enabled: actorIds.length > 0,
+    staleTime: 5 * 60_000,
+  });
+  const actorById = useMemo(
+    () => new Map((freshActors ?? []).map((u) => [u.id, u])),
+    [freshActors],
+  );
 
   // Capture the unread cutoff before marking seen, so newly-unread rows stay
   // highlighted while the sheet is open.
@@ -85,6 +105,7 @@ export function NotificationSheet({ onClose }: { onClose: () => void }) {
                   <NotificationRow
                     key={n.id}
                     notif={n}
+                    fresh={actorById.get(n.actor.id)}
                     unseen={n.created_at.getTime() > seenCutoff.current}
                     onOpen={() => {
                       trackEvent("notification_row_open", { type: n.type });
@@ -115,14 +136,19 @@ export function NotificationSheet({ onClose }: { onClose: () => void }) {
 
 function NotificationRow({
   notif,
+  fresh,
   unseen,
   onOpen,
 }: {
   notif: AppNotification;
+  /** Freshly-fetched actor profile; overrides the notification's stale snapshot. */
+  fresh?: User;
   unseen: boolean;
   onOpen: () => void;
 }) {
-  const name = notif.actor.display_name || notif.actor.username;
+  const username = fresh?.username || notif.actor.username;
+  const name = fresh?.display_name || notif.actor.display_name || username;
+  const avatarUrl = fresh?.avatar_url ?? notif.actor.avatar_url;
   return (
     <button
       onClick={onOpen}
@@ -132,9 +158,9 @@ function NotificationRow({
     >
       <div className="relative shrink-0">
         <UserAvatar
-          src={notif.actor.avatar_url}
+          src={avatarUrl}
           name={name}
-          username={notif.actor.username}
+          username={username}
           className="h-12 w-12"
           fallbackClassName="h-11 w-11"
         />
