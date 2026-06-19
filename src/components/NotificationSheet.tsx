@@ -23,9 +23,9 @@ const REACTION_ICONS: Record<string, IconName> = {
 function relativeTime(d: Date): string {
   const s = Math.floor((Date.now() - d.getTime()) / 1000);
   if (s < 60) return t('vua_xong');
-  if (s < 3600) return t('mathfloors_60_phut', { floors60: Math.floor(s / 60) });
-  if (s < 86400) return t('mathfloors_3600_gio', { floors3600: Math.floor(s / 3600) });
-  if (s < 604800) return t('mathfloors_86400_ngay', { floors86400: Math.floor(s / 86400) });
+  if (s < 3600) return t('mathfloors_60_phut', { count: Math.floor(s / 60) });
+  if (s < 86400) return t('mathfloors_3600_gio', { count: Math.floor(s / 3600) });
+  if (s < 604800) return t('mathfloors_86400_ngay', { count: Math.floor(s / 86400) });
   return d.toLocaleDateString("vi-VN");
 }
 
