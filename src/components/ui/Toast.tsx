@@ -1,4 +1,4 @@
-import { t } from "../../lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState, type ReactNode } from "react";
 import { Icon } from "./Icon";
 
@@ -14,6 +14,7 @@ export function XPToast({
   didLevelUp?: boolean;
   onDone: () => void;
 }) {
+  const { t } = useTranslation();
   const [exiting, setExiting] = useState(false);
 
   useEffect(() => {

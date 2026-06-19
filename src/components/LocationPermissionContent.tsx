@@ -1,5 +1,6 @@
-import { t } from "../lib/i18n";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Icon } from "./ui/Icon";
 import { Button } from "./ui/Button";
 import { ERR_INSECURE, getCurrentCoords, isGeolocationSecure } from "../lib/geo";
@@ -8,7 +9,7 @@ import { trackError, trackEvent } from "../lib/observability";
 
 /** Platform- and install-mode-specific steps to re-enable a blocked location
  *  permission (there is no web API to open these settings programmatically). */
-function reenableSteps(): string[] {
+function reenableSteps(t: TFunction): string[] {
   const platform = getPlatform();
   const pwa = isStandalone();
 
@@ -62,6 +63,7 @@ export function LocationPermissionContent({
   onGranted: (coords: { lat: number; lng: number }) => void;
   onCancel?: () => void;
 }) {
+  const { t } = useTranslation();
   const [state, setState] = useState<PermissionState | "unknown">("unknown");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -136,7 +138,7 @@ export function LocationPermissionContent({
         <>
           <p className="text-sm text-muted-foreground">{t('ban_da_chan_quyen_vi')}</p>
           <ol className="w-full list-decimal space-y-1 rounded-xl bg-surface-muted p-3 pl-7 text-left text-sm">
-            {reenableSteps().map((s, i) => (
+            {reenableSteps(t).map((s, i) => (
               <li key={i}>{s}</li>
             ))}
           </ol>

@@ -1,4 +1,4 @@
-import { t } from "../lib/i18n";
+import i18n from "../lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
@@ -172,14 +172,14 @@ function notificationToastMessage(notification: AppNotification): string {
   const actor = notification.actor.display_name || notification.actor.username;
   switch (notification.type) {
     case "comment":
-      return t("actor_da_binh_luan_ve", { actor, name: notification.checkpoint_name ?? t("checkin_cua_ban") });
+      return i18n.t("actor_da_binh_luan_ve", { actor, name: notification.checkpoint_name ?? i18n.t("checkin_cua_ban") });
     case "reaction":
-      return t("actor_da_bay_to_cam", { actor, name: notification.checkpoint_name ?? t("checkin_cua_ban") });
+      return i18n.t("actor_da_bay_to_cam", { actor, name: notification.checkpoint_name ?? i18n.t("checkin_cua_ban") });
     case "follow":
-      return t('actor_da_theo_doi_ban', { actor: actor });
+      return i18n.t('actor_da_theo_doi_ban', { actor: actor });
     case "unfollow":
-      return t('actor_da_bo_theo_doi', { actor: actor });
+      return i18n.t('actor_da_bo_theo_doi', { actor: actor });
     case "checkpoint":
-      return t('actor_vua_dang_checkin_moi', { actor: actor });
+      return i18n.t('actor_vua_dang_checkin_moi', { actor: actor });
   }
 }

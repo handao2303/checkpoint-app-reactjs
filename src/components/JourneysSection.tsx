@@ -1,4 +1,3 @@
-import { t } from "../lib/i18n";
 import { lazy, Suspense, useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -424,7 +423,7 @@ export function JourneysSection() {
                   <p className="truncate font-semibold text-foreground">{j.title}</p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(j.created_at).toLocaleDateString("vi-VN")}
-                    {j.is_active && " {t('dang_di')}"}
+                    {j.is_active && ` ${t('dang_di')}`}
                   </p>
                 </div>
               </button>
@@ -676,6 +675,7 @@ function CheckpointPickerModal({
   onClose: () => void;
   onContinue: () => void;
 }) {
+  const { t } = useTranslation();
   const allSelected = checkpoints.length > 0 && checkpoints.every((cp) => selectedIds.has(cp.id));
 
   return (
@@ -795,6 +795,7 @@ function SelectedCheckpointRow({
   onDragOver: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       draggable

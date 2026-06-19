@@ -1,4 +1,4 @@
-import { t } from "../../lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { cn } from "../../lib/cn";
 import { Icon } from "./Icon";
@@ -23,6 +23,7 @@ export function Sheet({
   className?: string;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   const hasCustomHeight = /\b(?:h-|min-h-|max-h-|\[height:|\[max-height:)/.test(className ?? "");
   const allowsFullHeight = /\b(?:h-full|h-\[100dvh\]|max-h-\[100dvh\]|h-screen|max-h-screen)/.test(className ?? "");
   const headerRef = useRef<HTMLDivElement>(null);

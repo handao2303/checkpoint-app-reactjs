@@ -214,6 +214,21 @@ export async function exchange(supabaseToken: string): Promise<User> {
   return data.user as User;
 }
 
+/** Log in by username OR email + password. The backend resolves the username to
+ *  its email and verifies the password against Supabase server-side, so the
+ *  email is never exposed to the client. */
+export async function loginWithPassword(identifier: string, password: string): Promise<User> {
+  const res = await postJSON("/auth/login", { identifier, password });
+  if (!isSuccessful(res)) {
+    trackEvent("auth_login_failed", { status_code: res.status });
+    throw new Error(res.status === 401 ? t("dang_nhap_sai_thong_tin") : t("co_loi_xay_ra"));
+  }
+  const data = res.data;
+  tokens.set(data.access_token, data.refresh_token);
+  trackEvent("auth_login_success");
+  return data.user as User;
+}
+
 export async function getMe(): Promise<User> {
   const res = await apiFetch("/users/me");
   if (!isSuccessful(res)) throw new Error(`getMe failed: ${res.status}`);
@@ -235,18 +250,33 @@ export async function getUsersByIDs(ids: string[]): Promise<User[]> {
   return res.data as User[];
 }
 
-/** Update the caller's display name and/or bio. Returns the updated user. */
+/** Update the caller's display name, bio and/or username. Returns the updated
+ *  user. Surfaces friendly messages on a taken (409) / invalid (400) username. */
 export async function updateProfile(patch: {
   display_name?: string;
   bio?: string;
+  username?: string;
 }): Promise<User> {
   const res = await apiFetch("/users/me", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
-  if (!isSuccessful(res)) throw new Error(`updateProfile failed: ${res.status}`);
+  if (!isSuccessful(res)) {
+    if (res.status === 409) throw new Error(t("username_da_dung"));
+    if (res.status === 400) throw new Error(t("username_khong_hop_le"));
+    throw new Error(`updateProfile failed: ${res.status}`);
+  }
   return res.data as User;
+}
+
+/** Returns true if `username` is free (no user owns it). Used for live
+ *  availability checks while editing the profile. */
+export async function isUsernameAvailable(username: string): Promise<boolean> {
+  const res = await apiFetch(`/users/${encodeURIComponent(username)}`);
+  if (res.status === 404) return true;
+  if (isSuccessful(res)) return false;
+  throw new Error(`check username failed: ${res.status}`);
 }
 
 // ---- Gamification (Phase 5) ----

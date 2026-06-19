@@ -1,8 +1,9 @@
-import { t } from "../lib/i18n";
+import { useTranslation } from "react-i18next";
 import type { LatLng } from "../lib/api";
 import { useGeocode } from "./useGeocode";
 
 export function useLocationLabel(coords: LatLng | null | undefined) {
+  const { t } = useTranslation();
   const geo = useGeocode(coords?.lat ?? null, coords?.lng ?? null);
   if (!coords) {
     return {

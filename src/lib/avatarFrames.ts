@@ -1,4 +1,3 @@
-import { t } from "./i18n";
 // Avatar frame catalog — mirrors checkpoint_avatar_frames_svg/manifest.json.
 // Frames are decorative rings baked into the avatar image at upload time
 // (see avatarComposite.ts). Level frames unlock by the user's level; badge
@@ -13,8 +12,11 @@ export interface AvatarFrame {
   id: string;
   /** Public URL of the SVG. */
   file: string;
-  /** Vietnamese label shown in the picker. */
-  label: string;
+  /** i18n key for the label shown in the picker. Resolve with `t()` at render
+   *  time so the label re-renders on language change. */
+  labelKey: string;
+  /** Interpolation params for `labelKey` (e.g. the level number). */
+  labelParams?: Record<string, unknown>;
   kind: "level" | "badge";
   /** Level frames only: the level that unlocks this frame. */
   level?: number;
@@ -45,7 +47,8 @@ export const LEVEL_FRAMES: AvatarFrame[] = Array.from({ length: 50 }, (_, i) => 
   return {
     id: `level-${level}`,
     file: checkpointImageUrl(`${FRAMES_BASE}/avatar-frame-level-${padded}.svg`),
-    label: t('cap_level', { level: level }),
+    labelKey: "cap_level",
+    labelParams: { level },
     kind: "level" as const,
     level,
     tier: TIER_FOR_LEVEL(level),
@@ -54,11 +57,11 @@ export const LEVEL_FRAMES: AvatarFrame[] = Array.from({ length: 50 }, (_, i) => 
 
 /** Badge-themed frames, unlocked alongside their achievement badge. */
 export const BADGE_FRAMES: AvatarFrame[] = [
-  { id: "first-step", file: checkpointImageUrl(`${FRAMES_BASE}/avatar-frame-first-step.svg`), label: t('buoc_chan_dau_tien'), kind: "badge", badgeKey: "first_checkin" },
-  { id: "explorer", file: checkpointImageUrl(`${FRAMES_BASE}/avatar-frame-explorer.svg`), label: t('nha_tham_hiem'), kind: "badge", badgeKey: "explorer_10" },
-  { id: "country", file: checkpointImageUrl(`${FRAMES_BASE}/avatar-frame-country.svg`), label: t('vong_quanh_dat_nuoc'), kind: "badge", badgeKey: "provinces_5" },
-  { id: "night-owl", file: checkpointImageUrl(`${FRAMES_BASE}/avatar-frame-night-owl.svg`), label: t('cu_dem'), kind: "badge", badgeKey: "night_owl" },
-  { id: "traveler", file: checkpointImageUrl(`${FRAMES_BASE}/avatar-frame-traveler.svg`), label: t('ke_lu_hanh'), kind: "badge", badgeKey: "journey_starter" },
+  { id: "first-step", file: checkpointImageUrl(`${FRAMES_BASE}/avatar-frame-first-step.svg`), labelKey: "buoc_chan_dau_tien", kind: "badge", badgeKey: "first_checkin" },
+  { id: "explorer", file: checkpointImageUrl(`${FRAMES_BASE}/avatar-frame-explorer.svg`), labelKey: "nha_tham_hiem", kind: "badge", badgeKey: "explorer_10" },
+  { id: "country", file: checkpointImageUrl(`${FRAMES_BASE}/avatar-frame-country.svg`), labelKey: "vong_quanh_dat_nuoc", kind: "badge", badgeKey: "provinces_5" },
+  { id: "night-owl", file: checkpointImageUrl(`${FRAMES_BASE}/avatar-frame-night-owl.svg`), labelKey: "cu_dem", kind: "badge", badgeKey: "night_owl" },
+  { id: "traveler", file: checkpointImageUrl(`${FRAMES_BASE}/avatar-frame-traveler.svg`), labelKey: "ke_lu_hanh", kind: "badge", badgeKey: "journey_starter" },
 ];
 
 export const ALL_FRAMES: AvatarFrame[] = [...LEVEL_FRAMES, ...BADGE_FRAMES];

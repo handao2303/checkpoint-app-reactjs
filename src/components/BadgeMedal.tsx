@@ -1,4 +1,4 @@
-import { t } from "../lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Icon, type IconName } from "./ui/Icon";
 import type { Badge } from "../lib/api";
@@ -54,6 +54,7 @@ export function BadgeMedal({
   showLevel?: number;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const palette = PALETTES[badge.color] ?? PALETTES.gold;
   const { box, icon } = SIZES[size];
   const art = awarded ? BADGE_ART[badge.key] : undefined;

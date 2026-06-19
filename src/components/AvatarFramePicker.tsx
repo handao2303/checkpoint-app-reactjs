@@ -1,4 +1,4 @@
-import { t } from "../lib/i18n";
+import { useTranslation } from "react-i18next";
 import { Icon } from "./ui/Icon";
 import { UserAvatar } from "./ui/UserAvatar";
 import type { AvatarFrame } from "../lib/avatarFrames";
@@ -56,6 +56,7 @@ export function AvatarFramePicker({
   onSelect: (id: string | null) => void;
   avatarUrl?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex gap-3 overflow-x-auto pb-2">
       {/* None */}
@@ -93,7 +94,7 @@ export function AvatarFramePicker({
             onClick={() => onSelect(frame.id)}
             className="flex shrink-0 flex-col items-center gap-1 disabled:cursor-not-allowed"
             aria-pressed={selected}
-            title={unlocked ? frame.label : t('framelabel_chua_mo_khoa', { label: frame.label })}
+            title={unlocked ? t(frame.labelKey, frame.labelParams) : t('framelabel_chua_mo_khoa', { label: t(frame.labelKey, frame.labelParams) })}
           >
             <span
               className={cn(
@@ -116,7 +117,7 @@ export function AvatarFramePicker({
                 selected ? "font-semibold text-primary" : "text-muted-foreground",
               )}
             >
-              {frame.label}
+              {t(frame.labelKey, frame.labelParams)}
             </span>
           </button>
         );

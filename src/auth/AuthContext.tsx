@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabase";
-import { exchange, getMe, logout, setAuthExpiredHandler, tokens, type User } from "../lib/api";
+import { exchange, getMe, loginWithPassword, logout, setAuthExpiredHandler, tokens, type User } from "../lib/api";
 import { authErrorMessage } from "../lib/authErrors";
 import { setObservabilityUser, trackError, trackEvent } from "../lib/observability";
 
@@ -9,6 +9,8 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   loginEmail: (email: string, password: string) => Promise<void>;
+  /** Log in by username OR email + password (resolved server-side). */
+  loginIdentifier: (identifier: string, password: string) => Promise<void>;
   signupEmail: (email: string, password: string) => Promise<void>;
   loginGoogle: () => Promise<void>;
   loginAnonymous: () => Promise<void>;
@@ -116,6 +118,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginIdentifier = async (identifier: string, password: string) => {
+    trackEvent("login_attempt", { method: "identifier" });
+    try {
+      const nextUser = await loginWithPassword(identifier, password);
+      setUser(nextUser);
+      setObservabilityUser(nextUser);
+      trackEvent("login_success", { method: "identifier" });
+    } catch (error) {
+      trackError(error, { feature: "auth", action: "login_identifier" });
+      trackEvent("login_failed", { method: "identifier" });
+      throw error;
+    }
+  };
+
   const signupEmail = async (email: string, password: string) => {
     trackEvent("login_attempt", { method: "signup_email" });
     const { data, error } = await supabase.auth.signUp({ email, password });
@@ -205,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         loginEmail,
+        loginIdentifier,
         signupEmail,
         loginGoogle,
         loginAnonymous,

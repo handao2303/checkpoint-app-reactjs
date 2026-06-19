@@ -1,10 +1,10 @@
-import { t } from "../lib/i18n";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Icon } from "../components/ui/Icon";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import Map, { GeolocateControl, Marker, NavigationControl } from "react-map-gl/maplibre";
 import Supercluster from "supercluster";
 import { useAuth } from "../auth/AuthContext";
@@ -29,11 +29,13 @@ type MapFilters = {
 
 const BOUNDS_BUFFER_RATIO = 0.5;
 
-const LABELS: Record<MapFilter, string> = {
-  all: t('tat_ca'),
-  following: t('dang_follow'),
-  mine: t('cua_toi'),
-};
+function buildLabels(t: TFunction): Record<MapFilter, string> {
+  return {
+    all: t('tat_ca'),
+    following: t('dang_follow'),
+    mine: t('cua_toi'),
+  };
+}
 
 function containsBounds(outer: Bounds, inner: Bounds): boolean {
   return (
@@ -92,6 +94,7 @@ export function MapPage() {
   const { coords } = useUserLocation();
   const { user } = useAuth();
   const { requireAuth } = useAuthGate();
+  const labels = useMemo(() => buildLabels(t), [t]);
 
   const mapRef = useRef<MapLibreMap | null>(null);
   const coordsRef = useRef<Coords | null>(null);
@@ -342,10 +345,10 @@ export function MapPage() {
       <div ref={filterControlRef} className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
         <button
           type="button"
-          aria-label={activeCategory ? t('loc_label', { label: activeCategory.label }) : t('loc_theo_danh_muc')}
+          aria-label={activeCategory ? t('loc_label', { label: t(activeCategory.labelKey) }) : t('loc_theo_danh_muc')}
           aria-expanded={categoryMenuOpen}
           aria-haspopup="menu"
-          title={activeCategory ? activeCategory.label : t('tat_ca_danh_muc')}
+          title={activeCategory ? t(activeCategory.labelKey) : t('tat_ca_danh_muc')}
           onClick={() =>
             setFilters((current) => ({
               ...current,
@@ -394,8 +397,8 @@ export function MapPage() {
               type="button"
               role="menuitem"
               tabIndex={categoryMenuOpen ? 0 : -1}
-              aria-label={category.label}
-              title={category.label}
+              aria-label={t(category.labelKey)}
+              title={t(category.labelKey)}
               onClick={() => selectCategory(category.key)}
               style={{ transitionDelay: categoryOptionDelay(index + 1) }}
               className={`flex h-10 w-10 items-center justify-center transition-all duration-150 ease-out hover:bg-surface-muted ${
@@ -414,9 +417,9 @@ export function MapPage() {
       <div className="absolute inset-x-4 bottom-20 mx-auto flex max-w-md justify-center gap-2">
         {(
           [
-            ["all", LABELS.all],
-            ["following", LABELS.following],
-            ["mine", LABELS.mine],
+            ["all", labels.all],
+            ["following", labels.following],
+            ["mine", labels.mine],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -475,6 +478,7 @@ function ClusterSheet({
   onClose: () => void;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40" />

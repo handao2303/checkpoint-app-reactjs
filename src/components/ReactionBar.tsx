@@ -1,6 +1,6 @@
-import { t } from "../lib/i18n";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Icon, type IconName } from "./ui/Icon";
 import { Button } from "./ui/Button";
@@ -11,15 +11,7 @@ import { useAuth } from "../auth/AuthContext";
 import { cn } from "../lib/cn";
 import { trackEvent } from "../lib/observability";
 
-// The fixed reaction set — keys match the backend AllowedReactions and the SVG
-// icon registry. `fill` flags glyphs that read well filled when active.
-const REACTIONS: { key: string; icon: IconName; label: string; activeClass: string; fill?: boolean }[] = [
-  { key: "like", icon: "like", label: t('thich'), activeClass: "text-primary", fill: true },
-  { key: "love", icon: "love", label: t('yeu_thich'), activeClass: "text-rose-500", fill: true },
-  { key: "fire", icon: "fire", label: t('tuyet_voi'), activeClass: "text-orange-500", fill: true },
-  { key: "haha", icon: "haha", label: "Haha", activeClass: "text-gold" },
-  { key: "sad", icon: "sad", label: t('buon'), activeClass: "text-sky-500" },
-];
+type Reaction = { key: string; icon: IconName; label: string; activeClass: string; fill?: boolean };
 
 const EMPTY: ReactionSummary = { counts: {}, total: 0, mine: null };
 
@@ -48,11 +40,25 @@ export function ReactionBar({
   ownerUserId: string;
   checkpointName: string;
 }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const qc = useQueryClient();
   const key = ["reactions", checkpointId];
+
+  // The fixed reaction set — keys match the backend AllowedReactions and the SVG
+  // icon registry. `fill` flags glyphs that read well filled when active.
+  const REACTIONS: Reaction[] = useMemo(
+    () => [
+      { key: "like", icon: "like", label: t('thich'), activeClass: "text-primary", fill: true },
+      { key: "love", icon: "love", label: t('yeu_thich'), activeClass: "text-rose-500", fill: true },
+      { key: "fire", icon: "fire", label: t('tuyet_voi'), activeClass: "text-orange-500", fill: true },
+      { key: "haha", icon: "haha", label: "Haha", activeClass: "text-gold" },
+      { key: "sad", icon: "sad", label: t('buon'), activeClass: "text-sky-500" },
+    ],
+    [t],
+  );
 
   const { data = EMPTY } = useQuery({
     queryKey: key,

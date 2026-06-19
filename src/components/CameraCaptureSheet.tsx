@@ -1,5 +1,5 @@
-import { t } from "../lib/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import Webcam from "react-webcam";
 import { Icon } from "./ui/Icon";
@@ -159,6 +159,7 @@ export function CameraCaptureSheet({
   onDone: (files: File[]) => void;
   maxCount?: number;
 }) {
+  const { t } = useTranslation();
   const webcamRef = useRef<Webcam>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const [facing, setFacing] = useState<Facing>("environment");

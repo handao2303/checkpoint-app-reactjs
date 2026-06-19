@@ -1,4 +1,5 @@
-import { t } from "../lib/i18n";
+import i18n from "../lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import Map, { Source, Layer, Marker } from "react-map-gl/maplibre";
@@ -23,6 +24,7 @@ export function JourneyDetailSheet({
   onOpenCheckpoint?: (checkpointId: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({ queryKey: ["journey", id], queryFn: () => getJourney(id) });
   const stops = data?.checkpoints ?? [];
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -153,7 +155,7 @@ export function JourneyDetailSheet({
             <ShareButton
               filename={`journey-${data.journey.id}.png`}
               title={data.journey.title}
-              text={`{t('hanh_trinh')} "${data.journey.title}" {t('cua_minh_tren_checkpoint')}`}
+              text={`${t('hanh_trinh')} "${data.journey.title}" ${t('cua_minh_tren_checkpoint')}`}
               label={t('chia_se_hanh_trinh')}
               url={`${API_URL}/share/journey/${data.journey.id}`}
               render={() =>
@@ -197,7 +199,7 @@ function getStopMarkerMeta(index: number, total: number): StopMarkerMeta {
       kind: "number",
       label: "1",
       tone: "bg-primary text-primary-foreground",
-      ariaLabel: t('diem_duy_nhat'),
+      ariaLabel: i18n.t('diem_duy_nhat'),
     };
   }
   if (index === 0) {
@@ -205,7 +207,7 @@ function getStopMarkerMeta(index: number, total: number): StopMarkerMeta {
       kind: "icon",
       iconName: "play",
       tone: "bg-emerald-600 text-white",
-      ariaLabel: t('diem_bat_dau'),
+      ariaLabel: i18n.t('diem_bat_dau'),
     };
   }
   if (index === total - 1) {
@@ -213,14 +215,14 @@ function getStopMarkerMeta(index: number, total: number): StopMarkerMeta {
       kind: "icon",
       iconName: "flag",
       tone: "bg-accent-600 text-white",
-      ariaLabel: t('diem_ket_thuc'),
+      ariaLabel: i18n.t('diem_ket_thuc'),
     };
   }
   return {
     kind: "number",
     label: String(index + 1),
     tone: "bg-primary text-primary-foreground",
-    ariaLabel: t('diem_so_index_1', { number: index + 1 }),
+    ariaLabel: i18n.t('diem_so_index_1', { number: index + 1 }),
   };
 }
 
@@ -346,6 +348,7 @@ function StopListItem({
   onFocus: () => void;
   onOpen?: () => void;
 }) {
+  const { t } = useTranslation();
   const meta = getStopMarkerMeta(index, total);
   const isFirst = index === 0;
   const isLast = index === total - 1;

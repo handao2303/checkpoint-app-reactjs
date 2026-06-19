@@ -1,6 +1,6 @@
-import { t } from "../lib/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { useCheckinQueue } from "../context/CheckinQueue";
 import { useGeocode } from "../hooks/useGeocode";
 import {
@@ -109,6 +109,7 @@ export function CreateCheckpointForm({
   onReset?: () => void;
   maxImages?: number;
 }) {
+  const { t } = useTranslation();
   const { enqueue } = useCheckinQueue();
   // Pick which active journey this check-in is recorded under (multiple can be
   // active). Default to the most recently activated one until the user changes.
@@ -588,7 +589,7 @@ export function CreateCheckpointForm({
                 selectedPlace && "opacity-60 cursor-not-allowed",
               )}
             >
-              <Icon name={c.icon} size={16} /> {c.label}
+              <Icon name={c.icon} size={16} /> {t(c.labelKey)}
             </button>
           ))}
         </div>

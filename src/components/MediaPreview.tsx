@@ -1,4 +1,4 @@
-import { t } from "../lib/i18n";
+import { useTranslation } from "react-i18next";
 import { type HTMLAttributes, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
@@ -37,6 +37,7 @@ export function MediaPreview({
   galleryItems,
   galleryIndex = 0,
 }: MediaPreviewProps) {
+  const { t } = useTranslation();
   const items = useMemo(() => {
     const source = galleryItems?.length ? galleryItems : [{ url, thumbnailUrl, mediaType, alt, caption }];
     return source.filter((item): item is ResolvedMediaGalleryItem => !!item.url);

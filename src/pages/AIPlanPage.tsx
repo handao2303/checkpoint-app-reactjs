@@ -1,16 +1,18 @@
-import { t } from "../lib/i18n";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Icon } from "../components/ui/Icon";
 import { trackEvent } from "../lib/observability";
-const teasers = [
-  t('len_lich_trinh_cong_dong'),
-  t('goi_y_dia_diem_hop'),
-  t('tu_xep_anh_theo_hanh'),
-];
 
 export function AIPlanPage() {
   const { t } = useTranslation();
+  const teasers = useMemo(
+    () => [
+      t('len_lich_trinh_cong_dong'),
+      t('goi_y_dia_diem_hop'),
+      t('tu_xep_anh_theo_hanh'),
+    ],
+    [t],
+  );
   useEffect(() => {
     trackEvent("ai_plan_open");
   }, []);

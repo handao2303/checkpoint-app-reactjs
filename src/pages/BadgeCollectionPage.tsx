@@ -1,6 +1,6 @@
-import { t } from "../lib/i18n";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthContext";
 import { BadgeMedal } from "../components/BadgeMedal";
@@ -11,13 +11,17 @@ import { getBadges, getPassport } from "../lib/api";
 import { trackEvent } from "../lib/observability";
 
 // Maps badge keys to measurable progress the frontend can derive from user/passport data.
-const PROGRESS_HINTS: Record<
+function buildProgressHints(
+  t: TFunction,
+): Record<
   string,
   { label: string; max: number; getValue: (cp: number, prov: number) => number }
-> = {
-  explorer_10: { label: t('dia_diem'), max: 10, getValue: (cp) => cp },
-  provinces_5: { label: t('tinhthanh'), max: 5, getValue: (_, prov) => prov },
-};
+> {
+  return {
+    explorer_10: { label: t('dia_diem'), max: 10, getValue: (cp) => cp },
+    provinces_5: { label: t('tinhthanh'), max: 5, getValue: (_, prov) => prov },
+  };
+}
 
 type Filter = "all" | "unlocked" | "locked";
 
@@ -30,6 +34,7 @@ export function BadgeCollectionPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [filter, setFilter] = useState<Filter>("all");
+  const progressHints = useMemo(() => buildProgressHints(t), [t]);
 
   const { data: badges = [], isLoading: badgesLoading } = useQuery({
     queryKey: ["badges"],
@@ -142,14 +147,14 @@ export function BadgeCollectionPage() {
       )}
 
       {/* Progress section — only locked badges with measurable progress */}
-      {filter !== "unlocked" && locked.filter((b) => PROGRESS_HINTS[b.key]).length > 0 && (
+      {filter !== "unlocked" && locked.filter((b) => progressHints[b.key]).length > 0 && (
         <div>
           <h2 className="mb-3 font-display text-lg font-bold">{t('tien_trinh_thanh_tuu')}</h2>
           <div className="flex flex-col gap-3">
             {locked
-              .filter((b) => PROGRESS_HINTS[b.key])
+              .filter((b) => progressHints[b.key])
               .map((b) => {
-                const hint = PROGRESS_HINTS[b.key];
+                const hint = progressHints[b.key];
                 const current = Math.min(
                   hint.getValue(user.checkpoint_count, provinceCount),
                   hint.max,

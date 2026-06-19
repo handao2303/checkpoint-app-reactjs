@@ -1,4 +1,4 @@
-import { t } from "../lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useState } from "react";
 import Cropper, { type Area, type Point } from "react-easy-crop";
 import { Icon } from "./ui/Icon";
@@ -133,6 +133,7 @@ export function AvatarCropSheet({
   frameOptions,
   initialFrameId = null,
 }: AvatarCropSheetProps) {
+  const { t } = useTranslation();
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);

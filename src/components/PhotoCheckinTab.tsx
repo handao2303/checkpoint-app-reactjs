@@ -4,7 +4,7 @@ import { extractPhotoMetadata } from "../lib/exif";
 import { CreateCheckpointForm } from "./CreateCheckpointForm";
 import { Button } from "./ui/Button";
 import { trackEvent } from "../lib/observability";
-import { t } from "../lib/i18n";
+import { useTranslation } from "react-i18next";
 
 type Stage = "idle" | "reading" | "error" | "form";
 
@@ -23,6 +23,7 @@ export function PhotoCheckinTab({
 }: {
   onUploaded: () => void;
 }) {
+  const { t } = useTranslation();
   const [stage, setStage] = useState<Stage>("idle");
   const [formData, setFormData] = useState<FormReady | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);

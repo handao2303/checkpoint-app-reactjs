@@ -9,7 +9,7 @@ import { trackEvent } from "../lib/observability";
 
 export function LoginPage() {
   const { t } = useTranslation();
-  const { loginEmail, signupEmail, loginGoogle } = useAuth();
+  const { loginIdentifier, signupEmail, loginGoogle } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,7 +21,7 @@ export function LoginPage() {
     setError(null);
     setBusy(true);
     try {
-      if (mode === "signin") await loginEmail(email, password);
+      if (mode === "signin") await loginIdentifier(email, password);
       else await signupEmail(email, password);
     } catch (err) {
       setError(authErrorMessage(err));
@@ -44,11 +44,13 @@ export function LoginPage() {
 
       <form onSubmit={onSubmit} className="flex flex-col gap-3">
         <input
-          type="email"
+          type={mode === "signin" ? "text" : "email"}
           required
+          autoCapitalize="none"
+          autoComplete={mode === "signin" ? "username" : "email"}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
+          placeholder={mode === "signin" ? t('email_hoac_username') : "Email"}
           className="rounded-full border border-border bg-surface px-5 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         <input

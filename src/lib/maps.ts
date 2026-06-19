@@ -1,4 +1,3 @@
-import { t } from "./i18n";
 // Map configuration. OpenFreeMap is fully free and needs no API token.
 export const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 
@@ -9,16 +8,17 @@ import type { IconName } from "../components/ui/Icon";
 
 // `icon` is a key into the self-hosted SVG registry (for on-screen <Icon>);
 // `emoji` is kept only for canvas rendering in shareCard.ts, where a React
-// component can't be used.
+// component can't be used. `labelKey` is the i18n key — resolve it with `t()`
+// at render time so the label re-renders on language change.
 export const CATEGORIES = [
-  { key: "cafe", label: t('ca_phe'), icon: "coffee", emoji: "☕" },
-  { key: "food", label: t('an_uong'), icon: "food", emoji: "🍜" },
-  { key: "view", label: t('ngam_canh'), icon: "mountain", emoji: "🌄" },
-  { key: "nature", label: t('thien_nhien'), icon: "tree", emoji: "🌲" },
-  { key: "other", label: t('khac'), icon: "pin", emoji: "📍" },
+  { key: "cafe", labelKey: "ca_phe", icon: "coffee", emoji: "☕" },
+  { key: "food", labelKey: "an_uong", icon: "food", emoji: "🍜" },
+  { key: "view", labelKey: "ngam_canh", icon: "mountain", emoji: "🌄" },
+  { key: "nature", labelKey: "thien_nhien", icon: "tree", emoji: "🌲" },
+  { key: "other", labelKey: "khac", icon: "pin", emoji: "📍" },
 ] as const satisfies ReadonlyArray<{
   key: string;
-  label: string;
+  labelKey: string;
   icon: IconName;
   emoji: string;
 }>;

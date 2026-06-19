@@ -1,4 +1,3 @@
-import { t } from "../lib/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -235,6 +234,7 @@ export function PassportStamp({
   stamp: StampConfig;
   onClick?: () => void;
 }) {
+  const { t } = useTranslation();
   const { label, theme, unlocked, initials, date, shapeType } = stamp;
   return (
     <div className="flex flex-col items-center gap-1.5 shrink-0 select-none snap-start">

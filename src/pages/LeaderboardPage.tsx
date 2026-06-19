@@ -1,4 +1,3 @@
-import { t } from "../lib/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -83,6 +82,7 @@ function PodiumCard({
   isMe: boolean;
   onOpen: () => void;
 }) {
+  const { t } = useTranslation();
   const name = displayName(entry);
   const hasAvatar = Boolean(entry.avatar_url);
   return (
@@ -136,6 +136,7 @@ function LeaderboardRow({
   highlight: boolean;
   onOpen: () => void;
 }) {
+  const { t } = useTranslation();
   const name = displayName(entry);
   const hasAvatar = Boolean(entry.avatar_url);
   return (

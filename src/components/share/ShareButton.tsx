@@ -1,4 +1,4 @@
-import { t } from "../../lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Icon } from "../ui/Icon";
 import { Button } from "../ui/Button";
@@ -12,7 +12,7 @@ export function ShareButton({
   title,
   text,
   url,
-  label = t('chia_se'),
+  label,
   render,
 }: {
   filename: string;
@@ -23,6 +23,8 @@ export function ShareButton({
   label?: string;
   render: () => Promise<Blob | null>;
 }) {
+  const { t } = useTranslation();
+  const resolvedLabel = label ?? t('chia_se');
   const [busy, setBusy] = useState(false);
 
   const onShare = async () => {
@@ -47,7 +49,7 @@ export function ShareButton({
 
   return (
     <Button variant="green" icon={<Icon name="share" size={20} />} disabled={busy} onClick={onShare} className="w-full">
-      {busy ? t('dang_tao_anh') : label}
+      {busy ? t('dang_tao_anh') : resolvedLabel}
     </Button>
   );
 }

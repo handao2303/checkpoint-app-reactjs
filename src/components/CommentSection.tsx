@@ -1,4 +1,4 @@
-import { t } from "../lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
 import { useCallback, useRef, useState, type FormEvent } from "react";
@@ -25,6 +25,7 @@ export function CommentSection({
   checkpointName: string;
   onOpenProfile?: (username: string) => void;
 }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [text, setText] = useState("");
@@ -165,6 +166,7 @@ function CommentRow({
   onDelete: () => void;
   onOpenProfile?: (username: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-start gap-2">
       <button

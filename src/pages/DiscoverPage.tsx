@@ -1,8 +1,8 @@
-import { t } from "../lib/i18n";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useAuth } from "../auth/AuthContext";
 import { useScrollContainer } from "../components/AppLayout";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
@@ -28,14 +28,18 @@ import { useUserLocation } from "../location/LocationProvider";
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
 type FilterKey = "all" | "nearest" | "hot" | "cafe" | "food" | "photos";
 
-const FILTER_CHIPS: Array<{ key: FilterKey; label: string; icon?: "map-pin" | "flag" | "coffee" | "utensils" | "image" }> = [
-  { key: "all", label: t('tat_ca') },
-  // { key: "nearest", label: "Gần nhất", icon: "map-pin" },
-  { key: "hot", label: t('dang_hot'), icon: "flag" },
-  { key: "cafe", label: "Cafe", icon: "coffee" },
-  { key: "food", label: t('an_uong'), icon: "utensils" },
-  { key: "photos", label: t('co_anh'), icon: "image" },
-];
+function buildFilterChips(
+  t: TFunction,
+): Array<{ key: FilterKey; label: string; icon?: "map-pin" | "flag" | "coffee" | "utensils" | "image" }> {
+  return [
+    { key: "all", label: t('tat_ca') },
+    // { key: "nearest", label: "Gần nhất", icon: "map-pin" },
+    { key: "hot", label: t('dang_hot'), icon: "flag" },
+    { key: "cafe", label: "Cafe", icon: "coffee" },
+    { key: "food", label: t('an_uong'), icon: "utensils" },
+    { key: "photos", label: t('co_anh'), icon: "image" },
+  ];
+}
 
 function formatDistance(m: number | null | undefined): string | null {
   if (m == null || !Number.isFinite(m) || m < 0) return null;
@@ -77,6 +81,7 @@ export function DiscoverPage() {
   const pendingCount = useOptionalCheckinQueue()?.pendingCount ?? 0;
   const { coords } = useUserLocation();
   const at: LatLng = coords ?? FALLBACK;
+  const filterChips = useMemo(() => buildFilterChips(t), [t]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 300);
@@ -405,7 +410,7 @@ export function DiscoverPage() {
           <div className="flex flex-col gap-4 py-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('chon_danh_muc_loc_nhanh')}</p>
             <div className="flex flex-wrap gap-2.5">
-              {FILTER_CHIPS.map((chip) => {
+              {filterChips.map((chip) => {
                 const active = filters.active === chip.key;
                 return (
                   <button
@@ -462,6 +467,7 @@ function PlaceCard({
   onOpen: () => void;
   variant?: "compact" | "hot";
 }) {
+  const { t } = useTranslation();
   const imageUrl = place.cover_thumbnail_url ?? place.cover_image_url;
   const category = CATEGORIES.find((c) => c.key === place.category);
   const cta = place.viewer_has_checked_in ? t('da_cam') : signedIn ? t('cam_co') : "Xem";
@@ -505,7 +511,7 @@ function PlaceCard({
           <div className="min-w-0">
             <p className="truncate font-display text-base font-bold text-foreground">{place.name}</p>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {place.address || category?.label || "Checkpoint"}
+              {place.address || (category ? t(category.labelKey) : "") || "Checkpoint"}
             </p>
           </div>
         </div>

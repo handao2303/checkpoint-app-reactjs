@@ -1,4 +1,4 @@
-import { t } from "../lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { Badge } from "../lib/api";
 import { Icon } from "./ui/Icon";
@@ -41,6 +41,7 @@ export function BadgeUnlockModal({
   badges: Badge[];
   onDone: () => void;
 }) {
+  const { t } = useTranslation();
   const [idx, setIdx] = useState(0);
   const [exiting, setExiting] = useState(false);
 

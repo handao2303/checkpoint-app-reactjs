@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
@@ -6,7 +6,7 @@ import { UserAvatar } from "./ui/UserAvatar";
 import { Sheet } from "./ui/Sheet";
 import { Button } from "./ui/Button";
 import { useAuth } from "../auth/AuthContext";
-import { getBadges, updateProfile, uploadAvatar } from "../lib/api";
+import { getBadges, isUsernameAvailable, updateProfile, uploadAvatar } from "../lib/api";
 import { prepareImage } from "../lib/image";
 import { AvatarCropSheet } from "./AvatarCropSheet";
 import { buildPickerFrames } from "../lib/avatarFrames";
@@ -27,9 +27,35 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [username, setUsername] = useState(user?.username ?? "");
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid"
+  >("idle");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: badges = [] } = useQuery({ queryKey: ["badges"], queryFn: getBadges });
+
+  // Live availability check while editing the username (debounced).
+  const usernameChanged = !!user && username !== user.username;
+  useEffect(() => {
+    if (!usernameChanged) {
+      setUsernameStatus("idle");
+      return;
+    }
+    if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+      setUsernameStatus("invalid");
+      return;
+    }
+    setUsernameStatus("checking");
+    const id = setTimeout(async () => {
+      try {
+        setUsernameStatus((await isUsernameAvailable(username)) ? "available" : "taken");
+      } catch {
+        setUsernameStatus("idle");
+      }
+    }, 400);
+    return () => clearTimeout(id);
+  }, [username, usernameChanged]);
 
   if (!user) return null;
 
@@ -88,6 +114,10 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
   };
 
   const save = async () => {
+    if (usernameChanged && usernameStatus !== "available") {
+      setError(t(usernameStatus === "taken" ? "username_da_dung" : "username_khong_hop_le"));
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -97,9 +127,10 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
         await updateProfile({
           display_name: name,
           bio: b,
+          ...(usernameChanged ? { username } : {}),
         }),
       );
-      trackEvent("profile_update_success", { has_display_name: !!name, has_bio: !!b });
+      trackEvent("profile_update_success", { has_display_name: !!name, has_bio: !!b, username_changed: usernameChanged });
       onClose();
     } catch (err) {
       trackError(err, { feature: "profile", action: "profile_update" });
@@ -147,6 +178,26 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
           />
         </div>
 
+        {/* Username */}
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-semibold text-foreground">{t('ten_dang_nhap')}</span>
+          <div className="flex items-center gap-1 rounded-xl border border-border bg-surface px-3 focus-within:ring-2 focus-within:ring-ring">
+            <span className="text-sm text-muted-foreground">@</span>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+              maxLength={20}
+              autoCapitalize="none"
+              autoComplete="off"
+              className="flex-1 bg-transparent py-3 text-sm outline-none"
+            />
+            {usernameStatus === "checking" && <span className="text-xs text-muted-foreground">…</span>}
+            {usernameStatus === "available" && <Icon name="check" size={16} className="text-secondary" />}
+          </div>
+          {usernameStatus === "taken" && <span className="text-xs text-accent-600">{t('username_da_dung')}</span>}
+          {usernameStatus === "invalid" && <span className="text-xs text-accent-600">{t('username_khong_hop_le')}</span>}
+        </label>
+
         {/* Display name */}
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-semibold text-foreground">{t('ten_hien_thi')}</span>
@@ -174,7 +225,11 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
 
         {error && <p className="text-sm text-accent-600">{error}</p>}
 
-        <Button className="w-full" disabled={saving || uploading} onClick={save}>
+        <Button
+          className="w-full"
+          disabled={saving || uploading || (usernameChanged && (usernameStatus === "checking" || usernameStatus === "invalid" || usernameStatus === "taken"))}
+          onClick={save}
+        >
           {saving ? t('dang_luu') : t('luu')}
         </Button>
       </div>

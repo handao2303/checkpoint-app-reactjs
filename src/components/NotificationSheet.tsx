@@ -1,4 +1,4 @@
-import { t } from "../lib/i18n";
+import i18n from "../lib/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
@@ -24,10 +24,10 @@ const REACTION_ICONS: Record<string, IconName> = {
 /** Short Vietnamese relative time: vừa xong / 5 phút / 3 giờ / 2 ngày / dd/mm. */
 function relativeTime(d: Date): string {
   const s = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (s < 60) return t('vua_xong');
-  if (s < 3600) return t('mathfloors_60_phut', { count: Math.floor(s / 60) });
-  if (s < 86400) return t('mathfloors_3600_gio', { count: Math.floor(s / 3600) });
-  if (s < 604800) return t('mathfloors_86400_ngay', { count: Math.floor(s / 86400) });
+  if (s < 60) return i18n.t('vua_xong');
+  if (s < 3600) return i18n.t('mathfloors_60_phut', { count: Math.floor(s / 60) });
+  if (s < 86400) return i18n.t('mathfloors_3600_gio', { count: Math.floor(s / 3600) });
+  if (s < 604800) return i18n.t('mathfloors_86400_ngay', { count: Math.floor(s / 86400) });
   return d.toLocaleDateString("vi-VN");
 }
 

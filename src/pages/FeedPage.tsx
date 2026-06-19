@@ -1,4 +1,3 @@
-import { t } from "../lib/i18n";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -389,6 +388,7 @@ function FeedCard({
   onOpen: () => void;
   onOpenProfile: (username: string) => void;
 }) {
+  const { t } = useTranslation();
   const author = item.author.display_name || item.author.username;
   const distance = formatDistance(item.distance_m);
   const { user: me } = useAuth();
