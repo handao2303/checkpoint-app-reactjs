@@ -50,16 +50,23 @@ export function LoginPage() {
   async function openInBrowser() {
     const url = window.location.href;
     if (getPlatform() === "android") {
+      // Android: intent:// reliably hands off to Chrome.
       const noScheme = url.replace(/^https?:\/\//, "");
       window.location.href = `intent://${noScheme}#Intent;scheme=https;package=com.android.chrome;end`;
       return;
     }
+    // iOS has no official way to break out of a webview. Copy the link as a
+    // guaranteed fallback, then best-effort try the undocumented `x-safari-`
+    // scheme which often escapes the Messenger/Facebook in-app browser.
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      /* clipboard may be blocked in webview — message still tells them to open a browser */
+      /* clipboard may be blocked in webview — message still tells them what to do */
     }
     setError(t("da_sao_chep_lien_ket"));
+    if (getPlatform() === "ios") {
+      window.location.href = `x-safari-${url}`;
+    }
   }
 
   async function onGoogle() {
