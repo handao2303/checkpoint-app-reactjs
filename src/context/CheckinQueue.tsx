@@ -1,6 +1,7 @@
 // Processes POST /checkpoints in the background after R2 uploads complete.
 // Lives at app root so it survives form unmounts. Jobs are persisted to
 // localStorage so they survive app kills — recovered and retried on next open.
+import { useTranslation } from "react-i18next";
 import {
   createContext,
   useCallback,
@@ -96,6 +97,7 @@ interface XPReward {
 }
 
 export function CheckinQueueProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [queue, setQueue] = useState<PendingJob[]>(() => loadJobs());
   const [errorToast, setErrorToast] = useState<string | null>(null);
@@ -173,7 +175,7 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
             removeJob(job.id);
             trackError(err, { feature: "checkin", action: "checkin_create", attempt: attempt + 1 });
             trackEvent("checkin_create_failed", { attempt: attempt + 1 });
-            setErrorToast("Lưu check-in thất bại. Vui lòng thử lại.");
+            setErrorToast(t('luu_checkin_that_bai_vui'));
             break;
           }
         }

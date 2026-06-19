@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabase";
 import { exchange, getMe, logout, setAuthExpiredHandler, tokens, type User } from "../lib/api";
 import { authErrorMessage } from "../lib/authErrors";
@@ -20,6 +21,7 @@ interface AuthState {
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -129,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       trackEvent("signup_success", { method: "email" });
     } else {
       trackEvent("signup_success", { method: "email", requires_confirmation: true });
-      throw new Error("Kiểm tra email để xác nhận tài khoản, rồi đăng nhập.");
+      throw new Error(t('kiem_tra_email_de_xac'));
     }
   };
 
@@ -159,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       trackEvent("login_failed", { method: "anonymous" });
       throw error;
     }
-    if (!data.session) throw new Error("Không tạo được phiên khách");
+    if (!data.session) throw new Error(t('khong_tao_duoc_phien_khach'));
     const nextUser = await exchange(data.session.access_token);
     setUser(nextUser);
     setObservabilityUser(nextUser);

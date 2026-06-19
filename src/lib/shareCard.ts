@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 // Canvas2D share-card renderer. We draw the card on a <canvas> instead of using
 // html-to-image because WebKit (every browser/PWA on iOS) renders <img> inside
 // the SVG <foreignObject> that html-to-image relies on as BLANK — so photos
@@ -391,10 +392,10 @@ async function render(gradient: [string, string], blocks: (Block | null)[], qrUr
     // "Quét để xem" label on the left.
     ctx.font = font(600, 14);
     ctx.fillStyle = "#fff";
-    ctx.fillText("Quét để xem", PAD, rowY + QR_SIZE / 2 - 18);
+    ctx.fillText(t('quet_de_xem'), PAD, rowY + QR_SIZE / 2 - 18);
     ctx.font = font(500, 13);
     ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.fillText("trên Checkpoint", PAD, rowY + QR_SIZE / 2 + 2);
+    ctx.fillText(t('tren_checkpoint'), PAD, rowY + QR_SIZE / 2 + 2);
   }
 
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
@@ -421,7 +422,7 @@ export function renderCheckpointCard(data: {
         photos(imgs),
         header({ emoji: categoryEmoji(data.category), title: data.name, subtitle: data.address ? `📍 ${data.address}` : undefined }),
         data.note ? quote(data.note) : null,
-        footer({ left: `+${data.xp} XP`, center: `bởi ${data.author}`, right: data.date }),
+        footer({ left: `+${data.xp} XP`, center: t('boi_dataauthor', { author: data.author }), right: data.date }),
       ],
       data.url,
     ),
@@ -442,7 +443,7 @@ export function renderJourneyCard(data: {
       PASSPORT,
       [
         photos(imgs),
-        header({ emoji: "🧳", title: data.title, subtitle: "Hành trình" }),
+        header({ emoji: "🧳", title: data.title, subtitle: t('hanh_trinh') }),
         stats([
           { label: "Check-in", value: String(data.count) },
           { label: "XP", value: String(data.xp) },
@@ -469,11 +470,11 @@ export function renderProfileCard(data: {
     [
       header({ initial: (data.name[0] ?? "?").toUpperCase(), title: data.name, subtitle: `@${data.username}`, badge: `Lv ${data.level}` }),
       stats([
-        { label: "Tổng XP", value: data.totalXp.toLocaleString() },
-        { label: "Số cờ", value: String(data.checkpointCount) },
-        { label: "Hành trình", value: String(data.journeyCount) },
+        { label: t('tong_xp'), value: data.totalXp.toLocaleString() },
+        { label: t('so_co'), value: String(data.checkpointCount) },
+        { label: t('hanh_trinh'), value: String(data.journeyCount) },
       ]),
-      centerText("Hộ chiếu du lịch của tôi 🛂"),
+      centerText(t('ho_chieu_du_lich_cua')),
     ],
     data.url,
   );

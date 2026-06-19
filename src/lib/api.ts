@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 // Thin client for the Checkpoint backend. Stores our backend-issued tokens,
 // attaches the access token, and transparently re-auths on 401.
 
@@ -320,7 +321,7 @@ export async function uploadAvatar(file: File): Promise<User> {
   form.append("avatar", file);
   // No Content-Type header — the browser sets the multipart boundary.
   const res = await apiFetch("/users/me/avatar", { method: "POST", body: form });
-  if (res.status === 415) throw new Error("Ảnh phải là jpeg, png, webp hoặc gif.");
+  if (res.status === 415) throw new Error(t('anh_phai_la_jpeg_png'));
   if (!isSuccessful(res)) throw new Error(`uploadAvatar failed: ${res.status}`);
   return res.data as User;
 }

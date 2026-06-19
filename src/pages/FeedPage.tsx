@@ -1,6 +1,8 @@
+import { t } from "../lib/i18n";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { useScrollContainer } from "../components/AppLayout";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
@@ -40,6 +42,7 @@ function formatDistance(m: number | null | undefined): string | null {
 }
 
 export function FeedPage() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<"for-you" | "following">("for-you");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placeId, setPlaceId] = useState<string | null>(null);
@@ -191,10 +194,10 @@ export function FeedPage() {
             )}
             <span>
               {isRefreshing
-                ? "Đang làm mới..."
+                ? t('dang_lam_moi')
                 : isReady
-                  ? "Thả để làm mới"
-                  : "Kéo xuống để làm mới"}
+                  ? t('tha_de_lam_moi')
+                  : t('keo_xuong_de_lam_moi')}
             </span>
           </div>
         )}
@@ -212,7 +215,7 @@ export function FeedPage() {
         {debounced ? (
           results?.length === 0 ? (
             <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-              Không tìm thấy địa điểm “{debounced}”.
+              {t('khong_tim_thay_dia_diem', { query: debounced })}
             </p>
           ) : (
             <div className="flex flex-col gap-2">
@@ -243,8 +246,8 @@ export function FeedPage() {
           <div className="flex items-center justify-around border-b border-border">
             {(
               [
-                ["for-you", "Dành cho bạn"],
-                ...(user ? [["following", "Đang theo dõi"] as const] : []),
+                ["for-you", t('danh_cho_ban')],
+                ...(user ? [["following", t('dang_theo_doi')] as const] : []),
               ] as const
             ).map(([key, label]) => (
               <button
@@ -276,8 +279,8 @@ export function FeedPage() {
       ) : items?.length === 0 ? (
         <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
           {tab === "following"
-            ? "Chưa theo dõi ai. Bấm ⋮ trên bài check-in để theo dõi."
-            : "Chưa có check-in nào quanh đây. Hãy là người cắm cờ đầu tiên!"}
+            ? t('chua_theo_doi_ai_bam')
+            : t('chua_co_checkin_nao_quanh')}
         </p>
       ) : (
         <>
@@ -337,6 +340,7 @@ export function FeedPage() {
 }
 
 function PendingCheckinStatus({ count }: { count: number }) {
+  const { t } = useTranslation();
   return (
     <div
       role="status"
@@ -345,7 +349,7 @@ function PendingCheckinStatus({ count }: { count: number }) {
     >
       <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-border border-t-primary" />
       <span className="truncate font-medium">
-        {count === 1 ? "Đang đăng check-in..." : `Đang đăng ${count} check-in...`}
+        {count === 1 ? t('dang_dang_checkin') : t('dang_dang_count_checkin', { count: count })}
       </span>
     </div>
   );
@@ -401,7 +405,7 @@ function FeedCard({
     await shareImageBlob(null, {
       filename: `checkpoint-${item.id}.png`,
       title: item.name,
-      text: `Mình vừa thấy check-in tại ${item.name} trên Checkpoint!`,
+      text: t('minh_vua_thay_checkin_tai', { name: item.name }),
       url: `${API_URL}/share/checkpoint/${item.id}`,
     });
   }
@@ -465,7 +469,7 @@ function FeedCard({
             <button
               onClick={() => setMenuOpen((o) => !o)}
               className="rounded-full p-2 text-muted-foreground hover:bg-surface-muted"
-              aria-label="Tùy chọn"
+              aria-label={t('tuy_chon')}
             >
               <Icon name="more-vertical" size={18} />
             </button>
@@ -475,7 +479,7 @@ function FeedCard({
                   onClick={shareCheckpoint}
                   className="flex w-full items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-surface-muted"
                 >
-                  <Icon name="share" size={16} /> Chia sẻ
+                  <Icon name="share" size={16} /> {t('chia_se')}
                 </button>
                 {mine ? (
                   <button
@@ -485,7 +489,7 @@ function FeedCard({
                     }}
                     className="flex w-full items-center gap-2 px-4 py-3 text-sm text-accent-600 hover:bg-accent-50"
                   >
-                    <Icon name="trash" size={16} /> Xoá check-in
+                    <Icon name="trash" size={16} /> {t('xoa_checkin')}
                   </button>
                 ) : (
                   <button
@@ -495,11 +499,11 @@ function FeedCard({
                   >
                     {isFollowing ? (
                       <>
-                        <Icon name="user-minus" size={16} /> Bỏ theo dõi
+                        <Icon name="user-minus" size={16} /> {t('bo_theo_doi')}
                       </>
                     ) : (
                       <>
-                        <Icon name="user-plus" size={16} /> Theo dõi
+                        <Icon name="user-plus" size={16} /> {t('theo_doi')}
                       </>
                     )}
                   </button>
@@ -538,7 +542,7 @@ function FeedCard({
           )}
           {distance && (
             <span className="flex items-center gap-1">
-              <Icon name="map-pin" size={14} /> cách {distance}
+              <Icon name="map-pin" size={14} /> {t('cach_distance', { distance })}
             </span>
           )}
           <span className="ml-auto text-xs">{new Date(item.created_at).toLocaleDateString("vi-VN")}</span>

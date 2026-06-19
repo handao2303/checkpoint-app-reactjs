@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
 import { UserAvatar } from "./ui/UserAvatar";
@@ -18,6 +19,7 @@ const frameStorageKey = (userId: string) => `cp_avatar_frame:${userId}`;
 /** Edit display name + bio, and change avatar. Updates the cached auth user on
  *  success so the profile reflects changes immediately. */
 export function EditProfileSheet({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const { user, applyUser } = useAuth();
   const [displayName, setDisplayName] = useState(user?.display_name ?? "");
   const [bio, setBio] = useState(user?.bio ?? "");
@@ -79,7 +81,7 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
     } catch (err) {
       trackError(err, { feature: "profile", action: "avatar_upload" });
       trackEvent("avatar_upload_failed");
-      setError(err instanceof Error ? err.message : "Tải ảnh thất bại.");
+      setError(err instanceof Error ? err.message : t('tai_anh_that_bai'));
     } finally {
       setUploading(false);
     }
@@ -102,7 +104,7 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
     } catch (err) {
       trackError(err, { feature: "profile", action: "profile_update" });
       trackEvent("profile_update_failed");
-      setError(err instanceof Error ? err.message : "Lưu thất bại.");
+      setError(err instanceof Error ? err.message : t('luu_that_bai'));
     } finally {
       setSaving(false);
     }
@@ -110,7 +112,7 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <Sheet title="Sửa hồ sơ" onClose={onClose}>
+      <Sheet title={t('sua_ho_so')} onClose={onClose}>
       <div className="flex flex-col gap-4">
         {/* Avatar */}
         <div className="flex flex-col items-center gap-2">
@@ -119,7 +121,7 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
             onClick={pickAvatar}
             disabled={uploading}
             className="relative h-28 w-28 disabled:opacity-60"
-            aria-label="Đổi ảnh đại diện"
+            aria-label={t('doi_anh_dai_dien')}
           >
             <UserAvatar
               src={user.avatar_url}
@@ -134,7 +136,7 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
             </span>
           </button>
           <span className="text-xs text-muted-foreground">
-            {uploading ? "Đang tải ảnh..." : "Chạm để đổi ảnh & khung avatar"}
+            {uploading ? t('dang_tai_anh') : t('cham_de_doi_anh_khung')}
           </span>
           <input
             ref={fileRef}
@@ -147,7 +149,7 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
 
         {/* Display name */}
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-foreground">Tên hiển thị</span>
+          <span className="text-sm font-semibold text-foreground">{t('ten_hien_thi')}</span>
           <input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
@@ -159,12 +161,12 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
 
         {/* Bio */}
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-foreground">Giới thiệu</span>
+          <span className="text-sm font-semibold text-foreground">{t('gioi_thieu')}</span>
           <textarea
             rows={3}
             value={bio}
             onChange={(e) => setBio(e.target.value)}
-            placeholder="Đôi dòng về bạn..."
+            placeholder={t('doi_dong_ve_ban')}
             maxLength={160}
             className="resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
           />
@@ -173,7 +175,7 @@ export function EditProfileSheet({ onClose }: { onClose: () => void }) {
         {error && <p className="text-sm text-accent-600">{error}</p>}
 
         <Button className="w-full" disabled={saving || uploading} onClick={save}>
-          {saving ? "Đang lưu..." : "Lưu"}
+          {saving ? t('dang_luu') : t('luu')}
         </Button>
       </div>
     </Sheet>

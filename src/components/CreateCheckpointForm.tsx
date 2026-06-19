@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useCheckinQueue } from "../context/CheckinQueue";
@@ -285,7 +286,7 @@ export function CreateCheckpointForm({
         const isVideo = isProbablyVideoFile(file);
         if (isVideo) {
           if (nextVideoCount >= MAX_VIDEOS) {
-            setErr("Tối đa 1 video/check-in.");
+            setErr(t('toi_da_1_videocheckin'));
             continue;
           }
           const { original, thumbnail } = await prepareCheckpointVideo(file);
@@ -301,7 +302,7 @@ export function CreateCheckpointForm({
         }
 
         if (nextImageCount >= maxImages) {
-          setErr(`Tối đa ${maxImages} ảnh/check-in.`);
+          setErr(t('toi_da_maximages_anhcheckin', { maxImages: maxImages }));
           continue;
         }
         const { original, thumbnail } = await prepareCheckpointImage(file);
@@ -322,7 +323,7 @@ export function CreateCheckpointForm({
       console.error("media prepare failed:", e);
       trackError(e, { feature: "checkin", action: "media_prepare" });
       trackEvent("media_prepare_failed");
-      setErr(e instanceof Error ? e.message : "Không xử lý được media. Vui lòng thử file khác.");
+      setErr(e instanceof Error ? e.message : t('khong_xu_ly_duoc_media'));
     } finally {
       if (hasImage) setImageProcessing(false);
       if (hasVideo) setVideoProcessing(false);
@@ -349,7 +350,7 @@ export function CreateCheckpointForm({
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (picked.length === 0) {
-      setErr("Bắt buộc phải có ít nhất 1 ảnh hoặc video.");
+      setErr(t('bat_buoc_phai_co_it'));
       return;
     }
     setBusy(true);
@@ -363,7 +364,7 @@ export function CreateCheckpointForm({
       trackEvent("upload_slots_success", { media_count: mediaTypes.length });
     } catch {
       trackEvent("upload_slots_failed", { media_count: mediaTypes.length });
-      setErr("Không lấy được link upload. Vui lòng thử lại.");
+      setErr(t('khong_lay_duoc_link_upload'));
       setBusy(false);
       return;
     }
@@ -379,7 +380,7 @@ export function CreateCheckpointForm({
       trackEvent("r2_upload_success", { media_count: picked.length });
     } catch {
       trackEvent("r2_upload_failed", { media_count: picked.length });
-      setErr("Upload ảnh/video thất bại. Vui lòng thử lại.");
+      setErr(t('upload_anhvideo_that_bai_vui'));
       setBusy(false);
       return;
     }
@@ -418,8 +419,8 @@ export function CreateCheckpointForm({
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h3 className="text-base font-bold text-foreground">Bạn đang check-in tại đâu?</h3>
-          <p className="text-xs text-muted-foreground">Chọn một địa điểm gần bạn để check-in:</p>
+          <h3 className="text-base font-bold text-foreground">{t('ban_dang_checkin_tai_dau')}</h3>
+          <p className="text-xs text-muted-foreground">{t('chon_mot_dia_diem_gan')}</p>
         </div>
         <div className="flex flex-col gap-2.5 max-h-[300px] overflow-y-auto pr-1">
           {!nearbyAppPlacesFetched ? (
@@ -457,7 +458,7 @@ export function CreateCheckpointForm({
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-sm font-semibold text-foreground">{p.name}</p>
                       <span className="shrink-0 text-xs font-semibold text-primary">
-                        cách {Math.round(p.distance)}m
+                        {t('cach_mathroundpdistancem', { distance: Math.round(p.distance) })}
                       </span>
                     </div>
                     {p.address && <p className="truncate text-xs text-muted-foreground mt-0.5">{p.address}</p>}
@@ -473,7 +474,7 @@ export function CreateCheckpointForm({
             className="w-full justify-center gap-1.5"
             onClick={handleCreateNewPlace}
           >
-            <Icon name="plus" size={16} /> Tạo địa điểm mới
+            <Icon name="plus" size={16} /> {t('tao_dia_diem_moi')}
           </Button>
         </div>
       </div>
@@ -489,7 +490,7 @@ export function CreateCheckpointForm({
               <Icon name={CATEGORIES.find((c) => c.key === selectedPlace.category)?.icon || "pin"} size={17} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground font-medium">Check-in tại địa điểm</p>
+              <p className="text-xs text-muted-foreground font-medium">{t('checkin_tai_dia_diem')}</p>
               <p className="truncate text-sm font-bold text-foreground">{selectedPlace.name}</p>
             </div>
           </div>
@@ -499,7 +500,7 @@ export function CreateCheckpointForm({
               onClick={() => setViewMode("select-place")}
               className="shrink-0 text-xs font-bold text-primary hover:underline"
             >
-              Thay đổi
+              {t('thay_doi')}
             </button>
           )}
         </div>
@@ -512,9 +513,9 @@ export function CreateCheckpointForm({
               <Icon name="plus" size={16} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground font-medium">Đang tạo địa điểm mới</p>
+              <p className="text-xs text-muted-foreground font-medium">{t('dang_tao_dia_diem_moi')}</p>
               <p className="truncate text-sm font-bold text-foreground">
-                {name || "Chưa nhập tên địa điểm"}
+                {name || t('chua_nhap_ten_dia_diem')}
               </p>
             </div>
           </div>
@@ -523,7 +524,7 @@ export function CreateCheckpointForm({
             onClick={() => setViewMode("select-place")}
             className="shrink-0 text-xs font-bold text-primary hover:underline"
           >
-            Xem danh sách
+            {t('xem_danh_sach')}
           </button>
         </div>
       )}
@@ -531,14 +532,14 @@ export function CreateCheckpointForm({
       {activeJourneys?.length > 0 && (
         <label className="flex flex-col gap-1.5">
           <span className="flex items-center gap-1.5 text-sm font-semibold text-secondary">
-            <Icon name="luggage" size={16} /> Ghi vào hành trình
+            <Icon name="luggage" size={16} /> {t('ghi_vao_hanh_trinh')}
           </span>
           <select
             value={effectiveJourneyId ?? ""}
             onChange={(e) => setJourneyId(e.target.value || null)}
             className="rounded-xl border border-border bg-surface p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
           >
-            <option value="">Không gắn hành trình</option>
+            <option value="">{t('khong_gan_hanh_trinh')}</option>
             {activeJourneys.map((j) => (
               <option key={j.id} value={j.id}>
                 {j.title}
@@ -552,14 +553,14 @@ export function CreateCheckpointForm({
         <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface p-3 text-sm text-muted-foreground shadow-card">
           <Icon name="calendar" size={16} className="text-primary" />
           <span>
-            Chụp lúc <span className="font-semibold text-foreground">{formatTakenAt(initialTakenAt)}</span>
+            {t('chup_luc')} <span className="font-semibold text-foreground">{formatTakenAt(initialTakenAt)}</span>
           </span>
         </div>
       )}
 
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 shadow-card">
         <span className="flex items-center gap-2 font-display text-lg font-extrabold text-foreground">
-          <Icon name="pin" size={20} className="text-primary" /> Địa điểm
+          <Icon name="pin" size={20} className="text-primary" /> {t('dia_diem')}
         </span>
         <input
           required
@@ -568,7 +569,7 @@ export function CreateCheckpointForm({
             setName(e.target.value);
             if (suggestionApplied) setSuggestionApplied(false);
           }}
-          placeholder="Tên địa điểm"
+          placeholder={t('ten_dia_diem')}
           className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
 
@@ -595,7 +596,7 @@ export function CreateCheckpointForm({
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-card">
         <span className="flex items-center gap-2 font-display text-lg font-extrabold text-foreground">
-          <Icon name="star" size={20} className="fill-gold text-gold" /> Đánh giá địa điểm
+          <Icon name="star" size={20} className="fill-gold text-gold" /> {t('danh_gia_dia_diem')}
         </span>
         <div className="flex items-center gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
@@ -615,9 +616,9 @@ export function CreateCheckpointForm({
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-card">
         <span className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-2 font-display text-lg font-extrabold text-foreground">
-            <Icon name="camera" size={20} className="text-primary" /> Thêm ảnh
+            <Icon name="camera" size={20} className="text-primary" /> {t('them_anh')}
           </span>
-          <span className="text-xs font-semibold text-primary">{imageCount}/{maxImages} ảnh</span>
+          <span className="text-xs font-semibold text-primary">{t('imagecountmaximages_anh', { count: imageCount, max: maxImages })}</span>
         </span>
         <div className="flex flex-wrap gap-2">
         {picked.map((p, i) => (
@@ -638,7 +639,7 @@ export function CreateCheckpointForm({
                 type="button"
                 onClick={() => removeAt(i)}
                 className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent-500 text-white shadow"
-                aria-label={p.type === "video" ? "Xóa video" : "Xóa ảnh"}
+                aria-label={p.type === "video" ? t('xoa_video') : t('xoa_anh')}
               >
                 <Icon name="x" size={14} />
               </button>
@@ -655,7 +656,7 @@ export function CreateCheckpointForm({
             )}
           >
             {imageProcessing ? (
-              <span className="text-xs">Đang xử lý…</span>
+              <span className="text-xs">{t('dang_xu_ly')}</span>
             ) : usePwaCamera ? (
               <Icon name="camera" size={24} />
             ) : (
@@ -676,7 +677,7 @@ export function CreateCheckpointForm({
             )}
           >
             {videoProcessing ? (
-              <span className="text-xs">Đang xử lý…</span>
+              <span className="text-xs">{t('dang_xu_ly')}</span>
             ) : (
               <Icon name="video" size={24} />
             )}
@@ -709,7 +710,7 @@ export function CreateCheckpointForm({
       <label className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 shadow-card">
         <span className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-2 font-display text-lg font-extrabold text-foreground">
-            <Icon name="pencil" size={20} className="text-primary" /> Cảm nhận của bạn
+            <Icon name="pencil" size={20} className="text-primary" /> {t('cam_nhan_cua_ban')}
           </span>
           <span className="text-xs text-muted-foreground">{note.length}/500</span>
         </span>
@@ -717,7 +718,7 @@ export function CreateCheckpointForm({
           rows={4}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Không gian, đồ uống, góc chụp, cảm xúc..."
+          placeholder={t('goi_y_cam_nhan_checkpoint')}
           className="resize-none rounded-2xl border border-border bg-surface-muted p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
       </label>
@@ -725,7 +726,7 @@ export function CreateCheckpointForm({
       {err && <p className="text-sm text-accent-600">{err}</p>}
 
       <Button type="submit" variant="accent" size="lg" disabled={busy || processing || picked.length === 0} icon={<Icon name="flag-planted" size={22} />}>
-        {busy ? "Đang lưu..." : "CẮM CỜ"}
+        {busy ? t('dang_luu') : t('cam_co').toUpperCase()}
       </Button>
       {cameraOpen && (
         <CameraCaptureSheet

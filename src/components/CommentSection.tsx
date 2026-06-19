@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
 import { useCallback, useRef, useState, type FormEvent } from "react";
@@ -99,7 +100,7 @@ export function CommentSection({
 
   return (
     <div className="flex flex-col gap-3 border-t border-border pt-3">
-      <h3 className="font-display text-base font-bold">Bình luận ({count})</h3>
+      <h3 className="font-display text-base font-bold">{t('binh_luan_count', { count })}</h3>
 
       {user && (
         <form onSubmit={submit} className="flex items-center gap-2">
@@ -107,14 +108,14 @@ export function CommentSection({
             value={text}
             onChange={(e) => setText(e.target.value)}
             maxLength={500}
-            placeholder="Viết bình luận..."
+            placeholder={t('viet_binh_luan')}
             className="flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
           />
           <button
             type="submit"
             disabled={!text.trim() || sending}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
-            aria-label="Gửi"
+            aria-label={t('gui')}
           >
             <Icon name="send" size={16} />
           </button>
@@ -131,7 +132,7 @@ export function CommentSection({
           ))}
         </div>
       ) : comments?.length === 0 ? (
-        <p className="py-2 text-sm text-muted-foreground">Chưa có bình luận nào.</p>
+        <p className="py-2 text-sm text-muted-foreground">{t('chua_co_binh_luan_nao')}</p>
       ) : (
         <div className="flex flex-col gap-3">
           {comments.map((c) => (
@@ -145,7 +146,7 @@ export function CommentSection({
           ))}
           <div ref={sentinelRef} className="h-1" />
           {isFetchingNextPage && (
-            <p className="py-1 text-center text-xs text-muted-foreground">Đang tải...</p>
+            <p className="py-1 text-center text-xs text-muted-foreground">{t('dang_tai')}</p>
           )}
         </div>
       )}
@@ -170,7 +171,7 @@ function CommentRow({
         onClick={() => onOpenProfile?.(comment.username)}
         className="shrink-0 transition hover:opacity-80"
         type="button"
-        aria-label={`Mở hồ sơ ${comment.display_name || comment.username}`}
+        aria-label={t('mo_ho_so_commentdisplay_name', { name: comment.display_name || comment.username })}
       >
         <UserAvatar
           src={comment.avatar_url}
@@ -200,7 +201,7 @@ function CommentRow({
         <button
           onClick={onDelete}
           className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-surface-muted hover:text-accent-600"
-          aria-label="Xoá bình luận"
+          aria-label={t('xoa_binh_luan')}
         >
           <Icon name="trash" size={14} />
         </button>

@@ -4,6 +4,7 @@ import { extractPhotoMetadata } from "../lib/exif";
 import { CreateCheckpointForm } from "./CreateCheckpointForm";
 import { Button } from "./ui/Button";
 import { trackEvent } from "../lib/observability";
+import { t } from "../lib/i18n";
 
 type Stage = "idle" | "reading" | "error" | "form";
 
@@ -87,13 +88,13 @@ export function PhotoCheckinTab({
           >
             <Icon name="image-up" size={36} className="text-muted-foreground" />
             <div className="flex flex-col gap-1 w-full">
-              <span className="font-semibold">Chọn ảnh có tọa độ GPS</span>
+              <span className="font-semibold">{t('chon_anh_co_toa_do_gps')}</span>
               <span className="text-sm text-muted-foreground">
-                Ảnh chụp khi bật vị trí sẽ mang theo tọa độ check-in
+                {t('anh_chup_khi_bat_vi_tri')}
               </span>
               {isAndroid && (
                 <span className="text-[11px] text-amber-700 bg-amber-500/5 p-2.5 rounded-xl leading-normal border border-amber-500/10 mt-3 text-left block">
-                  <strong>Mẹo Android:</strong> Khi chọn ảnh, hãy chọn mục <strong>"Tệp" (Files)</strong> hoặc <strong>"Tệp của bạn"</strong> thay vì chọn trực tiếp từ Album để giữ tọa độ GPS gốc.
+                  <strong>{t('meo_android')}:</strong> {t('photo_android_tip_prefix')} <strong>{t('tep_files')}</strong> {t('photo_android_tip_suffix')}
                 </span>
               )}
             </div>
@@ -101,12 +102,12 @@ export function PhotoCheckinTab({
 
           {stage === "error" && (
             <p className="max-w-xs text-center text-sm text-red-500">
-              Ảnh không có thông tin vị trí. Hãy chọn ảnh chụp với GPS bật{isAndroid ? ', chọn qua ứng dụng Tệp' : ''} hoặc dùng tab "Cắm cờ".
+              {t('anh_khong_co_thong_tin_vi_tri')}{isAndroid ? t('chon_qua_ung_dung_tep') : ''} {t('hoac_dung_tab_cam_co')}.
             </p>
           )}
 
           <Button type="button" onClick={() => fileRef.current?.click()}>
-            {stage === "error" ? "Thử ảnh khác" : "Chọn ảnh"}
+            {stage === "error" ? t('thu_anh_khac') : t('chon_anh')}
           </Button>
         </>
       )}
@@ -114,7 +115,7 @@ export function PhotoCheckinTab({
       {stage === "reading" && (
         <div className="flex flex-col items-center gap-3 py-8">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
-          <span className="text-sm text-muted-foreground">Đang đọc tọa độ từ ảnh…</span>
+          <span className="text-sm text-muted-foreground">{t('dang_doc_toa_do_tu_anh')}</span>
         </div>
       )}
     </div>

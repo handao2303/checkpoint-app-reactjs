@@ -1,3 +1,4 @@
+import { t } from "../../lib/i18n";
 import { useState } from "react";
 import { Icon } from "../ui/Icon";
 import { Button } from "../ui/Button";
@@ -11,7 +12,7 @@ export function ShareButton({
   title,
   text,
   url,
-  label = "Chia sẻ",
+  label = t('chia_se'),
   render,
 }: {
   filename: string;
@@ -41,7 +42,7 @@ export function ShareButton({
 
   return (
     <Button variant="green" icon={<Icon name="share" size={20} />} disabled={busy} onClick={onShare} className="w-full">
-      {busy ? "Đang tạo ảnh..." : label}
+      {busy ? t('dang_tao_anh') : label}
     </Button>
   );
 }

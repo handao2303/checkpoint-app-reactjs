@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useEffect, useState } from "react";
 import type { Badge } from "../lib/api";
 import { Icon } from "./ui/Icon";
@@ -89,7 +90,7 @@ export function BadgeUnlockModal({
           {/* Header */}
           <p className="mb-6 text-center text-xs font-bold uppercase tracking-widest text-gold">
             <Icon name="party" size={14} className="mr-1 inline" />
-            Huy hiệu mới{badges.length > 1 ? ` · ${idx + 1}/${badges.length}` : ""}
+            {t('huy_hieu_moibadgeslength_1_idx', { progress: badges.length > 1 ? ` · ${idx + 1}/${badges.length}` : '' })}
           </p>
 
           {/* Badge with glow + scale-pop */}
@@ -103,11 +104,11 @@ export function BadgeUnlockModal({
 
           {/* Badge info */}
           <div className="mb-6 text-center">
-            <p className="font-display text-2xl font-bold text-foreground">{badge.name}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{badge.description}</p>
+            <p className="font-display text-2xl font-bold text-foreground">{t(badge.name)}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t(badge.description)}</p>
             {badge.level != null && (
               <span className="mt-2 inline-block rounded-full bg-surface-muted px-3 py-0.5 text-xs font-semibold text-muted-foreground">
-                Cấp {badge.level}
+                {t('cap_badgelevel', { level: badge.level })}
               </span>
             )}
           </div>
@@ -132,7 +133,7 @@ export function BadgeUnlockModal({
             onClick={advance}
             className="w-full rounded-2xl bg-primary py-3.5 font-display text-base font-bold text-primary-foreground shadow-cta transition active:scale-[0.98]"
           >
-            {idx < badges.length - 1 ? "Tiếp theo →" : "Tuyệt vời!"}
+            {idx < badges.length - 1 ? t('tiep_theo') : t('tuyet_voi')}
           </button>
         </div>
       </div>

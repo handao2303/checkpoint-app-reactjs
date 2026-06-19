@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Icon } from "../components/ui/Icon";
 import { useAuth } from "../auth/AuthContext";
 import { authErrorMessage } from "../lib/authErrors";
@@ -6,6 +7,7 @@ import { Button } from "../components/ui/Button";
 import { trackEvent } from "../lib/observability";
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const { loginEmail, signupEmail, loginGoogle, loginAnonymous } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -33,9 +35,9 @@ export function LoginPage() {
         <img src="/logo.png" alt="" className="h-12 w-auto object-contain" />
         <h1 className="font-display text-4xl font-bold text-clay-600">Checkpoint</h1>
         <p className="text-muted-foreground">
-          Khám phá thế giới,
+          {t('kham_pha_the_gioi')}
           <br />
-          lưu dấu hành trình
+          {t('luu_dau_hanh_trinh')}
         </p>
       </div>
 
@@ -54,23 +56,23 @@ export function LoginPage() {
           minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Mật khẩu"
+          placeholder={t('mat_khau')}
           className="rounded-full border border-border bg-surface px-5 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         {error && <p className="px-2 text-sm text-accent-600">{error}</p>}
         <Button type="submit" size="lg" disabled={busy} icon={<Icon name="mail" size={20} />}>
-          {busy ? "Đang xử lý..." : mode === "signin" ? "Đăng nhập" : "Đăng ký"}
+          {busy ? t('dang_xu_ly') : mode === "signin" ? t('dang_nhap') : t('dang_ky')}
         </Button>
       </form>
 
       <div className="flex items-center gap-3 text-xs text-subtle-foreground">
         <span className="h-px flex-1 bg-border" />
-        hoặc
+        {t('hoac')}
         <span className="h-px flex-1 bg-border" />
       </div>
 
       <Button variant="outline" size="lg" onClick={loginGoogle}>
-        Tiếp tục với Google
+        {t('tiep_tuc_voi_google')}
       </Button>
 
       <button
@@ -89,11 +91,11 @@ export function LoginPage() {
         disabled={busy}
         className="text-center text-sm font-medium text-muted-foreground underline-offset-2 hover:underline disabled:opacity-60"
       >
-        Dùng thử không cần đăng nhập
+        {t('dung_thu_khong_can_dang')}
       </button>
 
       <p className="text-center text-sm text-muted-foreground">
-        {mode === "signin" ? "Bạn chưa có tài khoản? " : "Đã có tài khoản? "}
+        {mode === "signin" ? t('ban_chua_co_tai_khoan') : t('da_co_tai_khoan')}{" "}
         <button
           type="button"
           onClick={() => {
@@ -104,7 +106,7 @@ export function LoginPage() {
           }}
           className="font-semibold text-primary"
         >
-          {mode === "signin" ? "Đăng ký ngay" : "Đăng nhập"}
+          {mode === "signin" ? t('dang_ky_ngay') : t('dang_nhap')}
         </button>
       </p>
 

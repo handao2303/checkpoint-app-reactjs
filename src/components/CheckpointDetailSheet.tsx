@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Icon } from "./ui/Icon";
 import { getCheckpointDetail, viewCheckpoint, API_URL } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
@@ -18,6 +19,7 @@ import { renderCheckpointCard } from "../lib/shareCard";
 import { trackEvent } from "../lib/observability";
 
 export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: () => void; }) {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { requestDelete, confirming, confirmBox } = useDeleteCheckpoint(id, { onDeleted: onClose });
 
@@ -59,7 +61,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                       className="flex h-44 w-60 shrink-0 flex-col items-center justify-center gap-2 rounded-lg bg-surface-muted text-muted-foreground"
                     >
                       <Icon name={im.type === "video" ? "video" : "image"} size={24} />
-                      <span className="text-xs">Đang xử lý...</span>
+                      <span className="text-xs">{t('dang_xu_ly')}</span>
                     </div>
                   ) : (
                     <MediaPreview
@@ -127,14 +129,14 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
             </div>
             <div className="flex flex-col gap-0.5 text-xs text-subtle-foreground">
               {data.checkpoint.taken_at ? (
-                <p>Chụp lúc {new Date(data.checkpoint.taken_at).toLocaleString("vi-VN")}</p>
+                <p>{t('chup_luc')} {new Date(data.checkpoint.taken_at).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}</p>
               ) : <p>{new Date(data.checkpoint.created_at).toLocaleString("vi-VN")}</p>}
             </div>
 
             <ShareButton
               filename={`checkpoint-${data.checkpoint.id}.png`}
               title={data.checkpoint.name}
-              text={`Mình vừa check-in tại ${data.checkpoint.name} trên Checkpoint!`}
+              text={t('minh_vua_checkin_tai_datacheckpointname', { name: data.checkpoint.name })}
               url={`${API_URL}/share/checkpoint/${data.checkpoint.id}`}
               render={() =>
                 renderCheckpointCard({
@@ -176,7 +178,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                   }}
                   className="flex items-center justify-center gap-2 rounded-full py-2 text-sm font-semibold text-accent-600 hover:bg-accent-50"
                 >
-                  <Icon name="trash" size={16} /> Xoá check-in
+                  <Icon name="trash" size={16} /> {t('xoa_checkin')}
                 </button>
               ))}
           </div>

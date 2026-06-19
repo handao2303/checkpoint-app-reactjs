@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Webcam from "react-webcam";
@@ -173,7 +174,7 @@ export function CameraCaptureSheet({
   const currentDevice = facingDevices.find((device) => device.info.deviceId === activeDeviceId);
   const currentDeviceIndex = facingDevices.findIndex((device) => device.info.deviceId === activeDeviceId);
   const currentDeviceLabel = currentDevice
-    ? currentDevice.info.label || `Camera ${facing === "user" ? "trước" : "sau"} ${currentDeviceIndex + 1}`
+    ? currentDevice.info.label || `Camera ${facing === "user" ? t('truoc') : "sau"} ${currentDeviceIndex + 1}`
     : null;
   const videoConstraints: MediaTrackConstraints = {
     ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : { facingMode: facing }),
@@ -426,7 +427,7 @@ export function CameraCaptureSheet({
             trackEvent("camera_close", { count: shots.length });
             onClose();
           }}
-          aria-label="Đóng"
+          aria-label={t('dong')}
           className="p-1"
         >
           <Icon name="x" size={26} />
@@ -453,7 +454,7 @@ export function CameraCaptureSheet({
       >
         {/* Preview (last captured shot) */}
         {mode === "preview" && previewUrl && (
-          <img src={previewUrl} alt="Xem trước" className="h-full w-full object-cover" />
+          <img src={previewUrl} alt={t('xem_truoc')} className="h-full w-full object-cover" />
         )}
 
         {/* Viewfinder — always mounted so the camera stream stays warm */}
@@ -462,14 +463,14 @@ export function CameraCaptureSheet({
             <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center text-white">
               <Icon name="image" size={40} className="opacity-70" />
               <p className="text-sm text-white/80">
-                Không mở được camera. Hãy chọn ảnh từ thư viện.
+                {t('khong_mo_duoc_camera_hay')}
               </p>
               <button
                 type="button"
                 onClick={() => galleryRef.current?.click()}
                 className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black"
               >
-                Chọn từ thư viện
+                {t('chon_tu_thu_vien')}
               </button>
             </div>
           ) : (
@@ -514,7 +515,7 @@ export function CameraCaptureSheet({
                     key={device.info.deviceId}
                     type="button"
                     onClick={() => selectLens(device.info.deviceId)}
-                    aria-label={`Chọn camera ${index + 1}`}
+                    aria-label={t('chon_camera_index_1', { index1: index + 1 })}
                     aria-pressed={active}
                     className={`flex h-9 min-w-9 items-center justify-center rounded-full px-3 text-sm font-semibold ${
                       active ? "bg-white text-black" : "bg-white/15 text-white"
@@ -537,7 +538,7 @@ export function CameraCaptureSheet({
             onClick={retake}
             className="rounded-full bg-white/15 px-5 py-3 text-sm font-semibold text-white"
           >
-            Chụp lại
+            {t('chup_lai')}
           </button>
           {!isFull && (
             <button
@@ -545,7 +546,7 @@ export function CameraCaptureSheet({
               onClick={continueCapture}
               className="rounded-full bg-white/15 px-5 py-3 text-sm font-semibold text-white"
             >
-              Tiếp tục
+              {t('tiep_tuc')}
             </button>
           )}
           <button
@@ -564,7 +565,7 @@ export function CameraCaptureSheet({
           <button
             type="button"
             onClick={() => galleryRef.current?.click()}
-            aria-label="Chọn từ thư viện"
+            aria-label={t('chon_tu_thu_vien')}
             className="justify-self-start text-white"
           >
             {phonePwa ? (
@@ -572,7 +573,7 @@ export function CameraCaptureSheet({
                 <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15">
                   <Icon name="image" size={24} />
                 </span>
-                Thư viện
+                {t('thu_vien')}
               </span>
             ) : (
               <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">
@@ -585,7 +586,7 @@ export function CameraCaptureSheet({
             type="button"
             onClick={capture}
             disabled={error || isFull}
-            aria-label="Chụp ảnh"
+            aria-label={t('chup_anh')}
             className="h-[4.5rem] w-[4.5rem] justify-self-center rounded-full border-4 border-white p-1 disabled:opacity-40"
           >
             <span className="block h-full w-full rounded-full bg-white" />
@@ -594,7 +595,7 @@ export function CameraCaptureSheet({
           <button
             type="button"
             onClick={switchFacing}
-            aria-label="Lật camera trước sau"
+            aria-label={t('lat_camera_truoc_sau')}
             className="flex h-12 w-12 items-center justify-center justify-self-end rounded-full bg-white/15 text-white"
           >
             <Icon name="switch-camera" size={24} />

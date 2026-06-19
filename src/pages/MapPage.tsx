@@ -1,8 +1,10 @@
+import { t } from "../lib/i18n";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Icon } from "../components/ui/Icon";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Map, { GeolocateControl, Marker, NavigationControl } from "react-map-gl/maplibre";
 import Supercluster from "supercluster";
 import { useAuth } from "../auth/AuthContext";
@@ -27,9 +29,9 @@ type MapFilters = {
 const BOUNDS_BUFFER_RATIO = 0.5;
 
 const LABELS: Record<MapFilter, string> = {
-  all: "Tất cả",
-  following: "Đang follow",
-  mine: "Của tôi",
+  all: t('tat_ca'),
+  following: t('dang_follow'),
+  mine: t('cua_toi'),
 };
 
 function containsBounds(outer: Bounds, inner: Bounds): boolean {
@@ -72,6 +74,7 @@ const getCheckpoints = (
 };
 
 export function MapPage() {
+  const { t } = useTranslation();
   const [viewportBounds, setViewportBounds] = useState<Bounds | null>(null);
   const [queryBounds, setQueryBounds] = useState<Bounds | null>(null);
   const [zoom, setZoom] = useState(DEFAULT_VIEW.zoom);
@@ -336,10 +339,10 @@ export function MapPage() {
       <div ref={filterControlRef} className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
         <button
           type="button"
-          aria-label={activeCategory ? `Lọc ${activeCategory.label}` : "Lọc theo danh mục"}
+          aria-label={activeCategory ? t('loc_activecategorylabel', { label: activeCategory.label }) : t('loc_theo_danh_muc')}
           aria-expanded={categoryMenuOpen}
           aria-haspopup="menu"
-          title={activeCategory ? activeCategory.label : "Tất cả danh mục"}
+          title={activeCategory ? activeCategory.label : t('tat_ca_danh_muc')}
           onClick={() =>
             setFilters((current) => ({
               ...current,
@@ -370,8 +373,8 @@ export function MapPage() {
             type="button"
             role="menuitem"
             tabIndex={categoryMenuOpen ? 0 : -1}
-            aria-label="Tất cả danh mục"
-            title="Tất cả danh mục"
+            aria-label={t('tat_ca_danh_muc')}
+            title={t('tat_ca_danh_muc')}
             onClick={() => selectCategory("all")}
             style={{ transitionDelay: categoryOptionDelay(0) }}
             className={`flex h-10 w-10 items-center justify-center transition-all duration-150 ease-out hover:bg-surface-muted ${
@@ -481,7 +484,7 @@ function ClusterSheet({
           <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-border" />
           <div className="flex items-center justify-between">
             <h2 className="font-display text-base font-bold text-foreground">
-              {checkpoints.length} địa điểm
+              {t('checkpointslength_dia_diem', { count: checkpoints.length })}
             </h2>
             <button onClick={onClose} className="rounded-full p-1 text-muted-foreground hover:bg-surface-muted">
               <Icon name="x" size={18} />

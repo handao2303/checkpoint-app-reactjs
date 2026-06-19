@@ -1,3 +1,4 @@
+import { t } from "../../lib/i18n";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { cn } from "../../lib/cn";
 import { Icon } from "./Icon";
@@ -81,7 +82,7 @@ export function Sheet({
         <button
           type="button"
           onClick={requestClose}
-          aria-label="Đóng"
+          aria-label={t('dong')}
           className="absolute right-3 top-2 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground shadow-sm transition-colors hover:bg-primary-50 hover:text-primary"
         >
           <Icon name="x" size={20} />

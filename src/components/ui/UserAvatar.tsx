@@ -26,7 +26,7 @@ export function UserAvatar({
   name,
   username,
   alt = "",
-  className = "h-10 w-10",
+  className = "h-9 w-9",
   imageClassName,
   fallbackClassName,
   loading = "lazy",

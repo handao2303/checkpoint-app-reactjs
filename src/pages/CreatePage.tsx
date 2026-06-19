@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { CreateCheckpointForm } from "../components/CreateCheckpointForm";
 import { PhotoCheckinTab } from "../components/PhotoCheckinTab";
@@ -13,6 +14,7 @@ type Tab = "gps" | "photo";
 //   "Cắm cờ" — resolves GPS and shows the check-in form.
 //   "Từ ảnh"  — user picks a photo, EXIF GPS extracted, then same form.
 export function CreatePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("gps");
   const [coords, setCoords] = useState<Coords | null>(null);
@@ -47,22 +49,22 @@ export function CreatePage() {
 
   const tabBar = (
     <div className="flex gap-0 rounded-full bg-surface-muted p-1">
-      {(["gps", "photo"] as Tab[]).map((t) => (
+      {(["gps", "photo"] as Tab[]).map((tabKey) => (
         <button
-          key={t}
+          key={tabKey}
           type="button"
           onClick={() => {
-            trackEvent("checkin_tab_change", { tab: t });
-            setTab(t);
+            trackEvent("checkin_tab_change", { tab: tabKey });
+            setTab(tabKey);
           }}
           className={cn(
             "flex-1 rounded-full px-4 py-2 text-sm font-semibold transition",
-            tab === t
+            tab === tabKey
               ? "bg-primary text-primary-foreground shadow"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          {t === "gps" ? "Cắm cờ" : "Từ ảnh"}
+          {tabKey === "gps" ? t('cam_co') : t('tu_anh')}
         </button>
       ))}
     </div>
@@ -103,7 +105,7 @@ export function CreatePage() {
   return (
     <div className="flex flex-col gap-4 pb-4">
       {tabBar}
-      <h1 className="font-display text-2xl font-bold text-clay-600">Cắm cờ tại đây</h1>
+      <h1 className="font-display text-2xl font-bold text-clay-600">{t('cam_co_tai_day')}</h1>
       <CreateCheckpointForm at={coords} onUploaded={() => navigate("/discover")} />
     </div>
   );

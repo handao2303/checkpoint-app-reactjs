@@ -1,4 +1,5 @@
 import { createContext, useContext, useLayoutEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Outlet, useLocation } from "react-router-dom";
 import { Icon } from "./ui/Icon";
 import { BottomNav } from "./BottomNav";
@@ -20,6 +21,7 @@ export function useScrollContainer() {
 }
 
 function NotificationBell() {
+  const { t } = useTranslation();
   const { unreadCount } = useNotifications();
   const [open, setOpen] = useState(false);
   return (
@@ -30,7 +32,7 @@ function NotificationBell() {
           setOpen(true);
         }}
         className="relative rounded-full p-2 text-clay-600 hover:bg-surface-muted"
-        aria-label="Thông báo"
+        aria-label={t('thong_bao')}
       >
         <Icon name="bell" size={22} />
         {unreadCount > 0 && (

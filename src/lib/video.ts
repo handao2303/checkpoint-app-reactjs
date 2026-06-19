@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import { trackError, trackEvent } from "./observability";
 
 const MAX_DURATION_SECONDS = 10;
@@ -17,10 +18,10 @@ type Rotation = 0 | 90 | 180 | 270;
  */
 export async function prepareCheckpointVideo(file: File): Promise<{ original: File; thumbnail: File }> {
   if (!isProbablyVideo(file)) {
-    throw new Error("File không phải video.");
+    throw new Error(t('file_khong_phai_video'));
   }
   if (file.size > MAX_INPUT_VIDEO_BYTES) {
-    throw new Error(`Video quá lớn. Tối đa ${Math.round(MAX_INPUT_VIDEO_BYTES / (1024 * 1024))}MB.`);
+    throw new Error(t('video_qua_lon_toi_da', { roundMAX_INPUT_VIDEO_BYTES10241024: Math.round(MAX_INPUT_VIDEO_BYTES / (1024 * 1024)) }));
   }
   const video = document.createElement("video");
   video.preload = "metadata";
@@ -31,26 +32,26 @@ export async function prepareCheckpointVideo(file: File): Promise<{ original: Fi
   const revoke = () => URL.revokeObjectURL(url);
 
   try {
-    await waitForEvent(video, "loadedmetadata", "Không đọc được metadata video.");
+    await waitForEvent(video, "loadedmetadata", t('khong_doc_duoc_metadata_video'));
     if (!Number.isFinite(video.duration) || video.duration <= 0) {
-      throw new Error("Không đọc được độ dài video.");
+      throw new Error(t('khong_doc_duoc_do_dai'));
     }
     if (video.duration > MAX_DURATION_SECONDS) {
-      throw new Error("Video quá dài. Tối đa 10 giây.");
+      throw new Error(t('video_qua_dai_toi_da'));
     }
     const rotation = normalizeRotationForCanvas(await readMP4Rotation(file), video);
 
     video.currentTime = Math.min(1, Math.max(0, video.duration / 2));
-    await waitForEvent(video, "seeked", "Không lấy được khung hình video.");
+    await waitForEvent(video, "seeked", t('khong_lay_duoc_khung_hinh'));
 
     const canvas = document.createElement("canvas");
     setCanvasSize(canvas, video, THUMBNAIL_MAX_EDGE, rotation);
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Không tạo được canvas thumbnail.");
+    if (!ctx) throw new Error(t('khong_tao_duoc_canvas_thumbnail'));
     drawVideoFrame(ctx, video, rotation);
 
     const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Không tạo được ảnh thumbnail."))), "image/jpeg", 0.85);
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(t('khong_tao_duoc_anh_thumbnail')))), "image/jpeg", 0.85);
     });
     const thumbnail = new File([blob], file.name.replace(/\.\w+$/, "") + "-thumb.jpg", {
       type: "image/jpeg",

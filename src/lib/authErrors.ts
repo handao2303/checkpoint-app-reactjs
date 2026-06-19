@@ -1,28 +1,29 @@
+import { t } from "./i18n";
 // Translate Supabase auth errors (English) into Vietnamese, by error code first
 // (stable across versions) then by message text (fallback for older SDKs).
 
 const BY_CODE: Record<string, string> = {
-  invalid_credentials: "Email hoặc mật khẩu không đúng.",
-  email_not_confirmed: "Email chưa được xác nhận. Vui lòng kiểm tra hộp thư của bạn.",
-  user_already_exists: "Email này đã được đăng ký. Hãy đăng nhập.",
-  email_exists: "Email này đã được đăng ký. Hãy đăng nhập.",
-  weak_password: "Mật khẩu quá yếu — cần ít nhất 6 ký tự.",
-  anonymous_provider_disabled: "Đăng nhập khách đang tắt. Bật trong Supabase → Authentication.",
-  signup_disabled: "Đăng ký hiện đang bị tắt.",
-  signups_not_allowed: "Đăng ký hiện đang bị tắt.",
-  provider_disabled: "Phương thức đăng nhập này đang bị tắt.",
-  over_email_send_rate_limit: "Gửi email quá nhiều lần. Vui lòng thử lại sau ít phút.",
-  over_request_rate_limit: "Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.",
-  validation_failed: "Thông tin nhập vào không hợp lệ.",
-  email_address_invalid: "Địa chỉ email không hợp lệ.",
-  same_password: "Mật khẩu mới phải khác mật khẩu hiện tại.",
-  session_not_found: "Phiên đã hết hạn. Vui lòng đăng nhập lại.",
-  refresh_token_not_found: "Phiên đã hết hạn. Vui lòng đăng nhập lại.",
-  user_banned: "Tài khoản đã bị khoá.",
-  captcha_failed: "Xác thực captcha thất bại. Vui lòng thử lại.",
-  email_address_not_authorized: "Email này không được phép đăng nhập.",
-  identity_already_exists: "Tài khoản Google này đã được dùng cho tài khoản khác. Hãy đăng nhập trực tiếp.",
-  manual_linking_disabled: "Liên kết tài khoản đang bị tắt trong cấu hình Supabase.",
+  invalid_credentials: t('email_hoac_mat_khau_khong'),
+  email_not_confirmed: t('email_chua_duoc_xac_nhan'),
+  user_already_exists: t('email_nay_da_duoc_dang'),
+  email_exists: t('email_nay_da_duoc_dang'),
+  weak_password: t('mat_khau_qua_yeu_can'),
+  anonymous_provider_disabled: t('dang_nhap_khach_dang_tat'),
+  signup_disabled: t('dang_ky_hien_dang_bi'),
+  signups_not_allowed: t('dang_ky_hien_dang_bi'),
+  provider_disabled: t('phuong_thuc_dang_nhap_nay'),
+  over_email_send_rate_limit: t('gui_email_qua_nhieu_lan'),
+  over_request_rate_limit: t('ban_thao_tac_qua_nhanh'),
+  validation_failed: t('thong_tin_nhap_vao_khong'),
+  email_address_invalid: t('dia_chi_email_khong_hop'),
+  same_password: t('mat_khau_moi_phai_khac'),
+  session_not_found: t('phien_da_het_han_vui'),
+  refresh_token_not_found: t('phien_da_het_han_vui'),
+  user_banned: t('tai_khoan_da_bi_khoa'),
+  captcha_failed: t('xac_thuc_captcha_that_bai'),
+  email_address_not_authorized: t('email_nay_khong_duoc_phep'),
+  identity_already_exists: t('tai_khoan_google_nay_da'),
+  manual_linking_disabled: t('lien_ket_tai_khoan_dang'),
 };
 
 const BY_MESSAGE: [RegExp, string][] = [
@@ -35,7 +36,7 @@ const BY_MESSAGE: [RegExp, string][] = [
   [/rate limit|too many requests/i, BY_CODE.over_request_rate_limit],
   [/unable to validate email|invalid format|invalid email/i, BY_CODE.email_address_invalid],
   [/new password should be different/i, BY_CODE.same_password],
-  [/network|failed to fetch|load failed/i, "Không kết nối được máy chủ. Kiểm tra kết nối mạng."],
+  [/network|failed to fetch|load failed/i, t('khong_ket_noi_duoc_may')],
 ];
 
 /** Best-effort Vietnamese message for any auth/login error. */
@@ -49,5 +50,5 @@ export function authErrorMessage(err: unknown): string {
   // Our own already-Vietnamese messages contain diacritics (non-ASCII) — keep them.
   if (/[^\x00-\x7F]/.test(message)) return message;
 
-  return "Có lỗi xảy ra. Vui lòng thử lại.";
+  return t('co_loi_xay_ra_vui');
 }

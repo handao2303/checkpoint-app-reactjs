@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import { useAuth } from "../auth/AuthContext";
@@ -37,6 +38,7 @@ function formatMemberSince(dateStr: string): string {
 }
 
 export function UserProfileSheet({ username, onClose }: { username: string; onClose: () => void }) {
+  const { t } = useTranslation();
   const { user: me } = useAuth();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -121,7 +123,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
                   />
                 )}
                 <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-xs font-extrabold text-primary shadow-sm">
-                  Cấp {u.level}
+                  {t('cap_ulevel', { level: u.level })}
                 </span>
               </div>
               <div className="min-w-0 flex-1 pt-1">
@@ -137,12 +139,12 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
               {u.checkin_streak > 0 && (
                 <span className="flex items-center gap-1">
                   <Icon name="fire" size={12} className="text-primary" />
-                  {u.checkin_streak} ngày liên tiếp
+                  {t('ucheckin_streak_ngay_lien_tiep', { streak: u.checkin_streak })}
                 </span>
               )}
               <span className="flex items-center gap-1">
                 <Icon name="calendar" size={12} />
-                Thành viên từ {formatMemberSince(u.created_at)}
+                {t('thanh_vien_tu_formatmembersinceucreated_at', { date: formatMemberSince(u.created_at) })}
               </span>
             </div>
               </div>
@@ -154,9 +156,9 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
             <div className="mt-4 grid grid-cols-4 gap-2">
               {[
                 { label: "XP", value: u.total_xp.toLocaleString() },
-                { label: "Cờ", value: u.checkpoint_count.toString() },
-                { label: "Hành trình", value: u.journey_count.toString() },
-                { label: "Cấp", value: u.level.toString() },
+                { label: t('co'), value: u.checkpoint_count.toString() },
+                { label: t('hanh_trinh'), value: u.journey_count.toString() },
+                { label: t('cap'), value: u.level.toString() },
               ].map((s) => (
                 <div key={s.label} className="rounded-xl border border-border bg-surface-muted py-2 text-center">
                   <p className="text-[10px] font-semibold text-muted-foreground">{s.label}</p>
@@ -180,7 +182,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
               }
               onClick={toggleFollow}
             >
-              {isFollowing ? "Đang theo dõi" : "Theo dõi"}
+              {isFollowing ? t('dang_theo_doi') : t('theo_doi')}
             </Button>
           )}
 
@@ -189,12 +191,12 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
 
           {/* Check-in gallery */}
           <div>
-            <h3 className="mb-2 font-display text-lg font-bold">Khoảnh khắc</h3>
+            <h3 className="mb-2 font-display text-lg font-bold">{t('khoanh_khac')}</h3>
             {checkpointsLoading ? (
               <MomentGridSkeleton />
             ) : checkpoints.length === 0 ? (
               <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-                Chưa có check-in nào.
+                {t('chua_co_checkin_nao')}
               </p>
             ) : (
               <div className="flex gap-3 overflow-x-auto px-4 -mx-4 pb-2 scrollbar-none ">

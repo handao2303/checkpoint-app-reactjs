@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { Icon } from "./ui/Icon";
 import { UserAvatar } from "./ui/UserAvatar";
 import type { AvatarFrame } from "../lib/avatarFrames";
@@ -79,7 +80,7 @@ export function AvatarFramePicker({
             />
           </span>
         </span>
-        <span className="w-16 truncate text-center text-[10px] text-muted-foreground">Không khung</span>
+        <span className="w-16 truncate text-center text-[10px] text-muted-foreground">{t('khong_khung')}</span>
       </button>
 
       {options.map(({ frame, unlocked }) => {
@@ -92,7 +93,7 @@ export function AvatarFramePicker({
             onClick={() => onSelect(frame.id)}
             className="flex shrink-0 flex-col items-center gap-1 disabled:cursor-not-allowed"
             aria-pressed={selected}
-            title={unlocked ? frame.label : `${frame.label} — chưa mở khóa`}
+            title={unlocked ? frame.label : t('framelabel_chua_mo_khoa', { label: frame.label })}
           >
             <span
               className={cn(

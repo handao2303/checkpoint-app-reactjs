@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { trackError } from "../lib/observability";
 
@@ -39,16 +40,16 @@ export class ErrorBoundary extends Component<Props, State> {
       <div className="flex min-h-full flex-col items-center justify-center gap-4 bg-background p-6 text-center">
         <img src="/logo.png" alt="" className="h-10 w-auto object-contain opacity-60" />
         <div>
-          <h1 className="font-display text-xl font-bold text-foreground">Có lỗi xảy ra</h1>
+          <h1 className="font-display text-xl font-bold text-foreground">{t('co_loi_xay_ra')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Ứng dụng gặp sự cố khi tải. Vui lòng thử lại.
+            {t('ung_dung_gap_su_co')}
           </p>
         </div>
         <button
           onClick={() => window.location.reload()}
           className="rounded-full bg-primary px-6 py-2.5 font-semibold text-primary-foreground shadow-cta"
         >
-          Tải lại
+          {t('tai_lai')}
         </button>
       </div>
     );

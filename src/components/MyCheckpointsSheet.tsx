@@ -1,6 +1,8 @@
+import { t } from "../lib/i18n";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
 import {
@@ -27,6 +29,7 @@ type EditState = {
 };
 
 export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -83,7 +86,7 @@ export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
     const rating = editing.rating === "" ? null : Number(editing.rating);
     if (rating != null && (!Number.isInteger(rating) || rating < 1 || rating > 5)) {
       setEditing((current) =>
-        current ? { ...current, error: "Điểm đánh giá phải từ 1 đến 5." } : current,
+        current ? { ...current, error: t('diem_danh_gia_phai_tu') } : current,
       );
       return;
     }
@@ -107,14 +110,14 @@ export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
       trackError(error, { feature: "checkpoint", action: "checkpoint_edit", checkpoint_id: editing.checkpoint.id });
       trackEvent("checkpoint_edit_failed", { checkpoint_id: editing.checkpoint.id });
       setEditing((current) =>
-        current ? { ...current, busy: false, error: "Không lưu được check-in. Vui lòng thử lại." } : current,
+        current ? { ...current, busy: false, error: t('khong_luu_duoc_checkin_vui') } : current,
       );
     }
   }
 
   return (
     <>
-      <Sheet title="Check-in của tôi" onClose={onClose} grow className="h-[90dvh]">
+      <Sheet title={t('checkin_cua_toi')} onClose={onClose} grow className="h-[90dvh]">
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
           {checkpointsQuery.isLoading ? (
             <div className="flex flex-col gap-3">
@@ -124,7 +127,7 @@ export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
             </div>
           ) : checkpoints.length === 0 ? (
             <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-              Chưa có check-in nào.
+              {t('chua_co_checkin_nao')}
             </p>
           ) : (
             <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
@@ -171,7 +174,7 @@ export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
       {selectedId && <CheckpointDetailSheet id={selectedId} onClose={() => setSelectedId(null)} />}
 
       {editing && (
-        <Sheet title="Sửa check-in" onClose={() => setEditing(null)}>
+        <Sheet title={t('sua_checkin')} onClose={() => setEditing(null)}>
           <form onSubmit={submitEdit} className="flex flex-col gap-3">
             <input
               required
@@ -180,7 +183,7 @@ export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
               onChange={(event) =>
                 setEditing((current) => (current ? { ...current, name: event.target.value } : current))
               }
-              placeholder="Tên địa điểm"
+              placeholder={t('ten_dia_diem')}
               className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
             <textarea
@@ -189,7 +192,7 @@ export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
               onChange={(event) =>
                 setEditing((current) => (current ? { ...current, note: event.target.value } : current))
               }
-              placeholder="Ghi chú (tùy chọn)"
+              placeholder={t('ghi_chu_tuy_chon')}
               className="resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
             <div className="flex items-center gap-1 rounded-2xl border border-border bg-surface p-3">
@@ -222,7 +225,7 @@ export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
               disabled={editing.busy || editing.name.trim() === ""}
               icon={<Icon name="pencil" size={18} />}
             >
-              {editing.busy ? "Đang lưu..." : "Lưu thay đổi"}
+              {editing.busy ? t('dang_luu') : t('luu_thay_doi')}
             </Button>
           </form>
         </Sheet>
@@ -328,7 +331,7 @@ function CheckpointManageRow({
               setMenuOpen((open) => !open);
             }}
             className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-muted"
-            aria-label="Tùy chọn check-in"
+            aria-label={t('tuy_chon_checkin')}
             aria-expanded={menuOpen}
           >
             <Icon name="more-vertical" size={18} />
@@ -347,7 +350,7 @@ function CheckpointManageRow({
                 }}
                 className="flex w-full items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-surface-muted"
               >
-                <Icon name="pencil" size={16} /> Sửa
+                <Icon name="pencil" size={16} /> {t('sua')}
               </button>
               <button
                 type="button"
@@ -357,7 +360,7 @@ function CheckpointManageRow({
                 }}
                 className="flex w-full items-center gap-2 px-4 py-3 text-sm text-accent-600 hover:bg-accent-50"
               >
-                <Icon name="trash" size={16} /> Xóa
+                <Icon name="trash" size={16} /> {t('xoa')}
               </button>
             </div>,
             document.body,

@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { Sheet } from "./ui/Sheet";
 import { CreateCheckpointForm } from "./CreateCheckpointForm";
 
@@ -10,7 +11,7 @@ export function CreateCheckpointSheet({
   onClose: () => void;
 }) {
   return (
-    <Sheet title="Cắm cờ tại đây" onClose={onClose}>
+    <Sheet title={t('cam_co_tai_day')} onClose={onClose}>
       <CreateCheckpointForm at={at} onUploaded={onClose} />
     </Sheet>
   );

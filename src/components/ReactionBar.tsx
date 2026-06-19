@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -13,11 +14,11 @@ import { trackEvent } from "../lib/observability";
 // The fixed reaction set — keys match the backend AllowedReactions and the SVG
 // icon registry. `fill` flags glyphs that read well filled when active.
 const REACTIONS: { key: string; icon: IconName; label: string; activeClass: string; fill?: boolean }[] = [
-  { key: "like", icon: "like", label: "Thích", activeClass: "text-primary", fill: true },
-  { key: "love", icon: "love", label: "Yêu thích", activeClass: "text-rose-500", fill: true },
-  { key: "fire", icon: "fire", label: "Tuyệt vời", activeClass: "text-orange-500", fill: true },
+  { key: "like", icon: "like", label: t('thich'), activeClass: "text-primary", fill: true },
+  { key: "love", icon: "love", label: t('yeu_thich'), activeClass: "text-rose-500", fill: true },
+  { key: "fire", icon: "fire", label: t('tuyet_voi'), activeClass: "text-orange-500", fill: true },
   { key: "haha", icon: "haha", label: "Haha", activeClass: "text-gold" },
-  { key: "sad", icon: "sad", label: "Buồn", activeClass: "text-sky-500" },
+  { key: "sad", icon: "sad", label: t('buon'), activeClass: "text-sky-500" },
 ];
 
 const EMPTY: ReactionSummary = { counts: {}, total: 0, mine: null };
@@ -137,12 +138,12 @@ export function ReactionBar({
       </div>
 
       {showLoginPrompt && (
-        <Sheet title="Đăng nhập để sử dụng tính năng" onClose={() => setShowLoginPrompt(false)}>
+        <Sheet title={t('dang_nhap_de_su_dung')} onClose={() => setShowLoginPrompt(false)}>
           <div className="flex flex-col gap-4">
             <p className="text-sm text-muted-foreground">
-              Đăng nhập để thả cảm xúc và sử dụng đầy đủ các tính năng của Checkpoint.
+              {t('dang_nhap_de_tha_cam')}
             </p>
-            <Button onClick={() => navigate("/login")}>Đăng nhập</Button>
+            <Button onClick={() => navigate("/login")}>{t('dang_nhap')}</Button>
           </div>
         </Sheet>
       )}

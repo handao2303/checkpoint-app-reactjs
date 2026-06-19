@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { deleteCheckpoint, getMe } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
@@ -19,6 +20,7 @@ export function useDeleteCheckpoint(
   id: string,
   { onDeleted }: { onDeleted?: () => void } = {},
 ) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { applyUser } = useAuth();
   const [confirming, setConfirming] = useState(false);
@@ -44,7 +46,7 @@ export function useDeleteCheckpoint(
     } catch {
       trackError(new Error("delete checkpoint failed"), { feature: "checkpoint", action: "checkpoint_delete", checkpoint_id: id });
       trackEvent("checkpoint_delete_failed", { checkpoint_id: id });
-      setError("Không xóa được. Vui lòng thử lại.");
+      setError(t('khong_xoa_duoc_vui_long'));
       setDeleting(false);
     }
   };
@@ -52,12 +54,12 @@ export function useDeleteCheckpoint(
   const confirmBox: ReactNode = confirming ? (
     <div className="flex flex-col gap-2 rounded-xl bg-accent-50 p-3">
       <p className="text-sm text-accent-700">
-        Xóa vĩnh viễn check-in này? Ảnh sẽ bị xóa và XP đã nhận sẽ bị trừ lại.
+        {t('xoa_vinh_vien_checkin_nay')}
       </p>
       {error && <p className="text-sm font-medium text-accent-700">{error}</p>}
       <div className="flex gap-2">
         <Button variant="accent" className="flex-1" disabled={deleting} onClick={confirmDelete}>
-          {deleting ? "Đang xóa..." : "Xóa vĩnh viễn"}
+          {deleting ? t('dang_xoa') : t('xoa_vinh_vien')}
         </Button>
         <Button
           variant="outline"
@@ -65,7 +67,7 @@ export function useDeleteCheckpoint(
           disabled={deleting}
           onClick={() => setConfirming(false)}
         >
-          Hủy
+          {t('huy')}
         </Button>
       </div>
     </div>

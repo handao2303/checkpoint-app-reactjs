@@ -1,5 +1,6 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useUserProfile } from "../context/UserProfileProvider";
@@ -51,6 +52,7 @@ function formatRelativeTime(value: string): string {
 }
 
 export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => void }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { showProfile } = useUserProfile();
   const navigate = useNavigate();
@@ -117,7 +119,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
       if (navigator.share) {
         await navigator.share({
           title: placeInfo.name,
-          text: `${placeInfo.name} trên Checkpoint`,
+          text: t('placeinfoname_tren_checkpoint', { name: placeInfo.name }),
           url,
         });
         trackEvent("place_share_success", { place_id: placeInfo.id, source: "native" });
@@ -150,7 +152,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
         <DetailSheetSkeleton />
       ) : checkingIn ? (
         <>
-          <h2 className="mb-3 font-display text-lg font-bold">Cắm cờ: {placeInfo?.name}</h2>
+          <h2 className="mb-3 font-display text-lg font-bold">{t('cam_co_placeinfoname', { name: placeInfo?.name })}</h2>
           <CreateCheckpointForm
             at={{ lat: placeInfo?.lat ?? 0, lng: placeInfo?.lng ?? 0 }}
             place={placeInfo ? { id: placeInfo.id, name: placeInfo.name, category: placeInfo.category } : undefined}
@@ -196,10 +198,10 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
                   </span>
                 )}
                 <span className="flex items-center gap-1">
-                  <Icon name="flag" size={14} /> {placeInfo?.checkin_count} lượt cắm cờ
+                  <Icon name="flag" size={14} /> {t('placeinfocheckin_count_luot_cam_co', { count: placeInfo?.checkin_count })}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Icon name="image" size={14} /> {placeInfo?.image_count ?? galleryItems.length} ảnh
+                  <Icon name="image" size={14} /> {t('placeinfoimage_count_galleryitemslength_anh', { count: placeInfo?.image_count ?? galleryItems.length })}
                 </span>
                 {distanceStr && (
                   <span className="flex items-center gap-1">
@@ -210,7 +212,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
 
               {placeInfo?.viewer_has_checked_in && (
                 <p className="flex items-center gap-1.5 rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-sm font-bold text-green-700">
-                  <Icon name="check" size={16} /> Bạn đã cắm cờ tại đây
+                  <Icon name="check" size={16} /> {t('ban_da_cam_co_tai')}
                 </p>
               )}
             </div>
@@ -238,7 +240,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
             icon={<Icon name="flag-planted" size={20} />}
             onClick={() => (user ? setCheckingIn(true) : navigate("/login"))}
           >
-            {user ? "Cắm cờ tại đây" : "Đăng nhập để cắm cờ"}
+            {user ? t('cam_co_tai_day') : t('dang_nhap_de_cam_co')}
           </Button>
 
           <div className="grid grid-cols-3 gap-2">
@@ -248,16 +250,16 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
               className="flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border border-border bg-surface text-xs font-bold text-foreground shadow-sm transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Icon name="route" size={17} />
-              Chỉ đường
+              {t('chi_duong')}
             </button>
             <button
               type="button"
               disabled
               className="flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border border-border bg-surface-muted text-xs font-bold text-muted-foreground opacity-70"
-              title="Tính năng lưu địa điểm sẽ được thêm sau"
+              title={t('tinh_nang_luu_dia_diem')}
             >
               <Icon name="bookmark" size={17} />
-              Lưu
+              {t('luu')}
             </button>
             <button
               type="button"
@@ -265,7 +267,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
               className="flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border border-border bg-surface text-xs font-bold text-foreground shadow-sm transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Icon name="share" size={17} />
-              Chia sẻ
+              {t('chia_se')}
             </button>
           </div>
 
@@ -273,17 +275,17 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
             <Icon name="pin" size={18} className="mt-0.5 shrink-0 text-primary" />
             <span>
             {distanceM == null
-              ? "Bật vị trí để Checkpoint cho biết bạn có đang đủ gần để cắm cờ không."
+              ? t('bat_vi_tri_de_checkpoint')
               : canCheckInNearby
-                ? "Bạn đang ở gần địa điểm này. Có thể cắm cờ ngay."
-                : `Bạn cách địa điểm này ${distanceStr}. Di chuyển gần hơn để cắm cờ chính xác hơn.`}
+                ? t('ban_dang_o_gan_dia')
+                : t('ban_cach_dia_diem_nay', { distanceStr: distanceStr })}
             </span>
           </div>
 
           {checkins.length > 0 && (
             <div className="mt-4 flex flex-col gap-4">
               <h3 className="flex items-center gap-2 font-display text-xl font-extrabold text-foreground">
-                <Icon name="sparkle" size={22} className="text-gold" /> Check-in gần đây
+                <Icon name="sparkle" size={22} className="text-gold" /> {t('checkin_gan_day')}
               </h3>
               <div className="flex flex-col gap-4">
                 {checkins?.map((c) => {
@@ -371,7 +373,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
                     {isFetchingNextPage ? (
                       <span className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
                     ) : (
-                      <span className="text-xs text-muted-foreground">Cuộn để xem thêm check-in</span>
+                      <span className="text-xs text-muted-foreground">{t('cuon_de_xem_them_checkin')}</span>
                     )}
                   </div>
                 )}

@@ -1,3 +1,4 @@
+import { t } from "../../lib/i18n";
 import { useEffect, useState, type ReactNode } from "react";
 import { Icon } from "./Icon";
 
@@ -43,7 +44,7 @@ export function XPToast({
         <div>
           <p className="text-2xl font-black leading-none text-white">+{xp} XP</p>
           <p className="mt-0.5 text-xs text-white/80">
-            {didLevelUp ? `Lên cấp ${level}! 🎉` : `Cấp ${level}`}
+            {didLevelUp ? t('len_cap_level', { level: level }) : t('cap_level', { level: level })}
           </p>
         </div>
       </div>

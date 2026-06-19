@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useCallback, useEffect, useState } from "react";
 import Cropper, { type Area, type Point } from "react-easy-crop";
 import { Icon } from "./ui/Icon";
@@ -9,6 +10,7 @@ import { frameById } from "../lib/avatarFrames";
 
 const CROP_SIZE = 512; // Output square edge in px
 const JPEG_QUALITY = 0.9;
+const FRAMED_AVATAR_ZOOM = 1.18;
 
 function getRadianAngle(degree: number): number {
   return (degree * Math.PI) / 180;
@@ -138,6 +140,7 @@ export function AvatarCropSheet({
   const [frameId, setFrameId] = useState<string | null>(initialFrameId);
 
   const selectedFrame = frameById(frameId);
+  const effectiveZoom = selectedFrame ? zoom * FRAMED_AVATAR_ZOOM : zoom;
 
   // Reset zoom when image changes
   useEffect(() => {
@@ -173,14 +176,15 @@ export function AvatarCropSheet({
   };
 
   return (
-    <Sheet title="Cắt ảnh đại diện" onClose={onClose}>
+    <Sheet title={t('cat_anh_dai_dien')} onClose={onClose}>
       <div className="flex flex-col gap-4">
         {/* Cropper */}
         <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-lg bg-black">
           <Cropper
             image={imageSrc}
             crop={crop}
-            zoom={zoom}
+            zoom={effectiveZoom}
+            maxZoom={3.6}
             aspect={1}
             cropShape="round"
             showGrid={false}
@@ -221,7 +225,7 @@ export function AvatarCropSheet({
         {/* Frame picker */}
         {frameOptions && frameOptions.length > 0 && (
           <div>
-            <p className="mb-1.5 text-sm font-semibold text-foreground">Khung avatar</p>
+            <p className="mb-1.5 text-sm font-semibold text-foreground">{t('khung_avatar')}</p>
             <AvatarFramePicker
               options={frameOptions}
               selectedId={frameId}
@@ -238,7 +242,7 @@ export function AvatarCropSheet({
           icon={processing ? undefined : <Icon name="check" size={18} />}
           className="w-full"
         >
-          {processing ? "Đang xử lý..." : "Xong"}
+          {processing ? t('dang_xu_ly') : "Xong"}
         </Button>
       </div>
     </Sheet>

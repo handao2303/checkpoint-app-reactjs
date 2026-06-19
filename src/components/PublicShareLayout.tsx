@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, Outlet } from "react-router-dom";
 import { LocationProvider } from "../location/LocationProvider";
 import { ScrollContainerContext } from "./AppLayout";
@@ -10,6 +11,7 @@ import { trackEvent } from "../lib/observability";
  *  Provides ScrollContainerContext so DiscoverPage's virtualizer can measure
  *  against this <main> (same as AppLayout). */
 export function PublicShareLayout() {
+  const { t } = useTranslation();
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
   return (
     <LocationProvider>
@@ -24,7 +26,7 @@ export function PublicShareLayout() {
             onClick={() => trackEvent("public_login_click")}
             className="rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm hover:brightness-105"
           >
-            Đăng nhập
+            {t('dang_nhap')}
           </Link>
         </header>
 

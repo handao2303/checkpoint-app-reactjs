@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 // Firestore-backed comments for a checkpoint. Stored as a subcollection
 // `checkpoints/{checkpointId}/comments/{commentId}`, read/written directly from
 // the browser. Pagination uses Firestore's native cursor (startAfter + limit);
@@ -70,7 +71,7 @@ export async function fetchComments(
         id: d.id,
         text: v.text,
         user_id: v.user_id,
-        username: user?.username ?? "Người dùng",
+        username: user?.username ?? t('nguoi_dung'),
         display_name: user?.display_name ?? undefined,
         avatar_url: user?.avatar_url ?? undefined,
         // serverTimestamp() is null until the write resolves on the server.

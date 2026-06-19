@@ -1,5 +1,7 @@
+import { t } from "../lib/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getMyCheckpoints,
   getPassport,
@@ -239,7 +241,7 @@ export function PassportStamp({
       <button
         type="button"
         onClick={onClick}
-        title={unlocked ? `${stamp.name} - Đã ghé thăm ngày ${stamp.date}` : `Cắm cờ ở khu vực mới để mở khóa con dấu tiếp theo`}
+        title={unlocked ? t('stampname_da_ghe_tham_ngay', { name: stamp.name, date: stamp.date }) : t('cam_co_o_khu_vuc')}
         className={cn(
           "w-[64px] h-[64px] rounded-full border-[1.5px] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer"
         )}
@@ -314,6 +316,7 @@ function getStampConfig(
 }
 
 export function PassportSection({ username }: PassportSectionProps) {
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: username ? ["passport", username] : ["passport"],
     queryFn: username ? () => getUserPassport(username) : getPassport,
@@ -366,7 +369,7 @@ export function PassportSection({ username }: PassportSectionProps) {
   // Construct a single locked generic stamp card
   const nextLockedStamp: StampConfig = {
     id: "locked-next",
-    name: "Địa điểm mới",
+    name: t('dia_diem_moi'),
     label: "?",
     unlocked: false,
     theme: STAMP_THEMES.locked,
@@ -383,7 +386,7 @@ export function PassportSection({ username }: PassportSectionProps) {
     <Card className="bg-surface border border-border shadow-card p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h3 className="font-display text-lg font-bold text-foreground">
-          Hộ chiếu
+          {t('ho_chieu')}
         </h3>
         {data && (
           <button
@@ -408,10 +411,10 @@ export function PassportSection({ username }: PassportSectionProps) {
       ) : unlockedCount === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-border/60 bg-surface-muted p-6 text-center">
           <p className="text-sm font-semibold text-foreground mb-1">
-            {username ? "Người dùng này chưa có con dấu nào." : "Bạn chưa mở khóa địa điểm nào"}
+            {username ? t('nguoi_dung_nay_chua_co') : t('ban_chua_mo_khoa_dia')}
           </p>
           <p className="text-xs text-muted-foreground">
-            {username ? "" : "Hãy cắm cờ ở khu vực mới để nhận stamp đầu tiên!"}
+            {username ? "" : t('hay_cam_co_o_khu')}
           </p>
         </div>
       ) : (
@@ -445,7 +448,7 @@ export function PassportSection({ username }: PassportSectionProps) {
                   color: "#F05A28",
                 }}
               >
-                Tất cả
+                {t('tat_ca')}
               </div>
             </div>
           )}
@@ -453,7 +456,7 @@ export function PassportSection({ username }: PassportSectionProps) {
       )}
 
       {isSheetOpen && (
-        <Sheet title="Bộ sưu tập Hộ chiếu" onClose={() => setIsSheetOpen(false)}>
+        <Sheet title={t('bo_suu_tap_ho_chieu')} onClose={() => setIsSheetOpen(false)}>
           <div className="grid grid-cols-4 gap-x-2 gap-y-4 justify-items-center py-4 max-h-[70vh] overflow-y-auto pr-1">
             {allStampsForSheet.map((stamp, i) => (
               <PassportStamp
@@ -468,7 +471,7 @@ export function PassportSection({ username }: PassportSectionProps) {
 
       {selectedStampForPhotos && (
         <Sheet
-          title={`Khoảnh khắc tại ${selectedStampForPhotos.name}`}
+          title={t('khoanh_khac_tai_selectedstampforphotosname', { name: selectedStampForPhotos.name })}
           onClose={() => setSelectedStampForPhotos(null)}
         >
           <div className="py-4 max-h-[70vh] overflow-y-auto pr-1">
@@ -478,7 +481,7 @@ export function PassportSection({ username }: PassportSectionProps) {
               </div>
             ) : provinceCheckpoints.filter((cp) => cp.image_url).length === 0 ? (
               <p className="text-center text-sm text-muted-foreground py-8">
-                Không tìm thấy ảnh chụp tại tỉnh này.
+                {t('khong_tim_thay_anh_chup')}
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-2">

@@ -1,4 +1,5 @@
 import { useCallback, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { CreateCheckpointSheet } from "../components/CreateCheckpointSheet";
 import { LocationPermissionSheet } from "../components/LocationPermissionSheet";
 import { Toast } from "../components/ui/Toast";
@@ -11,6 +12,7 @@ import { trackError, trackEvent } from "../lib/observability";
  * Returns `start()` to kick it off and `sheets` to render the overlays.
  */
 export function useCheckin() {
+  const { t } = useTranslation();
   const [creatingAt, setCreatingAt] = useState<{ lat: number; lng: number } | null>(null);
   const [askLocation, setAskLocation] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export function useCheckin() {
     trackEvent("checkin_flow_start", { source: "gps" });
     if (!navigator.geolocation) {
       trackEvent("location_unsupported", { source: "checkin" });
-      setToast("Trình duyệt không hỗ trợ định vị");
+      setToast(t('trinh_duyet_khong_ho_tro'));
       return;
     }
     // Already granted (or granted before — Permissions API is unreliable on iOS

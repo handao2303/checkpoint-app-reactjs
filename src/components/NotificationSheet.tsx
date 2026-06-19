@@ -1,4 +1,6 @@
+import { t } from "../lib/i18n";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { useAuth } from "../auth/AuthContext";
 import { getLastSeen, type AppNotification } from "../lib/notifications";
@@ -20,14 +22,15 @@ const REACTION_ICONS: Record<string, IconName> = {
 /** Short Vietnamese relative time: vừa xong / 5 phút / 3 giờ / 2 ngày / dd/mm. */
 function relativeTime(d: Date): string {
   const s = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (s < 60) return "vừa xong";
-  if (s < 3600) return `${Math.floor(s / 60)} phút`;
-  if (s < 86400) return `${Math.floor(s / 3600)} giờ`;
-  if (s < 604800) return `${Math.floor(s / 86400)} ngày`;
+  if (s < 60) return t('vua_xong');
+  if (s < 3600) return t('mathfloors_60_phut', { floors60: Math.floor(s / 60) });
+  if (s < 86400) return t('mathfloors_3600_gio', { floors3600: Math.floor(s / 3600) });
+  if (s < 604800) return t('mathfloors_86400_ngay', { floors86400: Math.floor(s / 86400) });
   return d.toLocaleDateString("vi-VN");
 }
 
 export function NotificationSheet({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { items, markAllSeen } = useNotifications();
   const [checkpointId, setCheckpointId] = useState<string | null>(null);
@@ -60,10 +63,10 @@ export function NotificationSheet({ onClose }: { onClose: () => void }) {
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-            <h2 className="font-display text-lg font-bold">Thông báo</h2>
+            <h2 className="font-display text-lg font-bold">{t('thong_bao')}</h2>
             <button
               onClick={onClose}
-              aria-label="Đóng"
+              aria-label={t('dong')}
               className="rounded-full p-1.5 text-muted-foreground hover:bg-surface-muted"
             >
               <Icon name="x" size={18} />
@@ -74,7 +77,7 @@ export function NotificationSheet({ onClose }: { onClose: () => void }) {
             {items.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-center text-muted-foreground">
                 <Icon name="bell" size={32} className="opacity-40" />
-                <p className="text-sm">Chưa có thông báo nào.</p>
+                <p className="text-sm">{t('chua_co_thong_bao_nao')}</p>
               </div>
             ) : (
               <div className="flex flex-col divide-y divide-border">
@@ -153,18 +156,19 @@ function NotificationRow({
 }
 
 function NotifText({ notif, name }: { notif: AppNotification; name: string }) {
+  const { t } = useTranslation();
   const who = <span className="font-semibold">{name}</span>;
   const cp = <span className="font-semibold">{notif.checkpoint_name}</span>;
   switch (notif.type) {
     case "comment":
-      return <>{who} đã bình luận về {cp}</>;
+      return <>{who} {t('return_who_da_binh_luan')} {cp}</>;
     case "reaction":
-      return <>{who} đã bày tỏ cảm xúc về {cp}</>;
+      return <>{who} {t('return_who_da_bay_to')} {cp}</>;
     case "follow":
-      return <>{who} đã theo dõi bạn</>;
+      return <>{who} {t('return_who_da_theo_doi')}</>;
     case "unfollow":
-      return <>{who} đã bỏ theo dõi bạn</>;
+      return <>{who} {t('return_who_da_bo_theo')}</>;
     case "checkpoint":
-      return <>{who} vừa đăng check-in mới: {cp}</>;
+      return <>{who} {t('return_who_vua_dang_checkin')} {cp}</>;
   }
 }

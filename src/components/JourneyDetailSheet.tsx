@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import Map, { Source, Layer, Marker } from "react-map-gl/maplibre";
@@ -127,7 +128,7 @@ export function JourneyDetailSheet({
 
           <div className="max-h-50 shrink-0 overflow-y-auto rounded-xl border border-border bg-surface">
             {stops.length === 0 ? (
-              <p className="p-3 text-sm text-muted-foreground">Chưa có check-in nào trong hành trình.</p>
+              <p className="p-3 text-sm text-muted-foreground">{t('chua_co_checkin_nao_trong')}</p>
             ) : (
               <div className="py-1">
                 {stops.map((s, i) => (
@@ -152,8 +153,8 @@ export function JourneyDetailSheet({
             <ShareButton
               filename={`journey-${data.journey.id}.png`}
               title={data.journey.title}
-              text={`Hành trình "${data.journey.title}" của mình trên Checkpoint!`}
-              label="Chia sẻ hành trình"
+              text={`{t('hanh_trinh')} "${data.journey.title}" {t('cua_minh_tren_checkpoint')}`}
+              label={t('chia_se_hanh_trinh')}
               url={`${API_URL}/share/journey/${data.journey.id}`}
               render={() =>
                 renderJourneyCard({
@@ -196,7 +197,7 @@ function getStopMarkerMeta(index: number, total: number): StopMarkerMeta {
       kind: "number",
       label: "1",
       tone: "bg-primary text-primary-foreground",
-      ariaLabel: "Điểm duy nhất",
+      ariaLabel: t('diem_duy_nhat'),
     };
   }
   if (index === 0) {
@@ -204,7 +205,7 @@ function getStopMarkerMeta(index: number, total: number): StopMarkerMeta {
       kind: "icon",
       iconName: "play",
       tone: "bg-emerald-600 text-white",
-      ariaLabel: "Điểm bắt đầu",
+      ariaLabel: t('diem_bat_dau'),
     };
   }
   if (index === total - 1) {
@@ -212,14 +213,14 @@ function getStopMarkerMeta(index: number, total: number): StopMarkerMeta {
       kind: "icon",
       iconName: "flag",
       tone: "bg-accent-600 text-white",
-      ariaLabel: "Điểm kết thúc",
+      ariaLabel: t('diem_ket_thuc'),
     };
   }
   return {
     kind: "number",
     label: String(index + 1),
     tone: "bg-primary text-primary-foreground",
-    ariaLabel: `Điểm số ${index + 1}`,
+    ariaLabel: t('diem_so_index_1', { index1: index + 1 }),
   };
 }
 
@@ -384,7 +385,7 @@ function StopListItem({
           type="button"
           onClick={onOpen}
           className="my-2.5 mr-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted-foreground transition hover:bg-primary hover:text-primary-foreground"
-          aria-label={`Mở ${stop.name}`}
+          aria-label={t('mo_stopname', { name: stop.name })}
         >
           <Icon name="eye" size={14} />
         </button>

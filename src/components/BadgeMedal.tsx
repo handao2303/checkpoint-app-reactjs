@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useState } from "react";
 import { Icon, type IconName } from "./ui/Icon";
 import type { Badge } from "../lib/api";
@@ -93,7 +94,7 @@ export function BadgeMedal({
       )}
       {showLevel != null && (
         <span className="rounded-full bg-surface-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-          Cấp {showLevel}
+          {t('cap_showlevel', { showLevel })}
         </span>
       )}
     </span>
