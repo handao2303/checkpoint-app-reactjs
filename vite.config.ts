@@ -30,7 +30,7 @@ export default defineConfig({
       // We register the SW ourselves in PWAUpdatePrompt (virtual:pwa-register),
       // so don't also auto-inject a registration script.
       injectRegister: false,
-      includeAssets: ["pin.svg"],
+      includeAssets: ["logo_c.png"],
       // Generate iOS/Android icons + iOS splash screens and inject their <link>
       // tags (see pwa-assets.config.ts).
       pwaAssets: { config: true },

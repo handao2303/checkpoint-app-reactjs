@@ -16,7 +16,7 @@ export function PublicShareLayout() {
       <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden bg-background">
         <header className="sticky top-0 z-20 flex shrink-0 items-center justify-between border-b border-border bg-surface/95 px-4 py-3 backdrop-blur pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
           <Link to="/discover" className="flex items-center gap-2">
-            <img src="/pin.svg" alt="" className="h-7 w-7" />
+            <img src="/logo_c.png" alt="" className="h-7 w-7" />
             <span className="font-display text-xl font-bold text-clay-600">Checkpoint</span>
           </Link>
           <Link

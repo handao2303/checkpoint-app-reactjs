@@ -30,7 +30,7 @@ export function LoginPage() {
   return (
     <div className="relative mx-auto flex h-full max-w-md flex-col justify-center gap-6 overflow-y-auto bg-background px-6 py-8">
       <div className="flex flex-col items-center gap-3 text-center">
-        <img src="/pin.svg" alt="" className="h-16 w-16" />
+        <img src="/logo_c.png" alt="" className="h-16 w-16" />
         <h1 className="font-display text-4xl font-bold text-clay-600">Checkpoint</h1>
         <p className="text-muted-foreground">
           Khám phá thế giới,

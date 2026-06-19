@@ -32,7 +32,7 @@ function VersionTag() {
 function Splash() {
   return (
     <div className="relative flex min-h-full items-center justify-center bg-background">
-      <img src="/pin.svg" alt="" className="h-12 w-12 animate-pulse" />
+      <img src="/logo_c.png" alt="" className="h-12 w-12 animate-pulse" />
       <VersionTag />
     </div>
   );

@@ -77,7 +77,7 @@ function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 
           name={name}
           username={entry.username}
           className="h-11 w-11"
-          fallbackClassName={`h-10 w-10 ring-2 ${ringClass}`}
+          fallbackClassName={`h-10 w-10 ring-2 ${ringClass} text-ellipsis`}
         />
         <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-surface px-1 text-[10px] font-bold text-muted-foreground shadow-sm">
           #{rank}
@@ -353,7 +353,7 @@ export function ProfilePage() {
         {top3.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có dữ liệu bảng xếp hạng.</p>
         ) : (
-          <div className="flex justify-around py-1">
+          <div className="flex justify-around py-1 overflow-x-auto scrollbar-none">
             {top3.map((e, i) => (
               <PodiumMini key={e.user_id} entry={e} rank={(i + 1) as 1 | 2 | 3} />
             ))}

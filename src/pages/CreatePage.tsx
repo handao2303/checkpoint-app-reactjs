@@ -83,7 +83,7 @@ export function CreatePage() {
       <div className="flex flex-col gap-4 pb-4">
         {tabBar}
         <div className="flex min-h-[40vh] items-center justify-center">
-          <img src="/pin.svg" alt="" className="h-10 w-10 animate-pulse" />
+          <img src="/logo_c.png" alt="" className="h-10 w-10 animate-pulse" />
         </div>
       </div>
     );
