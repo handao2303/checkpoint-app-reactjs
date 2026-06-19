@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Sheet } from "./ui/Sheet";
 import { DriveConnectCard } from "./DriveConnectCard";
 import { quickCheckinSettings } from "../lib/settings";
@@ -43,6 +44,7 @@ function SettingSwitch({
 }
 
 export function SettingsSheet({ onClose }: { onClose: () => void }) {
+  const { t, i18n } = useTranslation();
   const [openCreateOnLaunch, setOpenCreateOnLaunch] = useState(
     () => quickCheckinSettings.openCreateOnLaunch,
   );
@@ -51,13 +53,13 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <Sheet title="Cài đặt" onClose={onClose}>
+    <Sheet title={t("profile.settings", "Cài đặt")} onClose={onClose}>
       <div className="flex flex-col gap-4 divide-y divide-border">
         <div className="flex flex-col">
           <SettingSwitch
             checked={openCreateOnLaunch}
-            label="Check-in luôn khi mở app"
-            description="Đi thẳng đến màn hình cắm cờ mỗi khi tải lại hoặc mở app."
+            label={t("profile.openCreateOnLaunch", "Check-in luôn khi mở app")}
+            description={t("profile.openCreateOnLaunchDesc", "Đi thẳng đến màn hình cắm cờ mỗi khi tải lại hoặc mở app.")}
             onChange={(checked) => {
               quickCheckinSettings.openCreateOnLaunch = checked;
               setOpenCreateOnLaunch(checked);
@@ -66,17 +68,32 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           />
           <SettingSwitch
             checked={preferCameraOnCheckin}
-            label="Ưu tiên chụp ảnh khi check-in"
-            description="Tự mở camera một lần khi bắt đầu check-in."
+            label={t("profile.preferCameraOnCheckin", "Ưu tiên chụp ảnh khi check-in")}
+            description={t("profile.preferCameraOnCheckinDesc", "Tự mở camera một lần khi bắt đầu check-in.")}
             onChange={(checked) => {
               quickCheckinSettings.preferCameraOnCheckin = checked;
               setPreferCameraOnCheckin(checked);
               trackEvent("profile_setting_change", { setting: "prefer_camera_on_checkin", enabled: checked });
             }}
           />
+          
+          <div className="flex w-full items-center justify-between py-3">
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-foreground">{t("profile.language", "Ngôn ngữ")}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">{t("profile.languageDesc", "Thay đổi ngôn ngữ hiển thị của ứng dụng.")}</span>
+            </span>
+            <select
+              value={i18n.language.startsWith("vi") ? "vi" : "en"}
+              onChange={(e) => i18n.changeLanguage(e.target.value)}
+              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground"
+            >
+              <option value="vi">{t("profile.vi", "Tiếng Việt")}</option>
+              <option value="en">{t("profile.en", "English")}</option>
+            </select>
+          </div>
         </div>
         <div className="pt-4">
-          <p className="mb-2 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Tích hợp dịch vụ</p>
+          <p className="mb-2 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{t("profile.integrations", "Tích hợp dịch vụ")}</p>
           <DriveConnectCard />
         </div>
       </div>

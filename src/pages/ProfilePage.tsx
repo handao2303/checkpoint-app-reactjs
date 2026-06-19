@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -89,6 +90,7 @@ function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 
 }
 
 export function ProfilePage() {
+  const { t } = useTranslation();
   const { user, signOut } = useAuth();
   const { showProfile } = useUserProfile();
   const navigate = useNavigate();
@@ -161,7 +163,7 @@ export function ProfilePage() {
             setEditing(true);
           }}
           className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary cursor-pointer"
-          aria-label="Sửa hồ sơ"
+          aria-label={t("profile.editProfile")}
         >
           <Icon name="pencil" size={16} />
         </button>
@@ -231,10 +233,10 @@ export function ProfilePage() {
         {/* Stats */}
         <div className="mt-4 grid grid-cols-4 gap-2">
           {[
-            { label: "Huy hiệu", value: unlockedBadges.length.toString() },
-            { label: "Cờ", value: user.checkpoint_count.toString() },
-            { label: "Hành trình", value: user.journey_count.toString() },
-            { label: "Cấp", value: user.level.toString() },
+            { label: t("profile.badgesLabel", "Huy hiệu"), value: unlockedBadges.length.toString() },
+            { label: t("profile.checkpointCountLabel", "Cờ"), value: user.checkpoint_count.toString() },
+            { label: t("profile.journeyCountLabel", "Hành trình"), value: user.journey_count.toString() },
+            { label: t("profile.levelLabel", "Cấp"), value: user.level.toString() },
           ].map((s) => (
             <div key={s.label} className="rounded-xl border border-border bg-surface-muted py-2 text-center">
               <p className="text-[10px] font-semibold text-muted-foreground">{s.label}</p>
@@ -255,7 +257,7 @@ export function ProfilePage() {
                   size={20}
                   className="text-gold"
                 />
-                <p className="font-semibold text-foreground">Cấp độ hiện tại</p>
+                <p className="font-semibold text-foreground">{t("profile.currentLevel", "Cấp độ hiện tại")}</p>
               </div>
               <p className="text-sm text-muted-foreground">{user.total_xp.toLocaleString()} XP</p>
             </div>
@@ -269,8 +271,8 @@ export function ProfilePage() {
             </div>
             <p className="mt-1 text-xs italic text-muted-foreground">
               {user.xp_to_next > 0
-                ? `Còn ${user.xp_to_next.toLocaleString()} XP nữa để lên cấp ${user.level + 1}`
-                : "Bạn đã đạt cấp tối đa! 🏆"}
+                ? t("profile.xpToNext", { count: user.xp_to_next.toLocaleString(), level: user.level + 1 })
+                : t("profile.maxLevel")}
             </p>
           </div>
         </div>
@@ -363,6 +365,7 @@ export function ProfilePage() {
       <PassportSection />
 
 
+
       {/* Moments */}
       <div>
         <div className="mb-2 flex items-center justify-between">
@@ -445,7 +448,7 @@ export function ProfilePage() {
         }
       />
       <Button size="lg" variant="outline" icon={<Icon name="log-out" size={20} />} onClick={signOut}>
-        Đăng xuất
+        {t("profile.logout")}
       </Button>
 
       <p className="text-center text-xs text-muted-foreground opacity-40">
