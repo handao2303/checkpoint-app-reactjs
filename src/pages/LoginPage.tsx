@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { Button } from "../components/ui/Button";
@@ -91,9 +92,13 @@ export function LoginPage() {
         </button>
       </p>
 
-      <p className="absolute bottom-4 inset-x-0 text-center text-xs text-muted-foreground opacity-40">
-        build {import.meta.env.VITE_APP_VERSION ?? "dev"}
-      </p>
+      <div className="absolute bottom-4 inset-x-0 flex flex-col items-center gap-1 text-center text-xs text-muted-foreground">
+        <p className="flex gap-3">
+          <Link to="/privacy" className="hover:text-foreground hover:underline">{t('chinh_sach_bao_mat')}</Link>
+          <Link to="/terms" className="hover:text-foreground hover:underline">{t('dieu_khoan_dich_vu')}</Link>
+        </p>
+        <p className="opacity-40">build {import.meta.env.VITE_APP_VERSION ?? "dev"}</p>
+      </div>
     </div>
   );
 }

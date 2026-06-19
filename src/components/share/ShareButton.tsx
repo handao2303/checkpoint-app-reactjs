@@ -29,7 +29,12 @@ export function ShareButton({
     setBusy(true);
     trackEvent("share_render_start");
     try {
-      const blob = await render();
+      // TẠM TẮT gen ảnh card khi share — link share đã có OG meta cho bot cào,
+      // nên chỉ cần chia sẻ link. Bỏ comment dòng `render()` (và xoá `blob = null`)
+      // để bật lại ảnh.
+      // const blob = await render();
+      void render;
+      const blob: Blob | null = null;
       trackEvent("share_render_success", { has_blob: !!blob });
       await shareImageBlob(blob, { filename, title, text, url });
     } catch (error) {

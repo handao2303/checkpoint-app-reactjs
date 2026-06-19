@@ -15,6 +15,7 @@ import { DiscoverPage } from "./pages/DiscoverPage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { CheckpointLink, JourneyLink, UserProfileLink, PlaceLink } from "./pages/LinkRoutes";
 import { LoginPage } from "./pages/LoginPage";
+import { PrivacyPolicyPage, TermsPage } from "./pages/LegalPages";
 import { ProfilePage } from "./pages/ProfilePage";
 
 // MapPage pulls in MapLibre (~280KB) — load it only when the map route is opened.
@@ -80,6 +81,8 @@ export default function App() {
             <Route path="u/:username" element={<UserProfileLink />} />
           </Route>
           <Route path="login" element={<LoginPage />} />
+          <Route path="privacy" element={<PrivacyPolicyPage />} />
+          <Route path="terms" element={<TermsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthGateProvider>
@@ -107,6 +110,9 @@ export default function App() {
           {/* Unknown paths (e.g. /login after signing in) → map. */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
+        {/* Public legal pages (also reachable while signed in). */}
+        <Route path="privacy" element={<PrivacyPolicyPage />} />
+        <Route path="terms" element={<TermsPage />} />
       </Routes>
     </AuthGateProvider>
   );
