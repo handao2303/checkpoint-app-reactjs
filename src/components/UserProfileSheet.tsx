@@ -1,8 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PhotoProvider, PhotoView } from "react-photo-view";
-import "react-photo-view/dist/react-photo-view.css";
 import { useAuth } from "../auth/AuthContext";
 import {
   followUser,
@@ -18,26 +16,12 @@ import { Button } from "./ui/Button";
 import { ImagePlaceholder } from "./ui/Card";
 import { Icon } from "./ui/Icon";
 import { MediaPreview } from "./MediaPreview";
-import { ProfileFollowSection } from "./ProfileFollowSection";
+import { ProfileHeroCard } from "./ProfileHeroCard";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
-import { UserAvatar } from "./ui/UserAvatar";
 import { trackEvent } from "../lib/observability";
 import { PassportSection } from "./PassportSection";
 import { useUserProfile } from "../context/UserProfileProvider";
-
-
-function avatarRingClass(level: number) {
-  if (level >= 16) return "border-4 border-yellow-400";
-  if (level >= 6) return "border-4 border-orange-300";
-  return "border-4 border-white/30";
-}
-
-function formatMemberSince(dateStr: string): string {
-  const d = new Date(dateStr);
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  return `${month}/${d.getFullYear()}`;
-}
 
 // userRef is a user id (preferred, stable across username changes) or a legacy
 // username — the backend resolves either.
@@ -105,76 +89,16 @@ export function UserProfileSheet({ userRef, onClose }: { userRef: string; onClos
       ) : (
         <div className="flex flex-col gap-5 pb-2">
           {/* Hero card — matches ProfilePage layout */}
-          <div className="relative rounded-2xl border border-border bg-surface p-5 text-foreground shadow-card">
-            {/* Avatar + info row */}
-            <div className="flex items-start gap-4">
-              <div className="relative shrink-0">
-                {u.avatar_url ? (
-                  <PhotoProvider>
-                    <PhotoView src={u.avatar_url}>
-                      <UserAvatar
-                        src={u.avatar_url}
-                        name={u.display_name}
-                        username={u.username}
-                        className="h-24 w-24"
-                        loading="eager"
-                      />
-                    </PhotoView>
-                  </PhotoProvider>
-                ) : (
-                  <UserAvatar
-                    name={u.display_name}
-                    username={u.username}
-                    className="h-20 w-20"
-                    fallbackClassName={`bg-primary-50 text-primary ${avatarRingClass(u.level)}`}
-                  />
-                )}
-                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-xs font-extrabold text-primary shadow-sm">
-                  {t('cap_level', { level: u.level })}
-                </span>
-              </div>
-              <div className="min-w-0 flex-1 pt-1">
-                <h2 className="font-display text-xl font-bold leading-tight">
-                  {u.display_name || u.username}
-                </h2>
-                <p className="text-sm text-muted-foreground">@{u.username}</p>
-                {u.bio && (
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{u.bio}</p>
-                )}
-                <ProfileFollowSection userRef={u.id} onOpenProfile={showProfile} />
-                {/* Tags */}
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
-                  {u.checkin_streak > 0 && (
-                    <span className="flex items-center gap-1">
-                      <Icon name="fire" size={12} className="text-primary" />
-                      {t('streak_ngay_lien_tiep', { streak: u.checkin_streak })}
-                    </span>
-                  )}
-                  <span className="flex items-center gap-1">
-                    <Icon name="calendar" size={12} />
-                    {t('thanh_vien_tu', { date: formatMemberSince(u.created_at) })}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-
-
-            {/* Stats */}
-            <div className="mt-4 grid grid-cols-4 gap-2">
-              {[
-                { label: "XP", value: u.total_xp.toLocaleString() },
-                { label: t('co'), value: u.checkpoint_count.toString() },
-                { label: t('hanh_trinh'), value: u.journey_count.toString() },
-                { label: t('cap'), value: u.level.toString() },
-              ].map((s) => (
-                <div key={s.label} className="rounded-xl border border-border bg-surface-muted py-2 text-center">
-                  <p className="text-[10px] font-semibold text-muted-foreground">{s.label}</p>
-                  <p className="font-display text-base font-extrabold text-clay-800">{s.value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <ProfileHeroCard
+            user={u}
+            onOpenProfile={showProfile}
+            stats={[
+              { label: "XP", value: u.total_xp.toLocaleString() },
+              { label: t('co'), value: u.checkpoint_count.toString() },
+              { label: t('hanh_trinh'), value: u.journey_count.toString() },
+              { label: t('cap'), value: u.level.toString() },
+            ]}
+          />
 
           {/* Follow — only for other users while signed in */}
           {me && !isMe && (

@@ -10,7 +10,7 @@ import { JourneysSection } from "../components/JourneysSection";
 import { MediaPreview } from "../components/MediaPreview";
 import { MyCheckpointsSheet } from "../components/MyCheckpointsSheet";
 import { PassportSection } from "../components/PassportSection";
-import { ProfileFollowSection } from "../components/ProfileFollowSection";
+import { ProfileHeroCard } from "../components/ProfileHeroCard";
 import { ShareButton } from "../components/share/ShareButton";
 import { Button } from "../components/ui/Button";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
@@ -47,18 +47,6 @@ function MomentCaption({ cp }: { cp?: Checkpoint }) {
       )}
     </div>
   );
-}
-
-function avatarRingClass(level: number) {
-  if (level >= 16) return "border-4 border-yellow-400";
-  if (level >= 6) return "border-4 border-orange-300";
-  return "border-4 border-white/30";
-}
-
-function formatMemberSince(dateStr: string): string {
-  const d = new Date(dateStr);
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  return `${month}/${d.getFullYear()}`;
 }
 
 function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 }) {
@@ -160,97 +148,42 @@ export function ProfilePage() {
     <div className="flex flex-col gap-5 pb-4">
       {user.is_anonymous && <UpgradeBanner />}
 
-      {/* Hero card */}
-      <div className="relative rounded-2xl border border-border bg-surface p-5 text-foreground shadow-card">
-        <button
-          onClick={() => {
-            trackEvent("profile_edit_open");
-            setEditing(true);
-          }}
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary cursor-pointer"
-          aria-label={t("profile.editProfile")}
-        >
-          <Icon name="pencil" size={16} />
-        </button>
+      <ProfileHeroCard
+        user={user}
+        province={firstProvince}
+        onOpenProfile={showProfile}
+        stats={[
+          { label: t("profile.badgesLabel", t('huy_hieu')), value: unlockedBadges.length.toString() },
+          { label: t("profile.checkpointCountLabel", t('co')), value: user.checkpoint_count.toString() },
+          { label: t("profile.journeyCountLabel", t('hanh_trinh')), value: user.journey_count.toString() },
+          { label: t("profile.levelLabel", t('cap')), value: user.level.toString() },
+        ]}
+        actions={
+          <>
+            <button
+              onClick={() => {
+                trackEvent("profile_edit_open");
+                setEditing(true);
+              }}
+              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary cursor-pointer"
+              aria-label={t("profile.editProfile")}
+            >
+              <Icon name="pencil" size={16} />
+            </button>
 
-        <button
-          onClick={() => {
-            trackEvent("profile_settings_open");
-            setSettingsSheetOpen(true);
-          }}
-          className="absolute right-3 top-14 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary cursor-pointer"
-          aria-label={t('cai_dat')}
-        >
-          <Icon name="settings" size={16} />
-        </button>
-
-        {/* Avatar + info */}
-        <div className="flex items-start gap-1">
-          <button
-            type="button"
-            onClick={() => showProfile(user.id)}
-            className="relative shrink-0 text-left transition hover:opacity-80 cursor-pointer outline-none"
-            aria-label={t('xem_ho_so_cong_khai')}
-          >
-            <UserAvatar
-              src={user.avatar_url}
-              name={user.display_name}
-              username={user.username}
-              className="h-25 w-25"
-              loading="eager"
-              fallbackClassName={`h-24 w-24 bg-primary-50 text-primary ${avatarRingClass(user.level)}`}
-            />
-            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-xs font-extrabold text-primary shadow-sm">
-              {t('cap_level', { level: user.level })}
-            </span>
-          </button>
-          <div className="min-w-0 flex-1 justify-between mt-3 gap-4">
-            <h2 className="font-display text-xl font-bold leading-tight">
-              {user.display_name || user.username}
-            </h2>
-            <p className="text-sm text-muted-foreground">@{user.username}</p>
-            {firstProvince && (
-              <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Icon name="pin" size={12} />
-                {firstProvince}
-              </span>
-            )}
-            {user.bio && (
-              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{user.bio}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Tags */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
-          {user.checkin_streak > 0 && (
-            <span className="flex items-center gap-1">
-              <Icon name="fire" size={12} className="text-primary" />
-              {t('streak_ngay_lien_tiep', { streak: user.checkin_streak })}
-            </span>
-          )}
-          <span className="flex items-center gap-1">
-            <Icon name="calendar" size={12} />
-            {t('thanh_vien_tu', { date: formatMemberSince(user.created_at) })}
-          </span>
-        </div>
-        <ProfileFollowSection userRef={user.id} onOpenProfile={showProfile} />
-
-        {/* Stats */}
-        <div className="mt-2 flex w-full gap-1">
-          {[
-            { label: t("profile.badgesLabel", t('huy_hieu')), value: unlockedBadges.length.toString() },
-            { label: t("profile.checkpointCountLabel", t('co')), value: user.checkpoint_count.toString() },
-            { label: t("profile.journeyCountLabel", t('hanh_trinh')), value: user.journey_count.toString() },
-            { label: t("profile.levelLabel", t('cap')), value: user.level.toString() },
-          ].map((s) => (
-            <div key={s.label} className="flex-1 rounded-lg border border-border bg-surface-muted px-2 py-2 text-center">
-              <p className="whitespace-nowrap text-[10px] font-semibold text-muted-foreground">{s.label}</p>
-              <p className="font-display text-base font-extrabold text-clay-800">{s.value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+            <button
+              onClick={() => {
+                trackEvent("profile_settings_open");
+                setSettingsSheetOpen(true);
+              }}
+              className="absolute right-3 top-14 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary cursor-pointer"
+              aria-label={t('cai_dat')}
+            >
+              <Icon name="settings" size={16} />
+            </button>
+          </>
+        }
+      />
 
       {/* Level card */}
       <Card>
