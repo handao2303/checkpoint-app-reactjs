@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Icon } from "../components/ui/Icon";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -27,33 +27,13 @@ type MapFilters = {
   categoryMenuOpen: boolean;
 };
 
-const BOUNDS_BUFFER_RATIO = 0.5;
+const MAP_BOUNDS_DEBOUNCE_MS = 500;
 
 function buildLabels(t: TFunction): Record<MapFilter, string> {
   return {
     all: t('tat_ca'),
     following: t('dang_follow'),
     mine: t('cua_toi'),
-  };
-}
-
-function containsBounds(outer: Bounds, inner: Bounds): boolean {
-  return (
-    outer.minLng <= inner.minLng &&
-    outer.minLat <= inner.minLat &&
-    outer.maxLng >= inner.maxLng &&
-    outer.maxLat >= inner.maxLat
-  );
-}
-
-function expandBounds(bounds: Bounds): Bounds {
-  const lngBuffer = (bounds.maxLng - bounds.minLng) * BOUNDS_BUFFER_RATIO;
-  const latBuffer = (bounds.maxLat - bounds.minLat) * BOUNDS_BUFFER_RATIO;
-  return {
-    minLng: Math.max(-180, bounds.minLng - lngBuffer),
-    minLat: Math.max(-90, bounds.minLat - latBuffer),
-    maxLng: Math.min(180, bounds.maxLng + lngBuffer),
-    maxLat: Math.min(90, bounds.maxLat + latBuffer),
   };
 }
 
@@ -64,6 +44,7 @@ export function MapPage() {
   const [zoom, setZoom] = useState(DEFAULT_VIEW.zoom);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [clusterLeaves, setClusterLeaves] = useState<Checkpoint[] | null>(null);
+  const [renderedCheckpoints, setRenderedCheckpoints] = useState<Checkpoint[]>([]);
   const [mapReady, setMapReady] = useState(false);
   // Bumping this key remounts the <Map>, used to recover when it never finishes
   // loading (flaky tiles / GL context). See the watchdog effect below.
@@ -85,6 +66,7 @@ export function MapPage() {
   coordsRef.current = coords;
   const centeredRef = useRef(false);
   const filterControlRef = useRef<HTMLDivElement | null>(null);
+  const queryBoundsTimerRef = useRef<number | null>(null);
 
   const centerOnUser = useCallback((map: MapLibreMap, c: Coords) => {
     if (centeredRef.current) return;
@@ -95,6 +77,10 @@ export function MapPage() {
   useEffect(() => {
     if (coords && mapRef.current) centerOnUser(mapRef.current, coords);
   }, [coords, centerOnUser]);
+
+  useEffect(() => () => {
+    if (queryBoundsTimerRef.current != null) window.clearTimeout(queryBoundsTimerRef.current);
+  }, []);
 
   // Watchdog: if the map hasn't painted within the timeout, remount it once to
   // retry; if a second attempt also stalls, reload the page as a last resort.
@@ -116,7 +102,7 @@ export function MapPage() {
 
   // Filtering (category + mine/following) is done server-side now, so the filter
   // is part of the query key — switching filters refetches the matching set.
-  const { data: checkpoints = [] } = useQuery({
+  const { data: fetchedCheckpoints, isSuccess: checkpointsLoaded } = useQuery({
     queryKey: ["checkpoints", "bbox", queryBounds, mapFilter, categoryFilter],
     queryFn: async () => {
       try {
@@ -133,9 +119,14 @@ export function MapPage() {
       }
     },
     enabled: !!queryBounds,
-    placeholderData: keepPreviousData,
-    staleTime: 60_000,
+    gcTime: 0,
   });
+
+  useEffect(() => {
+    if (checkpointsLoaded && fetchedCheckpoints) {
+      setRenderedCheckpoints(fetchedCheckpoints);
+    }
+  }, [checkpointsLoaded, fetchedCheckpoints]);
 
   const activeCategory = CATEGORIES.find((category) => category.key === categoryFilter);
   const categoryOptionCount = CATEGORIES.length + 1;
@@ -189,7 +180,7 @@ export function MapPage() {
   const { clusters, sc } = useMemo(() => {
     const sc = new Supercluster<Checkpoint>({ radius: 60, maxZoom: 16 });
     sc.load(
-      checkpoints.map((cp) => ({
+      renderedCheckpoints.map((cp) => ({
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [cp.lng, cp.lat] },
         properties: cp,
@@ -208,7 +199,7 @@ export function MapPage() {
       ),
       sc,
     };
-  }, [checkpoints, viewportBounds, zoom]);
+  }, [renderedCheckpoints, viewportBounds, zoom]);
 
   const syncViewport = useCallback((map: MapLibreMap) => {
     const b = map.getBounds();
@@ -219,10 +210,11 @@ export function MapPage() {
       maxLat: b.getNorth(),
     };
     setViewportBounds(nextViewport);
-    setQueryBounds((current) =>
-      current && containsBounds(current, nextViewport) ? current : expandBounds(nextViewport),
-    );
     setZoom(map.getZoom());
+    if (queryBoundsTimerRef.current != null) window.clearTimeout(queryBoundsTimerRef.current);
+    queryBoundsTimerRef.current = window.setTimeout(() => {
+      setQueryBounds(nextViewport);
+    }, MAP_BOUNDS_DEBOUNCE_MS);
   }, []);
 
   const handleLoad = useCallback(
