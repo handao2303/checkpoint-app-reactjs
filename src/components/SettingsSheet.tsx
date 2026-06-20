@@ -4,6 +4,7 @@ import { Sheet } from "./ui/Sheet";
 import { DriveConnectCard } from "./DriveConnectCard";
 import { quickCheckinSettings } from "../lib/settings";
 import { trackEvent } from "../lib/observability";
+import { GooglePhotosConnectCard } from "./GooglePhotosConnectCard";
 
 function SettingSwitch({
   checked,
@@ -95,6 +96,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
         <div className="pt-4">
           <p className="mb-2 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{t("profile.integrations", t('tich_hop_dich_vu'))}</p>
           <DriveConnectCard />
+          <GooglePhotosConnectCard />
         </div>
       </div>
     </Sheet>

@@ -63,7 +63,7 @@ export function GooglePhotosConnectCard() {
 
   return (
     <div className="flex items-center gap-3 py-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-muted">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1a73e8]/10">
         <PhotosIcon className="opacity-50" />
       </div>
       <div className="min-w-0 flex-1">
@@ -82,6 +82,7 @@ export function GooglePhotosConnectCard() {
 }
 
 function PhotosIcon({ className = "" }: { className?: string }) {
+  return <img src="https://image.similarpng.com/file/similarpng/very-thumbnail/2020/12/Google-photos-logo-design-illustration-premium-vector-PNG.png" className={`h-5 w-5 ${className}`} alt="Google Photos" />;
   return (
     <svg
       viewBox="0 0 192 192"
