@@ -1,5 +1,6 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
+import { Icon } from "../components/ui/Icon";
 
 // Public, no-auth legal pages used for the Google OAuth verification (Google
 // Photos / Drive scopes) and linked from the app footer. Served via the SPA
@@ -10,9 +11,24 @@ const CONTACT_EMAIL = "uitbestteam@gmail.com"; // đổi thành email hỗ trợ
 const LAST_UPDATED = "19/06/2026";
 
 function LegalLayout({ title, children }: { title: string; children: ReactNode }) {
+  const navigate = useNavigate();
+  // Direct landings (e.g. a Google reviewer opening /privacy) have no in-app
+  // history to pop, so fall back to the home page.
+  const goBack = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate("/");
+  };
   return (
-    <div className="mx-auto min-h-full max-w-2xl bg-background px-5 py-8 text-foreground">
+    <div className="mx-auto h-full overflow-auto max-w-2xl bg-background px-5 py-8 text-foreground">
       <header className="mb-6 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={goBack}
+          aria-label="Quay lại"
+          className="-ml-2 grid h-10 w-10 shrink-0 place-items-center rounded-full text-clay-600 hover:bg-surface-muted"
+        >
+          <Icon name="chevron-right" size={22} className="rotate-180" />
+        </button>
         <Link to="/" className="flex items-center gap-2">
           <img src="/logo.png" alt="" className="h-9 w-auto object-contain" />
           <span className="font-display text-xl font-bold text-clay-600">Checkpoint</span>

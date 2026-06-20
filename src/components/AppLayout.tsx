@@ -1,6 +1,6 @@
 import { createContext, useContext, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { Icon } from "./ui/Icon";
 import { BottomNav } from "./BottomNav";
 import { TopNav } from "./nav/TopNav";
@@ -114,6 +114,28 @@ function BrowserHeader({ showBell }: { showBell: boolean }) {
   );
 }
 
+/**
+ * Slim site footer carrying the legal links. Always rendered (not hidden behind
+ * a menu) so the home page exposes a crawlable <a> to the privacy policy — a
+ * hard requirement for Google's OAuth / Photos+Drive scope verification.
+ */
+function SiteFooter() {
+  const { t } = useTranslation();
+  return (
+    <footer className="shrink-0 border-t border-border bg-background px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-clay-600">
+        <span>© Checkpoint</span>
+        <Link to="/privacy" className="hover:text-foreground hover:underline">
+          {t('chinh_sach_bao_mat')}
+        </Link>
+        <Link to="/terms" className="hover:text-foreground hover:underline">
+          {t('dieu_khoan_dich_vu')}
+        </Link>
+      </div>
+    </footer>
+  );
+}
+
 export function AppLayout() {
   const { user } = useAuth();
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
@@ -145,6 +167,7 @@ export function AppLayout() {
     <div className="mx-auto flex h-full w-full max-w-full flex-col overflow-hidden bg-background md:max-w-5xl">
       <BrowserHeader showBell={!!user} />
       {content}
+      <SiteFooter />
     </div>
   );
 
