@@ -26,18 +26,16 @@ import { trackEvent } from "../lib/observability";
 import { useUserLocation } from "../location/LocationProvider";
 
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
-type FilterKey = "all" | "nearest" | "hot" | "cafe" | "food" | "photos";
+type FilterKey = "all" | "nearest" | "hot" | "cafe" | "food";
 
 function buildFilterChips(
   t: TFunction,
 ): Array<{ key: FilterKey; label: string; icon?: "map-pin" | "flag" | "coffee" | "utensils" | "image" }> {
   return [
     { key: "all", label: t('tat_ca') },
-    // { key: "nearest", label: "Gần nhất", icon: "map-pin" },
     { key: "hot", label: t('dang_hot'), icon: "flag" },
     { key: "cafe", label: "Cafe", icon: "coffee" },
     { key: "food", label: t('an_uong'), icon: "utensils" },
-    { key: "photos", label: t('co_anh'), icon: "image" },
   ];
 }
 
@@ -67,7 +65,7 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 export function DiscoverPage() {
   const { t } = useTranslation();
   const [placeId, setPlaceId] = useState<string | null>(null);
-  const [profileUsername, setProfileUsername] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -95,7 +93,22 @@ export function DiscoverPage() {
     enabled: debounced?.length > 0,
   });
 
-  // Nearby places infinite query (default travel-first Discover view)
+  // The active filter maps to server-side category/sort params; the main list is
+  // a single paged query, so cafe/food/hot all page like the default view.
+  const nearbyOpts = useMemo((): { category?: string; sort?: "popular" } => {
+    switch (filters.active) {
+      case "hot":
+        return { sort: "popular" };
+      case "cafe":
+        return { category: "cafe" };
+      case "food":
+        return { category: "food" };
+      default:
+        return {};
+    }
+  }, [filters.active]);
+
+  // Nearby places infinite query (filtered/sorted server-side, keyed by filter).
   const {
     data,
     isLoading: isNearbyLoading,
@@ -103,24 +116,27 @@ export function DiscoverPage() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["places", "nearby", at],
-    queryFn: ({ pageParam = 0 }) => getNearbyAppPlaces(at, { limit: 20, offset: pageParam }),
+    queryKey: ["places", "nearby", at, filters.active],
+    queryFn: ({ pageParam = 0 }) =>
+      getNearbyAppPlaces(at, { limit: 20, offset: pageParam, ...nearbyOpts }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next_offset,
   });
 
-  const nearbyPlaces = data?.pages.flatMap((page) => page.places) ?? [];
+  const visiblePlaces = data?.pages.flatMap((page) => page.places) ?? [];
+  // Server-counted total for the active filter (cached backend-side); falls back
+  // to the loaded count until the first page resolves.
+  const totalPlaces = data?.pages[0]?.total ?? visiblePlaces.length;
+
+  // Popular strip ("đang hot gần bạn") — independent top-10 carousel.
   const { data: popularPlaces = [], isLoading: isPopularLoading } = useQuery({
     queryKey: ["places", "popular", at],
     queryFn: () => getPopularPlaces(at),
     staleTime: 60_000,
   });
 
-  const visiblePlaces = useMemo(() => {
-    const source = filters.active === "hot" ? popularPlaces : nearbyPlaces;
-    return filterPlaces(source, filters.active);
-  }, [filters.active, nearbyPlaces, popularPlaces]);
-
+  // Search results are name-matched; keep the lightweight client category filter
+  // over that already-loaded set (search has no server category param).
   const visibleResults = useMemo(
     () => filterPlaces(results, filters.active === "hot" ? "all" : filters.active),
     [filters.active, results],
@@ -132,7 +148,7 @@ export function DiscoverPage() {
   );
 
   const scrollEl = useScrollContainer();
-  const canLoadMorePlaces = !debounced && filters.active !== "hot" && hasNextPage;
+  const canLoadMorePlaces = !debounced && hasNextPage;
   const virtualPlaceCount = visiblePlaces.length + (canLoadMorePlaces ? 1 : 0);
   const placeVirtualizer = useVirtualizer({
     count: virtualPlaceCount,
@@ -146,11 +162,11 @@ export function DiscoverPage() {
 
   const { pullDistance, pullProgress, isPulling, isRefreshing, isReady } = usePullToRefresh({
     scrollElement: scrollEl,
-    disabled: placeId != null || profileUsername != null || selectedCheckpointId != null || debounced !== "",
+    disabled: placeId != null || profileUserId != null || selectedCheckpointId != null || debounced !== "",
     onRefresh: () => {
       trackEvent("pull_to_refresh", { type: "nearby_places" });
       return queryClient.resetQueries({
-        queryKey: ["places", "nearby", at],
+        queryKey: ["places", "nearby", at, filters.active],
         exact: true,
       });
     },
@@ -167,7 +183,6 @@ export function DiscoverPage() {
     if (
       !last ||
       debounced ||
-      filters.active === "hot" ||
       !hasNextPage ||
       isFetchingNextPage ||
       last.index < visiblePlaces.length - 1
@@ -337,12 +352,12 @@ export function DiscoverPage() {
                   <span className="h-px flex-1 border-t border-dashed border-primary-200" />
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  {t('dia_diem_trong_danh_sach', { count: visiblePlaces.length })}
+                  {t('dia_diem_trong_danh_sach', { total: totalPlaces })}
                 </p>
               </div>
             </section>
 
-            {isNearbyLoading || (filters.active === "hot" && isPopularLoading) ? (
+            {isNearbyLoading ? (
               <div className="flex flex-col gap-3">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <PlaceCardSkeleton key={i} />
@@ -401,8 +416,8 @@ export function DiscoverPage() {
       </div>
 
       {placeId && <PlaceDetailSheet id={placeId} onClose={() => setPlaceId(null)} />}
-      {profileUsername && (
-        <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
+      {profileUserId && (
+        <UserProfileSheet userRef={profileUserId} onClose={() => setProfileUserId(null)} />
       )}
       {selectedCheckpointId && (
         <CheckpointDetailSheet id={selectedCheckpointId} onClose={() => setSelectedCheckpointId(null)} />
@@ -447,7 +462,6 @@ export function DiscoverPage() {
 function filterPlaces(places: Place[], active: FilterKey): Place[] {
   const filtered = places.filter((place) => {
     if (active === "cafe" || active === "food") return place.category === active;
-    if (active === "photos") return (place.image_count ?? 0) > 0 || !!place.cover_thumbnail_url || !!place.cover_image_url;
     return true;
   });
   if (active === "hot") {

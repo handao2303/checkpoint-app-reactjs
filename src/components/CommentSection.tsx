@@ -23,7 +23,7 @@ export function CommentSection({
   checkpointId: string;
   ownerUserId: string;
   checkpointName: string;
-  onOpenProfile?: (username: string) => void;
+  onOpenProfile?: (userId: string) => void;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -164,13 +164,13 @@ function CommentRow({
   comment: Comment;
   mine: boolean;
   onDelete: () => void;
-  onOpenProfile?: (username: string) => void;
+  onOpenProfile?: (userId: string) => void;
 }) {
   const { t } = useTranslation();
   return (
     <div className="flex items-start gap-2">
       <button
-        onClick={() => onOpenProfile?.(comment.username)}
+        onClick={() => onOpenProfile?.(comment.user_id)}
         className="shrink-0 transition hover:opacity-80"
         type="button"
         aria-label={t('mo_ho_so_name', { name: comment.display_name || comment.username })}
@@ -187,7 +187,7 @@ function CommentRow({
       <div className="min-w-0 flex-1">
         <p className="text-sm">
           <button
-            onClick={() => onOpenProfile?.(comment.username)}
+            onClick={() => onOpenProfile?.(comment.user_id)}
             className="font-semibold text-foreground hover:underline mr-1 text-left inline-block"
             type="button"
           >

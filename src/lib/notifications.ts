@@ -74,7 +74,7 @@ export function subscribeNotifications(
   userId: string,
   cb: (notifs: AppNotification[]) => void,
 ): Unsubscribe {
-  const q = query(notifCol(userId), orderBy("created_at", "desc"), limit(50));
+  const q = query(notifCol(userId), orderBy("created_at", "desc"), limit(30));
   return onSnapshot(
     q,
     (snap) => {

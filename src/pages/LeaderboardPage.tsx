@@ -70,10 +70,10 @@ function formatXP(xp: number) {
 
 function openProfile(
   entry: LeaderboardEntry,
-  setProfileUsername: (username: string) => void,
+  setProfileUserId: (userId: string) => void,
 ) {
   trackEvent("leaderboard_profile_open", { rank: entry.rank });
-  setProfileUsername(entry.username);
+  setProfileUserId(entry.user_id);
 }
 
 function XPValue({ xp, compact = false }: { xp: number; compact?: boolean }) {
@@ -291,7 +291,7 @@ export function LeaderboardPage() {
   const entries = data?.entries ?? [];
   const me = data?.me;
   const meInTop = me != null && entries.some((entry) => entry.user_id === me.user_id);
-  const [profileUsername, setProfileUsername] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
   const top3 = entries.slice(0, 3);
   const rest = entries.slice(3);
@@ -320,7 +320,7 @@ export function LeaderboardPage() {
                     entry={entry}
                     style={PODIUM_STYLE[index]}
                     isMe={entry.user_id === me?.user_id}
-                    onOpen={() => openProfile(entry, setProfileUsername)}
+                    onOpen={() => openProfile(entry, setProfileUserId)}
                   />
                 ))}
               </div>
@@ -341,7 +341,7 @@ export function LeaderboardPage() {
                   key={entry.user_id}
                   entry={entry}
                   highlight={entry.user_id === me?.user_id}
-                  onOpen={() => openProfile(entry, setProfileUsername)}
+                  onOpen={() => openProfile(entry, setProfileUserId)}
                 />
               ))}
             </section>
@@ -357,15 +357,15 @@ export function LeaderboardPage() {
               <LeaderboardRow
                 entry={me}
                 highlight
-                onOpen={() => openProfile(me, setProfileUsername)}
+                onOpen={() => openProfile(me, setProfileUserId)}
               />
             </section>
           )}
         </>
       )}
 
-      {profileUsername && (
-        <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
+      {profileUserId && (
+        <UserProfileSheet userRef={profileUserId} onClose={() => setProfileUserId(null)} />
       )}
     </div>
   );

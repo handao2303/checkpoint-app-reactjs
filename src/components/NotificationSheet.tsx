@@ -36,7 +36,7 @@ export function NotificationSheet({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const { items, markAllSeen } = useNotifications();
   const [checkpointId, setCheckpointId] = useState<string | null>(null);
-  const [profileUsername, setProfileUsername] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
   // The actor avatar/name stored on each notification is a snapshot from when it
   // was written and can be stale. Re-fetch the actors by id so rows render the
@@ -110,7 +110,9 @@ export function NotificationSheet({ onClose }: { onClose: () => void }) {
                     onOpen={() => {
                       trackEvent("notification_row_open", { type: n.type });
                       if (n.type === "follow" || n.type === "unfollow") {
-                        setProfileUsername(n.actor.username);
+                        // Use the actor's stable id — the stored username snapshot
+                        // can be stale after the actor renamed themselves.
+                        setProfileUserId(n.actor.id);
                       } else if (n.checkpoint_id) {
                         setCheckpointId(n.checkpoint_id);
                       }
@@ -126,8 +128,8 @@ export function NotificationSheet({ onClose }: { onClose: () => void }) {
       {checkpointId && (
         <CheckpointDetailSheet id={checkpointId} onClose={() => setCheckpointId(null)} />
       )}
-      {profileUsername && (
-        <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
+      {profileUserId && (
+        <UserProfileSheet userRef={profileUserId} onClose={() => setProfileUserId(null)} />
       )}
     </>,
     document.body,

@@ -23,7 +23,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
   const { requestDelete, confirming, confirmBox } = useDeleteCheckpoint(id, { onDeleted: onClose });
 
   const queryClient = useQueryClient();
-  const [profileUsername, setProfileUsername] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["checkpoint", id],
     queryFn: () => getCheckpointDetail(id),
@@ -107,7 +107,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               <button
                 onClick={() => {
                   trackEvent("feed_profile_open", { source: "checkpoint_detail" });
-                  setProfileUsername(data.author.username);
+                  setProfileUserId(data.checkpoint.user_id);
                 }}
                 className="flex items-center gap-2 rounded-full transition hover:opacity-80"
               >
@@ -135,7 +135,14 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
 
             <ShareButton
               title={data.checkpoint.name}
-              text={t('minh_vua_checkin_tai', { name: data.checkpoint.name })}
+              text={
+                isMine
+                  ? t('minh_vua_checkin_tai', { name: data.checkpoint.name })
+                  : t('actor_da_checkin_tai', {
+                      actor: data.author.display_name || data.author.username,
+                      name: data.checkpoint.name,
+                    })
+              }
               url={`${API_URL}/share/checkpoint/${data.checkpoint.id}`}
             />
 
@@ -149,7 +156,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               checkpointId={id}
               ownerUserId={data.checkpoint.user_id}
               checkpointName={data.checkpoint.name}
-              onOpenProfile={setProfileUsername}
+              onOpenProfile={setProfileUserId}
             />
 
             {/* Delete — owner only. Hard delete: XP is taken back, photos removed. */}
@@ -172,8 +179,8 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
       </Sheet>
 
       {/* Author profile — renders after the sheet so it stacks on top. */}
-      {profileUsername && (
-        <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
+      {profileUserId && (
+        <UserProfileSheet userRef={profileUserId} onClose={() => setProfileUserId(null)} />
       )}
     </>
   );

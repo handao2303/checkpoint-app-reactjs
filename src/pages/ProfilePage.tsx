@@ -68,7 +68,7 @@ function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 
   return (
     <button
       type="button"
-      onClick={() => showProfile(entry.username)}
+      onClick={() => showProfile(entry.user_id)}
       className="flex min-w-0 flex-col items-center text-center outline-none transition hover:opacity-80 cursor-pointer"
     >
       <div className="flex h-20 w-full items-center justify-center">
@@ -187,7 +187,7 @@ export function ProfilePage() {
         <div className="flex items-start gap-1">
           <button
             type="button"
-            onClick={() => showProfile(user.username)}
+            onClick={() => showProfile(user.id)}
             className="relative shrink-0 text-left transition hover:opacity-80 cursor-pointer outline-none"
             aria-label={t('xem_ho_so_cong_khai')}
           >
@@ -436,7 +436,7 @@ export function ProfilePage() {
       <ShareButton
         title={t('ho_chieu_checkpoint_cua_userdisplay', { name: user.display_name || user.username })}
         text={t('minh_da_cam_usercheckpoint_count', { checkpoint_count: user.checkpoint_count })}
-        url={`${API_URL}/share/user/${user.username}`}
+        url={`${API_URL}/share/user/${user.id}`}
         label={t('chia_se_ho_chieu_dien')}
       />
       <Button size="lg" variant="outline" icon={<Icon name="log-out" size={20} />} onClick={signOut}>

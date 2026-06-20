@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import {
   getMyCheckpoints,
   getPassport,
-  getUserByUsername,
   getUserCheckpoints,
   getUserPassport,
 } from "../lib/api";
@@ -16,7 +15,8 @@ import { Sheet } from "./ui/Sheet";
 import { Toast } from "./ui/Toast";
 
 interface PassportSectionProps {
-  username?: string;
+  /** Target user's id. Omit to render the signed-in caller's own passport. */
+  userId?: string;
 }
 
 const STAMP_THEMES = {
@@ -315,11 +315,11 @@ function getStampConfig(
   };
 }
 
-export function PassportSection({ username }: PassportSectionProps) {
+export function PassportSection({ userId }: PassportSectionProps) {
   const { t } = useTranslation();
   const { data, isLoading } = useQuery({
-    queryKey: username ? ["passport", username] : ["passport"],
-    queryFn: username ? () => getUserPassport(username) : getPassport,
+    queryKey: userId ? ["passport", userId] : ["passport"],
+    queryFn: userId ? () => getUserPassport(userId) : getPassport,
   });
 
   const [toastMessage, setToastMessage] = useState<ReactNode | null>(null);
@@ -335,13 +335,12 @@ export function PassportSection({ username }: PassportSectionProps) {
 
   // Query checkpoints for selected stamp to display photos dynamically on click
   const { data: provinceCheckpoints = [], isLoading: isPhotosLoading } = useQuery({
-    queryKey: ["passport-photos", username || "me", selectedStampForPhotos?.provinceCode, selectedStampForPhotos?.name],
+    queryKey: ["passport-photos", userId || "me", selectedStampForPhotos?.provinceCode, selectedStampForPhotos?.name],
     queryFn: async () => {
       if (!selectedStampForPhotos) return [];
       const code = selectedStampForPhotos.provinceCode || undefined;
-      if (username) {
-        const u = await getUserByUsername(username);
-        const all = await getUserCheckpoints(u.id, 100, code);
+      if (userId) {
+        const all = await getUserCheckpoints(userId, 100, code);
         // Fallback filter for legacy rows without provinceCode
         if (!code) {
           const cleanName = selectedStampForPhotos.name.replace(/^(Thành phố|Tỉnh)\s+/i, "").trim().toLowerCase();
@@ -411,10 +410,10 @@ export function PassportSection({ username }: PassportSectionProps) {
       ) : unlockedCount === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-border/60 bg-surface-muted p-6 text-center">
           <p className="text-sm font-semibold text-foreground mb-1">
-            {username ? t('nguoi_dung_nay_chua_co') : t('ban_chua_mo_khoa_dia')}
+            {userId ? t('nguoi_dung_nay_chua_co') : t('ban_chua_mo_khoa_dia')}
           </p>
           <p className="text-xs text-muted-foreground">
-            {username ? "" : t('hay_cam_co_o_khu')}
+            {userId ? "" : t('hay_cam_co_o_khu')}
           </p>
         </div>
       ) : (

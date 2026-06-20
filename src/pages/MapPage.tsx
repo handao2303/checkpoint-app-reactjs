@@ -13,7 +13,7 @@ import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { MapSkeleton } from "../components/MapSkeleton";
 import { Button } from "../components/ui/Button";
 import { useCheckin } from "../hooks/useCheckin";
-import { getCheckpointsInBounds, getFollowing, type Bounds, type Checkpoint } from "../lib/api";
+import { getCheckpointsInBounds, type Bounds, type Checkpoint } from "../lib/api";
 import type { Coords } from "../lib/geo";
 import { CATEGORIES, DEFAULT_VIEW, MAP_STYLE, categoryIcon } from "../lib/maps";
 import { useUserLocation } from "../location/LocationProvider";
@@ -57,25 +57,6 @@ function expandBounds(bounds: Bounds): Bounds {
   };
 }
 
-const getCheckpoints = (
-  data: Checkpoint[],
-  filter: MapFilter,
-  categoryFilter: CategoryFilter,
-  userId?: string,
-  followingIds: string[] = [],
-) => {
-  let checkpoints = data;
-  if (filter === "mine") {
-    checkpoints = checkpoints.filter((cp) => cp.user_id === userId);
-  } else if (filter === "following") {
-    checkpoints = checkpoints.filter((cp) => followingIds.includes(cp.user_id));
-  }
-  if (categoryFilter !== "all") {
-    checkpoints = checkpoints.filter((cp) => cp.category === categoryFilter);
-  }
-  return checkpoints;
-};
-
 export function MapPage() {
   const { t } = useTranslation();
   const [viewportBounds, setViewportBounds] = useState<Bounds | null>(null);
@@ -84,6 +65,9 @@ export function MapPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [clusterLeaves, setClusterLeaves] = useState<Checkpoint[] | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  // Bumping this key remounts the <Map>, used to recover when it never finishes
+  // loading (flaky tiles / GL context). See the watchdog effect below.
+  const [mapAttempt, setMapAttempt] = useState(0);
   const [filters, setFilters] = useState<MapFilters>({
     map: "all",
     category: "all",
@@ -112,13 +96,36 @@ export function MapPage() {
     if (coords && mapRef.current) centerOnUser(mapRef.current, coords);
   }, [coords, centerOnUser]);
 
-  const { data = [] } = useQuery({
-    queryKey: ["checkpoints", "bbox", queryBounds],
+  // Watchdog: if the map hasn't painted within the timeout, remount it once to
+  // retry; if a second attempt also stalls, reload the page as a last resort.
+  useEffect(() => {
+    if (mapReady) return;
+    const MAP_LOAD_TIMEOUT = 12_000;
+    const timer = setTimeout(() => {
+      if (mapAttempt === 0) {
+        trackEvent("map_load_timeout_retry", { attempt: 1 });
+        centeredRef.current = false;
+        setMapAttempt(1);
+      } else {
+        trackEvent("map_load_timeout_reload", { attempt: mapAttempt + 1 });
+        window.location.reload();
+      }
+    }, MAP_LOAD_TIMEOUT);
+    return () => clearTimeout(timer);
+  }, [mapReady, mapAttempt]);
+
+  // Filtering (category + mine/following) is done server-side now, so the filter
+  // is part of the query key — switching filters refetches the matching set.
+  const { data: checkpoints = [] } = useQuery({
+    queryKey: ["checkpoints", "bbox", queryBounds, mapFilter, categoryFilter],
     queryFn: async () => {
       try {
-        const checkpoints = await getCheckpointsInBounds(queryBounds!);
-        trackEvent("map_bbox_fetch_success", { count: checkpoints.length });
-        return checkpoints;
+        const result = await getCheckpointsInBounds(queryBounds!, {
+          category: categoryFilter,
+          filter: mapFilter,
+        });
+        trackEvent("map_bbox_fetch_success", { count: result.length });
+        return result;
       } catch (error) {
         trackError(error, { feature: "map", action: "map_bbox_fetch" });
         trackEvent("map_bbox_fetch_failed");
@@ -130,14 +137,6 @@ export function MapPage() {
     staleTime: 60_000,
   });
 
-  const { data: followingIds = [] } = useQuery({
-    queryKey: ["following"],
-    queryFn: getFollowing,
-    staleTime: Infinity,
-    enabled: !!user, // /users/following is auth-only; skip for anonymous visitors
-  });
-
-  const checkpoints = getCheckpoints(data, mapFilter, categoryFilter, user?.id, followingIds);
   const activeCategory = CATEGORIES.find((category) => category.key === categoryFilter);
   const categoryOptionCount = CATEGORIES.length + 1;
 
@@ -251,6 +250,7 @@ export function MapPage() {
   return (
     <div className="absolute inset-0">
       <Map
+        key={mapAttempt}
         initialViewState={DEFAULT_VIEW}
         mapStyle={MAP_STYLE}
         attributionControl={{ compact: true }}
@@ -389,7 +389,7 @@ export function MapPage() {
               categoryFilter === "all" ? "bg-primary text-primary-foreground" : "text-foreground"
             }`}
           >
-            <Icon name="map-pin" size={18} />
+            <Icon name="x" size={18} />
           </button>
           {CATEGORIES.map((category, index) => (
             <button
@@ -424,7 +424,18 @@ export function MapPage() {
         ).map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setFilters((current) => ({ ...current, map: key }))}
+            onClick={() => {
+              // mine/following are server-filtered by the caller's id — require
+              // sign-in before switching (anonymous would just get an empty map).
+              if ((key === "following" || key === "mine") && !user) {
+                requireAuth(() => setFilters((current) => ({ ...current, map: key })), {
+                  source: "map_filter",
+                  reason: "login_required",
+                });
+                return;
+              }
+              setFilters((current) => ({ ...current, map: key }));
+            }}
             onMouseDown={() => trackEvent("map_filter_change", { filter: key })}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold shadow-md transition ${
               mapFilter === key

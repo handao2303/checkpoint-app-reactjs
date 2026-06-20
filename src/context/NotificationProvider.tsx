@@ -149,7 +149,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             trackEvent("notification_toast_click", { type: toast.type });
             const target =
               toast.type === "follow" || toast.type === "unfollow"
-                ? `/u/${encodeURIComponent(toast.actor.username)}`
+                ? `/u/${encodeURIComponent(toast.actor.id)}`
                 : toast.checkpoint_id
                   ? `/c/${encodeURIComponent(toast.checkpoint_id)}`
                   : null;

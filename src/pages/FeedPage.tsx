@@ -45,7 +45,7 @@ export function FeedPage() {
   const [tab, setTab] = useState<"for-you" | "following">("for-you");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placeId, setPlaceId] = useState<string | null>(null);
-  const [profileUsername, setProfileUsername] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [query, _] = useState("");
   const [debounced, setDebounced] = useState("");
   const { user } = useAuth();
@@ -120,7 +120,7 @@ export function FeedPage() {
   const [scrollMargin, setScrollMargin] = useState(0);
   const { pullDistance, pullProgress, isPulling, isRefreshing, isReady } = usePullToRefresh({
     scrollElement: scrollEl,
-    disabled: selectedId != null || placeId != null || profileUsername != null || debounced !== "",
+    disabled: selectedId != null || placeId != null || profileUserId != null || debounced !== "",
     onRefresh: () => {
       trackEvent("pull_to_refresh", { tab });
       return queryClient.resetQueries({
@@ -309,9 +309,9 @@ export function FeedPage() {
                         trackEvent("feed_card_open", { checkpoint_id: it.id, category: it.category });
                         setSelectedId(it.id);
                       }}
-                      onOpenProfile={(username) => {
+                      onOpenProfile={() => {
                         trackEvent("feed_profile_open");
-                        setProfileUsername(username);
+                        setProfileUserId(it.user_id);
                       }}
                     />
                   </div>
@@ -330,8 +330,8 @@ export function FeedPage() {
         <CheckpointDetailSheet id={selectedId} onClose={() => setSelectedId(null)} />
       )}
       {placeId && <PlaceDetailSheet id={placeId} onClose={() => setPlaceId(null)} />}
-      {profileUsername && (
-        <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
+      {profileUserId && (
+        <UserProfileSheet userRef={profileUserId} onClose={() => setProfileUserId(null)} />
       )}
 
     </>
@@ -404,7 +404,9 @@ function FeedCard({
     trackEvent("feed_card_share");
     await shareLink({
       title: item.name,
-      text: t('minh_vua_thay_checkin_tai', { name: item.name }),
+      text: mine
+        ? t('minh_vua_checkin_tai', { name: item.name })
+        : t('actor_da_checkin_tai', { actor: author, name: item.name }),
       url: `${API_URL}/share/checkpoint/${item.id}`,
     });
   }

@@ -51,16 +51,17 @@ export function PlaceLink() {
   );
 }
 
-/** Deep-link target for /u/:username — opens a user's public profile. Closing
- *  lands on the Map. Backs the profile share-card link. */
+/** Deep-link target for /u/:ref — opens a user's public profile. The param is a
+ *  user id (current share links) or a username (legacy links); the backend
+ *  resolves either. Closing lands on the Map. Backs the profile share-card link. */
 export function UserProfileLink() {
-  const { username } = useParams();
+  const { username: ref } = useParams();
   const navigate = useNavigate();
-  if (!username) return <Navigate to="/" replace />;
+  if (!ref) return <Navigate to="/" replace />;
   return (
     <>
       <ShareBackdrop />
-      <UserProfileSheet username={username} onClose={() => navigate("/", { replace: true })} />
+      <UserProfileSheet userRef={ref} onClose={() => navigate("/", { replace: true })} />
     </>
   );
 }

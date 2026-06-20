@@ -7,7 +7,7 @@ import { useAuth } from "../auth/AuthContext";
 import {
   followUser,
   getFollowing,
-  getUserByUsername,
+  getUserProfile,
   getUserCheckpoints,
   unfollowUser,
   type Checkpoint,
@@ -37,7 +37,9 @@ function formatMemberSince(dateStr: string): string {
   return `${month}/${d.getFullYear()}`;
 }
 
-export function UserProfileSheet({ username, onClose }: { username: string; onClose: () => void }) {
+// userRef is a user id (preferred, stable across username changes) or a legacy
+// username — the backend resolves either.
+export function UserProfileSheet({ userRef, onClose }: { userRef: string; onClose: () => void }) {
   const { t } = useTranslation();
   const { user: me } = useAuth();
   const qc = useQueryClient();
@@ -48,8 +50,8 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
   }, []);
 
   const { data: u, isLoading } = useQuery({
-    queryKey: ["user", username],
-    queryFn: () => getUserByUsername(username),
+    queryKey: ["user", userRef],
+    queryFn: () => getUserProfile(userRef),
   });
   const { data: checkpoints = [], isLoading: checkpointsLoading } = useQuery({
     queryKey: ["user-checkpoints", u?.id],
@@ -70,8 +72,8 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
     if (!u || busy) return;
     setBusy(true);
     try {
-      if (isFollowing) await unfollowUser(u.username);
-      else await followUser(u.username);
+      if (isFollowing) await unfollowUser(u.id);
+      else await followUser(u.id);
       trackEvent(isFollowing ? "unfollow_success" : "follow_success", { source: "user_profile_sheet" });
       if (me) {
         void addFollowNotification(u.id, isFollowing ? "unfollow" : "follow", {
@@ -187,7 +189,7 @@ export function UserProfileSheet({ username, onClose }: { username: string; onCl
           )}
 
           {/* Provinces visited */}
-          <PassportSection username={u.username} />
+          <PassportSection userId={u.id} />
 
           {/* Check-in gallery */}
           <div>

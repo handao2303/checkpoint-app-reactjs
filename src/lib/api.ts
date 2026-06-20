@@ -187,7 +187,8 @@ export async function apiFetch(
 function endpointGroup(path: string): string {
   const clean = path.split("?")[0] || "/";
   if (clean.startsWith("/auth/")) return "/auth/:action";
-  if (clean.startsWith("/users/") && clean.endsWith("/follow")) return "/users/:username/follow";
+  if (clean.startsWith("/users/") && clean.endsWith("/follow")) return "/users/:id/follow";
+  if (clean.startsWith("/users/") && clean.endsWith("/passport")) return "/users/:id/passport";
   if (clean.startsWith("/users/")) return "/users/:id";
   if (clean.startsWith("/checkpoints/") && clean.includes("/reaction")) return "/checkpoints/:id/reaction";
   if (clean.startsWith("/checkpoints/") && clean.endsWith("/view")) return "/checkpoints/:id/view";
@@ -235,9 +236,10 @@ export async function getMe(): Promise<User> {
   return res.data as User;
 }
 
-/** Public profile of any user by username. */
-export async function getUserByUsername(username: string): Promise<User> {
-  const res = await apiFetch(`/users/${encodeURIComponent(username)}`);
+/** Public profile of any user by id (preferred, stable) or username (legacy).
+ *  Usernames can change, so callers should pass the user id where available. */
+export async function getUserProfile(ref: string): Promise<User> {
+  const res = await apiFetch(`/users/${encodeURIComponent(ref)}`);
   if (!isSuccessful(res)) throw new Error(`load user failed: ${res.status}`);
   return res.data as User;
 }
@@ -303,9 +305,10 @@ export async function getPassport(): Promise<Passport> {
   return res.data as Passport;
 }
 
-/** Another user's digital passport (provinces visited) by their username. */
-export async function getUserPassport(username: string): Promise<Passport> {
-  const res = await apiFetch(`/users/${encodeURIComponent(username)}/passport`);
+/** Another user's digital passport (provinces visited) by id (preferred) or
+ *  username (legacy). */
+export async function getUserPassport(ref: string): Promise<Passport> {
+  const res = await apiFetch(`/users/${encodeURIComponent(ref)}/passport`);
   if (!isSuccessful(res)) throw new Error(`getUserPassport failed: ${res.status}`);
   return res.data as Passport;
 }
@@ -456,9 +459,20 @@ export interface CheckinInput {
   images: { object_key: string; thumbnail_key?: string; type?: "image" | "video" }[];
 }
 
-export async function getCheckpointsInBounds(b: Bounds): Promise<Checkpoint[]> {
-  const bbox = `${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`;
-  const res = await apiFetch(`/checkpoints?bbox=${bbox}&limit=300`);
+/** Map viewport checkpoints. Filtering is server-side: `category` ("all" or a
+ *  category key) and `filter` ("all" | "mine" | "following"). mine/following
+ *  need an authenticated caller (the server returns none otherwise). */
+export async function getCheckpointsInBounds(
+  b: Bounds,
+  opts?: { category?: string; filter?: string },
+): Promise<Checkpoint[]> {
+  const p = new URLSearchParams({
+    bbox: `${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`,
+    limit: "300",
+  });
+  if (opts?.category && opts.category !== "all") p.set("category", opts.category);
+  if (opts?.filter && opts.filter !== "all") p.set("filter", opts.filter);
+  const res = await apiFetch(`/checkpoints?${p}`);
   if (!isSuccessful(res)) throw new Error("load checkpoints failed");
   return res.data.checkpoints ?? [];
 }
@@ -694,13 +708,15 @@ export async function getFollowing(): Promise<string[]> {
   return res.data.ids ?? [];
 }
 
-export async function followUser(username: string): Promise<void> {
-  const res = await apiFetch(`/users/${encodeURIComponent(username)}/follow`, { method: "POST" });
+/** Follow a user by id (preferred) or username (legacy). */
+export async function followUser(ref: string): Promise<void> {
+  const res = await apiFetch(`/users/${encodeURIComponent(ref)}/follow`, { method: "POST" });
   if (!isSuccessful(res)) throw new Error(`follow failed: ${res.status}`);
 }
 
-export async function unfollowUser(username: string): Promise<void> {
-  const res = await apiFetch(`/users/${encodeURIComponent(username)}/follow`, { method: "DELETE" });
+/** Unfollow a user by id (preferred) or username (legacy). */
+export async function unfollowUser(ref: string): Promise<void> {
+  const res = await apiFetch(`/users/${encodeURIComponent(ref)}/follow`, { method: "DELETE" });
   if (!isSuccessful(res)) throw new Error(`unfollow failed: ${res.status}`);
 }
 
@@ -800,6 +816,8 @@ export async function getNearbyPlaces(lat: number, lng: number): Promise<PlaceSu
 export interface NearbyPlacesResponse {
   places: Place[];
   next_offset?: number;
+  /** Total places matching the filter (server-counted, cached). */
+  total?: number;
 }
 
 /** Returns nearby places (our own backend) for the Discover experience.
@@ -807,21 +825,24 @@ export interface NearbyPlacesResponse {
    */
 export async function getNearbyAppPlaces(
   at: LatLng,
-  opts?: { limit?: number; offset?: number }
+  opts?: { limit?: number; offset?: number; category?: string; sort?: "distance" | "popular" }
 ): Promise<NearbyPlacesResponse> {
-  const { limit = 20, offset = 0 } = opts ?? {};
+  const { limit = 20, offset = 0, category, sort } = opts ?? {};
   const p = new URLSearchParams({
     lat: String(at.lat),
     lng: String(at.lng),
     limit: String(limit),
     offset: String(offset),
   });
+  if (category && category !== "all") p.set("category", category);
+  if (sort) p.set("sort", sort);
   const res = await apiFetch(`/places/nearby?${p}`);
   if (!isSuccessful(res)) throw new Error("load nearby places failed");
   const places = res.data.places ?? [];
   return {
     places,
     next_offset: places.length === limit ? offset + limit : undefined,
+    total: res.data.total,
   };
 }
 

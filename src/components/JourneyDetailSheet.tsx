@@ -13,6 +13,7 @@ import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 import { ShareButton } from "./share/ShareButton";
 import { trackEvent } from "../lib/observability";
+import { useAuth } from "../auth/AuthContext";
 
 export function JourneyDetailSheet({
   id,
@@ -24,7 +25,11 @@ export function JourneyDetailSheet({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const { data, isLoading } = useQuery({ queryKey: ["journey", id], queryFn: () => getJourney(id) });
+  // Journeys are viewable by anyone (deep link / other profiles), so only claim
+  // ownership ("của mình") when the journey actually belongs to the viewer.
+  const isMine = user != null && data != null && data.journey.user_id === user.id;
   const stops = data?.checkpoints ?? [];
   const mapRef = useRef<MapLibreMap | null>(null);
   const [focusedStopId, setFocusedStopId] = useState<string | null>(null);
@@ -153,7 +158,7 @@ export function JourneyDetailSheet({
           <div className="shrink-0 text-end">
             <ShareButton
               title={data.journey.title}
-              text={`${t('hanh_trinh')} "${data.journey.title}" ${t('cua_minh_tren_checkpoint')}`}
+              text={`${t('hanh_trinh')} "${data.journey.title}" ${isMine ? t('cua_minh_tren_checkpoint') : t('tren_checkpoint')}`}
               label={t('chia_se_hanh_trinh')}
               url={`${API_URL}/share/journey/${data.journey.id}`}
             />
