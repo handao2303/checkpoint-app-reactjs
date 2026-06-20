@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Icon } from "./ui/Icon";
 import { Button } from "./ui/Button";
-import { ERR_INSECURE, getCurrentCoords, isGeolocationSecure } from "../lib/geo";
+import { ERR_INSECURE, getCurrentCoords, hasLocatedBefore, isGeolocationSecure } from "../lib/geo";
 import { getPlatform, isStandalone } from "../lib/platform";
 import { trackError, trackEvent } from "../lib/observability";
 
@@ -66,7 +66,10 @@ export function LocationPermissionContent({
   const { t } = useTranslation();
   const [state, setState] = useState<PermissionState | "unknown">("unknown");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  // Start in "busy" state immediately when we know permission was previously
+  // granted — avoids a flash of the "Cho phép định vị" button before the
+  // auto-retry effect fires.
+  const [busy, setBusy] = useState(hasLocatedBefore);
 
   const fetchPosition = useCallback(() => {
     setBusy(true);
@@ -98,6 +101,14 @@ export function LocationPermissionContent({
       },
     );
   }, [onGranted]);
+
+  // If this device has located before, permission is still granted — Safari's
+  // Permissions API can't be trusted (always returns "prompt"), so we use the
+  // localStorage flag as the reliable signal and auto-retry without blocking
+  // the user on a tap.
+  useEffect(() => {
+    if (hasLocatedBefore()) fetchPosition();
+  }, [fetchPosition]);
 
   // Track the live permission state so we can auto-continue the moment the user
   // flips it back to "granted" in settings — without them re-tapping.
