@@ -9,7 +9,10 @@
 
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
 
-    <!-- apple-touch-icon + apple-touch-startup-image links are injected at build
+    <!-- Fallback apple-touch-icon for dev mode. Build injects size-specific variants
+         (see pwa-assets.config.ts). -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- apple-touch-startup-image links are injected at build
          by @vite-pwa/assets-generator (see pwa-assets.config.ts). -->
 
     <meta
@@ -23,8 +26,13 @@
     <!-- PWA / Standalone -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- black-translucent: status bar becomes a translucent overlay so the app
+         fills the entire screen. Layouts use env(safe-area-inset-top) to
+         push content below the status bar (see AppLayout / PublicShareLayout). -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Checkpoint" />
+    <!-- Prevent Safari from auto-linking phone numbers, dates, and addresses. -->
+    <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
 
     <!-- Primary SEO -->
     <title>Checkpoint — Digital Travel Passport</title>
