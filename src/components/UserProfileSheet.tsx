@@ -18,11 +18,13 @@ import { Button } from "./ui/Button";
 import { ImagePlaceholder } from "./ui/Card";
 import { Icon } from "./ui/Icon";
 import { MediaPreview } from "./MediaPreview";
+import { ProfileFollowSection } from "./ProfileFollowSection";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 import { UserAvatar } from "./ui/UserAvatar";
 import { trackEvent } from "../lib/observability";
 import { PassportSection } from "./PassportSection";
+import { useUserProfile } from "../context/UserProfileProvider";
 
 
 function avatarRingClass(level: number) {
@@ -42,6 +44,7 @@ function formatMemberSince(dateStr: string): string {
 export function UserProfileSheet({ userRef, onClose }: { userRef: string; onClose: () => void }) {
   const { t } = useTranslation();
   const { user: me } = useAuth();
+  const { showProfile } = useUserProfile();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
@@ -85,6 +88,8 @@ export function UserProfileSheet({ userRef, onClose }: { userRef: string; onClos
       }
       qc.invalidateQueries({ queryKey: ["following"] });
       qc.invalidateQueries({ queryKey: ["feed-following"] });
+      qc.invalidateQueries({ queryKey: ["user-followers", u.id] });
+      if (me) qc.invalidateQueries({ queryKey: ["user-following-list", me.id] });
     } catch {
       trackEvent(isFollowing ? "unfollow_failed" : "follow_failed", { source: "user_profile_sheet" });
       // best-effort
@@ -136,23 +141,24 @@ export function UserProfileSheet({ userRef, onClose }: { userRef: string; onClos
                 {u.bio && (
                   <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{u.bio}</p>
                 )}
-                  {/* Tags */}
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
-              {u.checkin_streak > 0 && (
-                <span className="flex items-center gap-1">
-                  <Icon name="fire" size={12} className="text-primary" />
-                  {t('streak_ngay_lien_tiep', { streak: u.checkin_streak })}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <Icon name="calendar" size={12} />
-                {t('thanh_vien_tu', { date: formatMemberSince(u.created_at) })}
-              </span>
-            </div>
+                <ProfileFollowSection userRef={u.id} onOpenProfile={showProfile} />
+                {/* Tags */}
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
+                  {u.checkin_streak > 0 && (
+                    <span className="flex items-center gap-1">
+                      <Icon name="fire" size={12} className="text-primary" />
+                      {t('streak_ngay_lien_tiep', { streak: u.checkin_streak })}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    <Icon name="calendar" size={12} />
+                    {t('thanh_vien_tu', { date: formatMemberSince(u.created_at) })}
+                  </span>
+                </div>
               </div>
             </div>
 
-          
+
 
             {/* Stats */}
             <div className="mt-4 grid grid-cols-4 gap-2">

@@ -69,6 +69,13 @@ export interface User {
   level_progress: number;
 }
 
+export interface PublicUserSummary {
+  id: string;
+  username: string;
+  display_name?: string;
+  avatar_url?: string;
+}
+
 async function postJSON(path: string, body: unknown): Promise<AxiosResponse> {
   return http.post(path, body);
 }
@@ -250,6 +257,18 @@ export async function getUsersByIDs(ids: string[]): Promise<User[]> {
   const res = await apiFetch(`/users/by-ids?ids=${encodeURIComponent(ids.join(","))}`);
   if (!isSuccessful(res)) throw new Error(`load users by ids failed: ${res.status}`);
   return res.data as User[];
+}
+
+export async function getUserFollowers(ref: string): Promise<PublicUserSummary[]> {
+  const res = await apiFetch(`/users/${encodeURIComponent(ref)}/followers`);
+  if (!isSuccessful(res)) throw new Error(`load followers failed: ${res.status}`);
+  return res.data as PublicUserSummary[];
+}
+
+export async function getUserFollowingList(ref: string): Promise<PublicUserSummary[]> {
+  const res = await apiFetch(`/users/${encodeURIComponent(ref)}/following-list`);
+  if (!isSuccessful(res)) throw new Error(`load following users failed: ${res.status}`);
+  return res.data as PublicUserSummary[];
 }
 
 /** Update the caller's display name, bio and/or username. Returns the updated

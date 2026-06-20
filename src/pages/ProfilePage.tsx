@@ -10,6 +10,7 @@ import { JourneysSection } from "../components/JourneysSection";
 import { MediaPreview } from "../components/MediaPreview";
 import { MyCheckpointsSheet } from "../components/MyCheckpointsSheet";
 import { PassportSection } from "../components/PassportSection";
+import { ProfileFollowSection } from "../components/ProfileFollowSection";
 import { ShareButton } from "../components/share/ShareButton";
 import { Button } from "../components/ui/Button";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
@@ -233,9 +234,10 @@ export function ProfilePage() {
             {t('thanh_vien_tu', { date: formatMemberSince(user.created_at) })}
           </span>
         </div>
+        <ProfileFollowSection userRef={user.id} onOpenProfile={showProfile} />
 
         {/* Stats */}
-        <div className="mt-4 flex w-full gap-1">
+        <div className="mt-2 flex w-full gap-1">
           {[
             { label: t("profile.badgesLabel", t('huy_hieu')), value: unlockedBadges.length.toString() },
             { label: t("profile.checkpointCountLabel", t('co')), value: user.checkpoint_count.toString() },
