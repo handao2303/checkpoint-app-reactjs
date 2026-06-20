@@ -12,8 +12,8 @@ const xpFormatter = new Intl.NumberFormat("vi-VN");
 const PODIUM_STYLE = [
   {
     order: "order-2",
-    width: "min-w-[116px] flex-[1.18] sm:w-[14rem] sm:min-w-0 sm:flex-none",
-    cardHeight: "min-h-[14.75rem] sm:min-h-[17rem]",
+    width: "min-w-[120px] flex-[1.18] sm:w-[14rem] sm:min-w-0 sm:flex-none",
+    cardHeight: "min-h-[12rem] sm:min-h-[17rem]",
     avatarStage: "h-[5.6rem] sm:h-[4.9rem]",
     avatarWithImage: "h-[5.2rem] w-[5.2rem] sm:h-[4.5rem] sm:w-[4.5rem]",
     avatarFallback: "h-[4.6rem] w-[4.6rem] sm:h-16 sm:w-16",
@@ -28,8 +28,8 @@ const PODIUM_STYLE = [
   },
   {
     order: "order-1",
-    width: "min-w-[94px] flex-1 sm:w-[13rem] sm:min-w-0 sm:flex-none",
-    cardHeight: "min-h-[14.5rem] sm:min-h-[15rem]",
+    width: "min-w-[100px] flex-1 sm:w-[13rem] sm:min-w-0 sm:flex-none",
+    cardHeight: "min-h-[13rem] sm:min-h-[15rem]",
     avatarStage: "h-[4.9rem] sm:h-[4.25rem]",
     avatarWithImage: "h-[4.25rem] w-[4.25rem] sm:h-16 sm:w-16",
     avatarFallback: "h-14 w-14 sm:h-12 sm:w-12",
@@ -44,8 +44,8 @@ const PODIUM_STYLE = [
   },
   {
     order: "order-3",
-    width: "min-w-[94px] flex-1 sm:w-[13rem] sm:min-w-0 sm:flex-none",
-    cardHeight: "min-h-[14.5rem] sm:min-h-[15rem]",
+    width: "min-w-[90px] flex-1 sm:w-[13rem] sm:min-w-0 sm:flex-none",
+    cardHeight: "min-h-[12rem] sm:min-h-[15rem]",
     avatarStage: "h-[4.9rem] sm:h-[4.25rem]",
     avatarWithImage: "h-[4.25rem] w-[4.25rem] sm:h-16 sm:w-16",
     avatarFallback: "h-14 w-14 sm:h-12 sm:w-12",
