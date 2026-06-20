@@ -3,6 +3,12 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabase";
 import { exchange, getMe, loginWithPassword, logout, setAuthExpiredHandler, tokens, type User } from "../lib/api";
 import { authErrorMessage } from "../lib/authErrors";
+import {
+  clearGuestLoggedOut,
+  isGuestLoggedOut,
+  markRealAccount,
+  setGuestLoggedOut,
+} from "../lib/guestSession";
 import { setObservabilityUser, trackError, trackEvent } from "../lib/observability";
 
 interface AuthState {
@@ -27,6 +33,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Single place to commit an authenticated user: updates state, observability,
+  // and remembers (per-device) once a real, non-anonymous account is used.
+  const commitUser = (u: User) => {
+    setUser(u);
+    setObservabilityUser(u);
+    if (!u.is_anonymous) markRealAccount();
+  };
+
   // Restore session on load: prefer our stored backend token, else exchange a
   // live Supabase session (e.g. just back from a Google OAuth redirect).
   useEffect(() => {
@@ -35,8 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (tokens.access) {
           try {
             const restored = await getMe();
-            setUser(restored);
-            setObservabilityUser(restored);
+            commitUser(restored);
             trackEvent("auth_session_restore", { source: "backend_token", status: "success" });
             return;
           } catch {
@@ -46,9 +59,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         const { data } = await supabase.auth.getSession();
         if (data.session) {
+          // A guest who explicitly logged out keeps their anonymous session alive
+          // (so they can restore it on demand) but should NOT be auto-logged back
+          // in on reload.
+          if (data.session.user?.is_anonymous && isGuestLoggedOut()) {
+            trackEvent("auth_session_restore", { source: "supabase_session", status: "skipped_guest_logout" });
+            return;
+          }
           const restored = await exchange(data.session.access_token);
-          setUser(restored);
-          setObservabilityUser(restored);
+          commitUser(restored);
           trackEvent("auth_session_restore", { source: "supabase_session", status: "success" });
         }
       } catch {
@@ -69,8 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (isNewSignIn || event === "USER_UPDATED") {
         try {
           const nextUser = await exchange(session.access_token);
-          setUser(nextUser);
-          setObservabilityUser(nextUser);
+          commitUser(nextUser);
           trackEvent("auth_exchange_success", { source: event.toLowerCase() });
         } catch {
           trackError(new Error("auth state exchange failed"), { feature: "auth", action: "auth_state_change" });
@@ -108,8 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       const nextUser = await exchange(data.session.access_token);
-      setUser(nextUser);
-      setObservabilityUser(nextUser);
+      commitUser(nextUser);
       trackEvent("login_success", { method: "email" });
     } catch (error) {
       trackError(error, { feature: "auth", action: "login_email" });
@@ -122,8 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     trackEvent("login_attempt", { method: "identifier" });
     try {
       const nextUser = await loginWithPassword(identifier, password);
-      setUser(nextUser);
-      setObservabilityUser(nextUser);
+      commitUser(nextUser);
       trackEvent("login_success", { method: "identifier" });
     } catch (error) {
       trackError(error, { feature: "auth", action: "login_identifier" });
@@ -142,8 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // If email confirmation is off, a session exists immediately.
     if (data.session) {
       const nextUser = await exchange(data.session.access_token);
-      setUser(nextUser);
-      setObservabilityUser(nextUser);
+      commitUser(nextUser);
       trackEvent("signup_success", { method: "email" });
     } else {
       trackEvent("signup_success", { method: "email", requires_confirmation: true });
@@ -172,6 +187,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginAnonymous = async () => {
     trackEvent("login_attempt", { method: "anonymous" });
+    clearGuestLoggedOut();
+    // If the previous guest's anonymous session is still alive (we keep it on
+    // guest logout), reuse it so the SAME account is restored — Supabase's
+    // signInAnonymously() would otherwise always mint a brand-new user.
+    const { data: existing } = await supabase.auth.getSession();
+    if (existing.session?.user?.is_anonymous) {
+      const nextUser = await exchange(existing.session.access_token);
+      commitUser(nextUser);
+      trackEvent("anonymous_login_success", { restored: true });
+      return;
+    }
     const { data, error } = await supabase.auth.signInAnonymously();
     if (error) {
       trackEvent("login_failed", { method: "anonymous" });
@@ -179,9 +205,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     if (!data.session) throw new Error(t('khong_tao_duoc_phien_khach'));
     const nextUser = await exchange(data.session.access_token);
-    setUser(nextUser);
-    setObservabilityUser(nextUser);
-    trackEvent("anonymous_login_success");
+    commitUser(nextUser);
+    trackEvent("anonymous_login_success", { restored: false });
   };
 
   // Convert the current anonymous user into a permanent account. Supabase keeps
@@ -194,17 +219,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = await supabase.auth.getSession();
     if (data.session) {
       const nextUser = await exchange(data.session.access_token);
-      setUser(nextUser);
-      setObservabilityUser(nextUser);
+      commitUser(nextUser);
       trackEvent("signup_success", { method: "upgrade_email" });
     }
   };
 
   const signOut = async () => {
     trackEvent("logout_click");
+    const wasAnonymous = !!user?.is_anonymous;
     try {
-      await logout();
-      await supabase.auth.signOut();
+      await logout(); // clears our backend tokens
+      if (wasAnonymous) {
+        // Keep the anonymous Supabase session alive so "continue as guest"
+        // restores the SAME account; just flag it so reload doesn't auto-login.
+        setGuestLoggedOut();
+      } else {
+        await supabase.auth.signOut();
+      }
       trackEvent("logout_success");
     } catch (error) {
       trackError(error, { feature: "auth", action: "logout" });
@@ -227,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginAnonymous,
         upgradeAccount,
         signOut,
-        applyUser: setUser,
+        applyUser: commitUser,
       }}
     >
       {children}

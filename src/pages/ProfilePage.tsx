@@ -236,15 +236,15 @@ export function ProfilePage() {
         </div>
 
         {/* Stats */}
-        <div className="mt-4 grid grid-cols-4 gap-2">
+        <div className="mt-4 flex w-full gap-1">
           {[
             { label: t("profile.badgesLabel", t('huy_hieu')), value: unlockedBadges.length.toString() },
             { label: t("profile.checkpointCountLabel", t('co')), value: user.checkpoint_count.toString() },
             { label: t("profile.journeyCountLabel", t('hanh_trinh')), value: user.journey_count.toString() },
             { label: t("profile.levelLabel", t('cap')), value: user.level.toString() },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-border bg-surface-muted px-1 py-2 text-center">
-              <p className="break-words text-[10px] font-semibold leading-tight text-muted-foreground">{s.label}</p>
+            <div key={s.label} className="flex-1 rounded-lg border border-border bg-surface-muted px-2 py-2 text-center">
+              <p className="whitespace-nowrap text-[10px] font-semibold text-muted-foreground">{s.label}</p>
               <p className="font-display text-base font-extrabold text-clay-800">{s.value}</p>
             </div>
           ))}

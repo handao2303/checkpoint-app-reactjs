@@ -64,6 +64,12 @@ export const BADGE_FRAMES: AvatarFrame[] = [
   { id: "traveler", file: checkpointImageUrl(`${FRAMES_BASE}/avatar-frame-traveler.svg`), labelKey: "ke_lu_hanh", kind: "badge", badgeKey: "journey_starter" },
 ];
 
+export const LEADERBOARD_FRAMES: AvatarFrame[] = [
+  { id: "leaderboard", file: checkpointImageUrl(`${FRAMES_BASE}/avatar_frame_rank_1.png`), labelKey: "cap_bang_xep_hang", kind: "badge", badgeKey: "leaderboard" },
+  { id: "leaderboard", file: checkpointImageUrl(`${FRAMES_BASE}/avatar_frame_rank_2.png`), labelKey: "cap_bang_xep_hang", kind: "badge", badgeKey: "leaderboard" },
+  { id: "leaderboard", file: checkpointImageUrl(`${FRAMES_BASE}/avatar_frame_rank_3.png`), labelKey: "cap_bang_xep_hang", kind: "badge", badgeKey: "leaderboard" },
+];
+
 export const ALL_FRAMES: AvatarFrame[] = [...LEVEL_FRAMES, ...BADGE_FRAMES];
 
 export function frameById(id: string | null | undefined): AvatarFrame | undefined {

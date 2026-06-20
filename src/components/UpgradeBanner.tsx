@@ -31,10 +31,7 @@ export function UpgradeBanner() {
 
   return (
     <div className="rounded-xl border border-primary-200 bg-primary-50 p-3 text-sm text-clay-700">
-      <p>
-        Bạn đang dùng <b>{t('tai_khoan_khach')}</b> — dữ liệu có thể mất. Tạo tài khoản để lưu hành trình
-        {t('giu_nguyen_hien_co')}
-      </p>
+      <p>{t('canh_bao_tai_khoan_khach')}</p>
       {!open ? (
         <button onClick={() => setOpen(true)} className="mt-2 font-semibold text-primary">
           {t('tao_tai_khoan')}

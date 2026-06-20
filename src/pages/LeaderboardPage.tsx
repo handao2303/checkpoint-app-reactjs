@@ -286,7 +286,7 @@ export function LeaderboardPage() {
         <>
           {top3.length > 0 && (
             <section aria-label={t('top_3_nha_kham_pha')}>
-              <div className="flex min-h-[14rem] items-end gap-2 mt-1">
+              <div className="flex min-h-[14rem] items-end gap-2 mt-2">
                 {top3.map((entry, index) => (
                   <PodiumCard
                     key={entry.user_id}

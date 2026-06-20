@@ -6,11 +6,14 @@ import { Icon } from "../components/ui/Icon";
 import { authErrorMessage } from "../lib/authErrors";
 import { trackEvent } from "../lib/observability";
 import { getPlatform, isInAppBrowser } from "../lib/platform";
+import { hasRealAccount } from "../lib/guestSession";
 
 export function LoginPage() {
   const { t } = useTranslation();
   const { loginIdentifier, signupEmail, loginGoogle, loginAnonymous } = useAuth();
   const inApp = isInAppBrowser();
+  // Once this device has used a real account, stop offering guest sign-in.
+  const showGuest = !hasRealAccount();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -139,9 +142,11 @@ export function LoginPage() {
         {t('tiep_tuc_voi_google')}
       </Button>
 
-      <Button variant="ghost" size="lg" disabled={busy} onClick={onGuest}>
-        {t('tiep_tuc_voi_khach')}
-      </Button>
+      {showGuest && (
+        <Button variant="ghost" size="lg" disabled={busy} onClick={onGuest}>
+          {t('tiep_tuc_voi_khach')}
+        </Button>
+      )}
 
       <p className="text-center text-sm text-muted-foreground">
         {mode === "signin" ? t('ban_chua_co_tai_khoan') : t('da_co_tai_khoan')}{" "}
