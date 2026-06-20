@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { CreateCheckpointForm } from "../components/CreateCheckpointForm";
 import { PhotoCheckinTab } from "../components/PhotoCheckinTab";
 import { LocationPermissionContent } from "../components/LocationPermissionContent";
-import { canLocateSilently, getCurrentCoords, type Coords } from "../lib/geo";
+import { getCurrentCoords, type Coords } from "../lib/geo";
 import { cn } from "../lib/cn";
 import { trackError, trackEvent } from "../lib/observability";
 
@@ -27,18 +27,17 @@ export function CreatePage() {
       setLocating(false);
       return;
     }
-    // Granted (or granted before — iOS PWAs lose the Permissions API state on
-    // relaunch)? Locate silently; getCurrentPosition won't prompt if still live.
-    // Otherwise fall through to the inline LocationPermissionContent.
-    if (await canLocateSilently()) {
-      try {
-        setCoords(await getCurrentCoords());
-        trackEvent("location_granted", { source: "create_page_silent" });
-      } catch (error) {
-        trackError(error, { feature: "checkin", action: "create_page_location" }, "warn");
-        trackEvent("location_denied", { source: "create_page_silent" });
-        // revoked/failed → inline prompt lets the user retry or re-enable.
-      }
+    // Always attempt directly — Permissions API is unreliable (Safari/Brave
+    // report "prompt" even when the OS has already granted access). Calling
+    // getCurrentPosition() succeeds silently when permission is held and only
+    // fails when it is genuinely denied or unavailable. Either outcome is fine:
+    // success → proceed, failure → LocationPermissionContent shown below.
+    try {
+      setCoords(await getCurrentCoords());
+      trackEvent("location_granted", { source: "create_page_silent" });
+    } catch (error) {
+      trackError(error, { feature: "checkin", action: "create_page_location" }, "warn");
+      trackEvent("location_denied", { source: "create_page_silent" });
     }
     setLocating(false);
   }, []);
