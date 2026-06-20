@@ -263,8 +263,9 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
             </button>
             <button
               type="button"
+              disabled={!user}
               onClick={() => void sharePlace()}
-              className="flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border border-border bg-surface text-xs font-bold text-foreground shadow-sm transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={`${!user ? "opacity-70 bg-surface-muted" : ""} flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border border-border bg-surface text-xs font-bold text-foreground shadow-sm transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
             >
               <Icon name="share" size={17} />
               {t('chia_se')}

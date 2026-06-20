@@ -30,7 +30,6 @@ import {
 } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { trackEvent } from "../lib/observability";
-import { renderProfileCard } from "../lib/shareCard";
 
 
 function MomentCaption({ cp }: { cp?: Checkpoint }) {
@@ -435,22 +434,10 @@ export function ProfilePage() {
       </div>
 
       <ShareButton
-        filename={`checkpoint-${user.username}.png`}
         title={t('ho_chieu_checkpoint_cua_userdisplay', { name: user.display_name || user.username })}
         text={t('minh_da_cam_usercheckpoint_count', { checkpoint_count: user.checkpoint_count })}
         url={`${API_URL}/share/user/${user.username}`}
         label={t('chia_se_ho_chieu_dien')}
-        render={() =>
-          renderProfileCard({
-            name: user.display_name || user.username,
-            username: user.username,
-            level: user.level,
-            totalXp: user.total_xp,
-            checkpointCount: user.checkpoint_count,
-            journeyCount: user.journey_count,
-            url: `${API_URL}/share/user/${user.username}`,
-          })
-        }
       />
       <Button size="lg" variant="outline" icon={<Icon name="log-out" size={20} />} onClick={signOut}>
         {t("profile.logout")}

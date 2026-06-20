@@ -15,7 +15,6 @@ import { DetailSheetSkeleton } from "./ui/Skeleton";
 import { UserAvatar } from "./ui/UserAvatar";
 import { ShareButton } from "./share/ShareButton";
 import { MediaPreview } from "./MediaPreview";
-import { renderCheckpointCard } from "../lib/shareCard";
 import { trackEvent } from "../lib/observability";
 
 export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: () => void; }) {
@@ -135,23 +134,9 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
             </div>
 
             <ShareButton
-              filename={`checkpoint-${data.checkpoint.id}.png`}
               title={data.checkpoint.name}
               text={t('minh_vua_checkin_tai', { name: data.checkpoint.name })}
               url={`${API_URL}/share/checkpoint/${data.checkpoint.id}`}
-              render={() =>
-                renderCheckpointCard({
-                  name: data.checkpoint.name,
-                  category: data.checkpoint.category,
-                  note: data.checkpoint.note,
-                  address: data.checkpoint.address,
-                  xp: data.checkpoint.xp_awarded,
-                  author: data.author.display_name || data.author.username,
-                  date: new Date(data.checkpoint.taken_at ?? data.checkpoint.created_at).toLocaleDateString("vi-VN"),
-                  imageUrls: data.images?.map((im) => im.thumbnail_url ?? im.url) ?? [],
-                  url: `${API_URL}/share/checkpoint/${data.checkpoint.id}`,
-                })
-              }
             />
 
             <ReactionBar

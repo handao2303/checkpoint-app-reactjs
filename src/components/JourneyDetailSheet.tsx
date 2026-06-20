@@ -12,7 +12,6 @@ import { MediaPreview } from "./MediaPreview";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 import { ShareButton } from "./share/ShareButton";
-import { renderJourneyCard } from "../lib/shareCard";
 import { trackEvent } from "../lib/observability";
 
 export function JourneyDetailSheet({
@@ -153,24 +152,10 @@ export function JourneyDetailSheet({
 
           <div className="shrink-0 text-end">
             <ShareButton
-              filename={`journey-${data.journey.id}.png`}
               title={data.journey.title}
               text={`${t('hanh_trinh')} "${data.journey.title}" ${t('cua_minh_tren_checkpoint')}`}
               label={t('chia_se_hanh_trinh')}
               url={`${API_URL}/share/journey/${data.journey.id}`}
-              render={() =>
-                renderJourneyCard({
-                  title: data.journey.title,
-                  count: data.stats.checkpoint_count,
-                  xp: data.stats.total_xp,
-                  distanceKm: data.stats.distance_km,
-                  date: new Date(
-                    data.journey.started_at ?? data.journey.created_at,
-                  ).toLocaleDateString("vi-VN"),
-                  imageUrls: stops.map((s) => s.thumbnail_url ?? s.image_url).filter(Boolean) as string[],
-                  url: `${API_URL}/share/journey/${data.journey.id}`,
-                })
-              }
             />
           </div>
         </div>
