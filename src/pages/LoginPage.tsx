@@ -86,7 +86,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative mx-auto flex h-full max-w-md flex-col justify-center gap-6 overflow-y-auto bg-background px-6 py-8">
+    <div className="relative mx-auto flex h-full max-w-md flex-col justify-center gap-6 overflow-y-auto bg-background px-6 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-8">
       <div className="flex flex-col items-center gap-3 text-center">
         <img src="/logo.png" alt="" className="h-12 w-auto object-contain" />
         <h1 className="font-display text-4xl font-bold text-clay-600">Checkpoint</h1>

@@ -9,7 +9,6 @@ import {
 } from "react";
 import { LocationPermissionSheet } from "../components/LocationPermissionSheet";
 import {
-  canLocateSilently,
   getCurrentCoords,
   markAutoAskDismissed,
   wasAutoAskDismissed,
@@ -61,30 +60,34 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     let active = true;
     setStatus("locating");
     trackEvent("location_auto_request", { source: "ambient" });
-    canLocateSilently().then((ok) => {
-      if (!active) return;
-      if (ok) {
-        getCurrentCoords().then(
-          (c) => {
-            if (active) {
-              setCoords(c);
-              setStatus("granted");
-              trackEvent("location_granted", { source: "ambient_silent" });
-            }
-          },
-          () => {
-            if (active) {
-              setStatus("idle"); // revoked/failed — stay quiet
-              trackEvent("location_denied", { source: "ambient_silent" });
-            }
-          },
-        );
-      } else if (wasAutoAskDismissed()) {
+
+    // Always attempt to locate directly — do NOT gate on canLocateSilently().
+    // Safari and privacy-focused browsers (Brave, Firefox) often return "prompt"
+    // from the Permissions API even when the OS already granted access, causing
+    // the app to re-ask on every visit. getCurrentPosition() resolves silently
+    // when permission is already held; it only fails with PERMISSION_DENIED when
+    // access is genuinely blocked. Timeouts / unavailable are ambient and silent.
+    getCurrentCoords().then(
+      (c) => {
+        if (!active) return;
+        setCoords(c);
+        setStatus("granted");
+        trackEvent("location_granted", { source: "ambient_silent" });
+      },
+      (err: unknown) => {
+        if (!active) return;
         setStatus("idle");
-      } else {
-        setAsking(true);
-      }
-    });
+        const denied =
+          err !== null &&
+          typeof err === "object" &&
+          "code" in err &&
+          (err as GeolocationPositionError).code === 1; // PERMISSION_DENIED
+        if (denied && !wasAutoAskDismissed()) {
+          setAsking(true);
+          trackEvent("location_denied", { source: "ambient_silent" });
+        }
+      },
+    );
     return () => {
       active = false;
     };
@@ -123,23 +126,17 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   const request = useCallback(() => {
     trackEvent("location_request_open", { source: "ambient_manual" });
-    canLocateSilently().then((ok) => {
-      if (ok) {
-        getCurrentCoords().then(
-          (c) => {
-            setCoords(c);
-            setStatus("granted");
-            trackEvent("location_granted", { source: "ambient_manual" });
-          },
-          (error) => {
-            trackError(error, { feature: "location", action: "ambient_manual_locate" }, "warn");
-            setAsking(true);
-          },
-        );
-      } else {
+    getCurrentCoords().then(
+      (c) => {
+        setCoords(c);
+        setStatus("granted");
+        trackEvent("location_granted", { source: "ambient_manual" });
+      },
+      (error) => {
+        trackError(error, { feature: "location", action: "ambient_manual_locate" }, "warn");
         setAsking(true);
-      }
-    });
+      },
+    );
   }, []);
 
   const handleGranted = useCallback((c: Coords) => {
