@@ -5,7 +5,7 @@ import { Icon } from "./ui/Icon";
 import { BadgeMedal } from "./BadgeMedal";
 
 /** Celebratory toast shown when a check-in unlocks one or more badges. */
-export function BadgeUnlockToast({ badges, onDone }: { badges: Badge[]; onDone: () => void }) {
+export function BadgeUnlockToast({ badges,onDone }: { badges: Badge[]; onDone: () => void }) {
   const { t } = useTranslation();
   useEffect(() => {
     const t = setTimeout(onDone, 3500);

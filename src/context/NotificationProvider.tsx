@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Icon, type IconName } from "../components/ui/Icon";
 import { useNavigate } from "react-router-dom";
 import { Toast } from "../components/ui/Toast";
 import { useAuth } from "../auth/AuthContext";
@@ -149,7 +150,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       {children}
       {toast && (
         <Toast
+          isNotification
           message={notificationToastMessage(toast)}
+          variant={notificationToastVariant(toast)}
           onDone={() => setToast(null)}
           onClick={() => {
             trackEvent("notification_toast_click", { type: toast.type });
@@ -188,20 +191,114 @@ export function useNotifications(): NotificationState {
   return ctx;
 }
 
-function notificationToastMessage(notification: AppNotification): string {
-  const actor = notification.actor.display_name || notification.actor.username;
+const REACTION_ICONS: Record<string, IconName> = {
+  like: "like",
+  love: "love",
+  fire: "fire",
+  haha: "haha",
+  sad: "sad",
+};
+
+function notificationToastVariant(
+  notification: AppNotification,
+): "success" | "error" | "info" | "warning" {
   switch (notification.type) {
-    case "mention":
-      return i18n.t("actor_da_nhac_den_ban", { actor });
-    case "comment":
-      return i18n.t("actor_da_binh_luan_ve", { actor, name: notification.checkpoint_name ?? i18n.t("checkin_cua_ban") });
-    case "reaction":
-      return i18n.t("actor_da_bay_to_cam", { actor, name: notification.checkpoint_name ?? i18n.t("checkin_cua_ban") });
-    case "follow":
-      return i18n.t('actor_da_theo_doi_ban', { actor: actor });
     case "unfollow":
-      return i18n.t('actor_da_bo_theo_doi', { actor: actor });
-    case "checkpoint":
-      return i18n.t('actor_vua_dang_checkin_moi', { actor: actor });
+      return "warning";
+    default:
+      return "success";
   }
+}
+
+function notificationToastMessage(notification: AppNotification): ReactNode {
+  const actor = notification.actor.display_name || notification.actor.username;
+  const name = notification.checkpoint_name ?? i18n.t("checkin_cua_ban");
+
+  const line = (() => {
+    switch (notification.type) {
+      case "mention":
+        return i18n.t("actor_da_nhac_den_ban", { actor: "", name });
+      case "comment":
+        return i18n.t("actor_da_binh_luan_ve", { actor: "", name });
+      case "reaction":
+        return i18n.t("actor_da_bay_to_cam", { actor: "", name });
+      case "follow":
+        return i18n.t("actor_da_theo_doi_ban", { actor: "" });
+      case "unfollow":
+        return i18n.t("actor_da_bo_theo_doi", { actor: "" });
+      case "checkpoint":
+        return i18n.t("actor_vua_dang_checkin_moi", { actor: "", name });
+    }
+  })();
+
+  // ── Reaction: show inline reaction icon ──
+  if (notification.type === "reaction") {
+    const reactionIcon =
+      notification.reaction && REACTION_ICONS[notification.reaction];
+      let className = '';
+      let fill = false;
+      switch (notification.reaction) {
+        case 'like':
+          className = 'text-primary';
+          fill = true;
+          break;
+        case 'love':
+          className = 'text-rose-500';
+          fill = true;
+          break;
+        case 'fire':
+          className = 'text-orange-500';
+          fill = true;
+          break;
+        case 'haha':
+          className = 'text-gold';
+          break;
+        case 'sad':
+          className = 'text-sky-500';
+          break;
+        default:
+          className = '';
+      }
+
+      console.log("Reaction notification:", notification, "Icon:", reactionIcon);
+    return (
+      <span>
+        <strong>{actor}</strong>
+        {line}{" "}
+        {reactionIcon && (
+          <Icon
+            name={reactionIcon}
+            size={14}
+            className={`inline shrink-0 ${className} border-current bg-surface-muted font-semibold ${fill ? "fill-current" : ""}`}
+          />
+        )}
+      </span>
+    );
+  }
+
+  // ── Comment / mention: show excerpt below ──
+  if (
+    (notification.type === "comment" || notification.type === "mention") &&
+    notification.comment_excerpt
+  ) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span>
+          <strong>{actor}</strong>
+          {line}
+        </span>
+        <span className="truncate text-xs text-muted-foreground">
+          “{notification.comment_excerpt}”
+        </span>
+      </div>
+    );
+  }
+
+  // ── Follow / unfollow / checkpoint ──
+  return (
+    <span>
+      <strong>{actor}</strong>
+      {line}
+    </span>
+  );
 }

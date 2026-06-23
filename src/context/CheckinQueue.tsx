@@ -1,7 +1,7 @@
 // Processes POST /checkpoints in the background after R2 uploads complete.
 // Lives at app root so it survives form unmounts. Jobs are persisted to
 // localStorage so they survive app kills — recovered and retried on next open.
-import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
@@ -11,10 +11,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { createCheckpoint, ApiError, type Badge, type CheckinInput, type User } from "../lib/api";
-import { Toast, XPToast } from "../components/ui/Toast";
+import { useTranslation } from "react-i18next";
 import { BadgeUnlockModal } from "../components/BadgeUnlockModal";
+import { Toast, XPToast } from "../components/ui/Toast";
+import { ApiError, createCheckpoint, type Badge, type CheckinInput, type User } from "../lib/api";
 import { trackError, trackEvent } from "../lib/observability";
 
 // ---- persistence ----------------------------------------------------------

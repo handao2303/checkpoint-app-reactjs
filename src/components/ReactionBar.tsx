@@ -54,7 +54,7 @@ export function ReactionBar({
       { key: "like", icon: "like", label: t('thich'), activeClass: "text-primary", fill: true },
       { key: "love", icon: "love", label: t('yeu_thich'), activeClass: "text-rose-500", fill: true },
       { key: "fire", icon: "fire", label: t('tuyet_voi'), activeClass: "text-orange-500", fill: true },
-      { key: "haha", icon: "haha", label: "Haha", activeClass: "text-gold" },
+      { key: "haha", icon: "haha", label: t('haha'), activeClass: "text-gold" },
       { key: "sad", icon: "sad", label: t('buon'), activeClass: "text-sky-500" },
     ],
     [t],
@@ -138,9 +138,6 @@ export function ReactionBar({
             </button>
           );
         })}
-        {/* {data.total > 0 && (
-          <span className="ml-auto text-xs text-muted-foreground">{data.total}</span>
-        )} */}
       </div>
 
       {showLoginPrompt && (

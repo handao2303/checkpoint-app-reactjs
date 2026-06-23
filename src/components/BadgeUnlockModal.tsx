@@ -72,13 +72,13 @@ export function BadgeUnlockModal({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 z-[7000] bg-black/50 backdrop-blur-sm"
         onClick={dismiss}
       />
 
       {/* Bottom sheet */}
       <div
-        className={`fixed inset-x-0 bottom-0 z-[71] mx-auto max-w-md ${
+        className={`fixed inset-x-0 bottom-0 z-[7001] mx-auto max-w-md ${
           exiting ? "animate-slide-down-out" : "animate-slide-up-in"
         }`}
       >

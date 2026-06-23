@@ -1,6 +1,42 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useState, type ReactNode } from "react";
-import { Icon } from "./Icon";
+import { Icon, type IconName } from "./Icon";
+
+// ─── Variant config ────────────────────────────────────────
+
+type ToastVariant = "success" | "error" | "info" | "warning";
+
+const variantStyles: Record<
+  ToastVariant,
+  { icon: IconName; border: string; iconBg: string; iconColor: string }
+> = {
+  success: {
+    icon: "check",
+    border: "border-l-success",
+    iconBg: "bg-success/12",
+    iconColor: "text-success",
+  },
+  error: {
+    icon: "sad",
+    border: "border-l-danger",
+    iconBg: "bg-danger/12",
+    iconColor: "text-danger",
+  },
+  info: {
+    icon: "info",
+    border: "border-l-primary",
+    iconBg: "bg-primary/12",
+    iconColor: "text-primary",
+  },
+  warning: {
+    icon: "info",
+    border: "border-l-warning",
+    iconBg: "bg-warning/12",
+    iconColor: "text-warning",
+  },
+};
+
+// ─── XPToast ───────────────────────────────────────────────
 
 /** Animated XP reward pill — slides in from top with spring, exits upward. */
 export function XPToast({
@@ -45,7 +81,9 @@ export function XPToast({
         <div>
           <p className="text-2xl font-black leading-none text-white">+{xp} XP</p>
           <p className="mt-0.5 text-xs text-white/80">
-            {didLevelUp ? t('len_cap_level', { level: level }) : t('cap_level', { level: level })}
+            {didLevelUp
+              ? t("len_cap_level", { level })
+              : t("cap_level", { level })}
           </p>
         </div>
       </div>
@@ -53,34 +91,62 @@ export function XPToast({
   );
 }
 
-/** Generic transient toast for errors / info — auto-dismisses after 2.5s. */
+// ─── Toast ─────────────────────────────────────────────────
+
+/** Generic transient toast — auto-dismisses with a smooth animation.
+ *  Supports variants: success, error, info (default), warning. */
 export function Toast({
   message,
   onDone,
   onClick,
+  variant = "info",
+  isNotification = false,
 }: {
   message: ReactNode;
   onDone: () => void;
   onClick?: () => void;
+  variant?: ToastVariant;
+  isNotification?: boolean;
 }) {
+  const [exiting, setExiting] = useState(false);
+
   useEffect(() => {
-    const t = setTimeout(onDone, 2500);
+    const t = setTimeout(() => setExiting(true), 2200);
     return () => clearTimeout(t);
-  }, [onDone]);
+  }, []);
 
-  const className =
-    "fixed inset-x-0 top-16 z-50 mx-auto w-fit max-w-[90vw] rounded-full bg-green-700 px-4 py-2 text-sm font-semibold text-white shadow-lg";
+  useEffect(() => {
+    if (!exiting) return;
+    const done = setTimeout(onDone, 280);
+    return () => clearTimeout(done);
+  }, [exiting, onDone]);
 
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className={`${className} cursor-pointer text-left hover:brightness-105`}
+  const v = variantStyles[variant];
+
+  const content = (
+    <div
+      className={`flex items-center gap-3 rounded-xl border border-border bg-surface/90 px-4 py-3 shadow-lg backdrop-blur-md ${
+        exiting ? "animate-fade-out" : "animate-slide-down"
+      } ${v.border} border-l-4`}
+    >
+      <div
+        className={`flex size-8 shrink-0 items-center justify-center rounded-full ${v.iconBg}`}
       >
-        {message}
-      </button>
-    );
-  }
-  return <div className={className}>{message}</div>;
+       {isNotification ? <Icon name="bell" size={16} className={v.iconColor} /> : <Icon name={v.icon} size={16} className={v.iconColor} />} 
+      </div>
+      <p className="flex-1 text-sm font-medium text-foreground">{message}</p>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-x-0 top-16 z-50 flex justify-center px-4">
+      {onClick ? (
+        <button type="button" onClick={onClick} className="cursor-pointer text-left">
+          {content}
+        </button>
+      ) : (
+        content
+      )}
+    </div>
+  );
 }

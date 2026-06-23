@@ -30,6 +30,9 @@ type MapFilters = {
 const MAP_BOUNDS_DEBOUNCE_MS = 300;
 const WORLD_VIEW_ZOOM = 2;
 
+const MAP_RADIUS = 40; // pixels, for supercluster
+const MAP_MAX_ZOOM = 16; // max zoom for supercluster
+
 function buildLabels(t: TFunction): Record<MapFilter, string> {
   return {
     all: t('tat_ca'),
@@ -196,7 +199,7 @@ export function MapPage() {
 
   // Build supercluster index and compute clusters for current viewport.
   const { clusters, sc } = useMemo(() => {
-    const sc = new Supercluster<Checkpoint>({ radius: 60, maxZoom: 16 });
+    const sc = new Supercluster<Checkpoint>({ radius: MAP_RADIUS, maxZoom: MAP_MAX_ZOOM });
     sc.load(
       renderedCheckpoints.map((cp) => ({
         type: "Feature" as const,
