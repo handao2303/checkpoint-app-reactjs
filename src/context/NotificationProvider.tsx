@@ -34,6 +34,16 @@ interface NotificationState {
 
 const NotificationContext = createContext<NotificationState | null>(null);
 
+function commentCheckpointIds(notifs: AppNotification[]): string[] {
+  return Array.from(
+    new Set(
+      notifs
+        .filter((n) => n.type === "comment" && n.checkpoint_id)
+        .map((n) => n.checkpoint_id as string),
+    ),
+  );
+}
+
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -63,19 +73,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       trackEvent("notification_subscribe_success", { count: notifs.length });
       if (storedInitialized.current) {
         const newNotifs = notifs.filter((n) => !knownStoredIds.current.has(n.id));
-        for (const n of newNotifs) {
-          if (n.type !== "comment" || !n.checkpoint_id) continue;
-          queryClient.removeQueries({ queryKey: ["comments", n.checkpoint_id] });
-          queryClient.removeQueries({ queryKey: ["comment-count", n.checkpoint_id] });
-          queryClient.invalidateQueries({ queryKey: ["comments", n.checkpoint_id] });
-          queryClient.invalidateQueries({ queryKey: ["comment-count", n.checkpoint_id] });
-        }
+        revalidateCommentCaches(queryClient, commentCheckpointIds(newNotifs));
         const newest = newNotifs[0];
         if (newest) {
           trackEvent("notification_toast_shown", { type: newest.type });
           setToast(newest);
         }
       } else {
+        const unseenNotifs = notifs.filter((n) => n.created_at.getTime() > getLastSeen(user.id));
+        revalidateCommentCaches(queryClient, commentCheckpointIds(unseenNotifs));
         storedInitialized.current = true;
       }
       knownStoredIds.current = new Set(notifs.map((n) => n.id));
@@ -160,6 +166,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       )}
     </NotificationContext.Provider>
   );
+}
+
+function revalidateCommentCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  checkpointIds: string[],
+): void {
+  for (const checkpointId of checkpointIds) {
+    queryClient.removeQueries({ queryKey: ["comments", checkpointId] });
+    queryClient.removeQueries({ queryKey: ["comment-count", checkpointId] });
+    void queryClient.invalidateQueries({ queryKey: ["comments", checkpointId] });
+    void queryClient.invalidateQueries({ queryKey: ["comment-count", checkpointId] });
+  }
 }
 
 export function useNotifications(): NotificationState {

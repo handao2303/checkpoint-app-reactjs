@@ -15,12 +15,14 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   startAfter,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { trackError, trackEvent } from "./observability";
 import { getUsersByIDs } from "./api";
+import { addCommentNotifications } from "./notifications";
 
 export interface Comment {
   id: string;
@@ -50,6 +52,12 @@ const PAGE = 20;
 
 const commentsCol = (checkpointId: string) =>
   collection(db, "checkpoints", checkpointId, "comments");
+
+const commentParticipantsCol = (checkpointId: string) =>
+  collection(db, "checkpoints", checkpointId, "comment_participants");
+
+const commentParticipantDoc = (checkpointId: string, userId: string) =>
+  doc(db, "checkpoints", checkpointId, "comment_participants", userId);
 
 /** Fetch one page of comments (newest first), optionally after a cursor. */
 export async function fetchComments(
@@ -104,6 +112,97 @@ export async function addComment(
     trackError(error, { feature: "comments", action: "comment_add", checkpoint_id: checkpointId });
     trackEvent("comment_add_failed", { checkpoint_id: checkpointId });
     throw error;
+  }
+}
+
+export interface SubmitCommentParams {
+  checkpointId: string;
+  text: string;
+  author: CommentAuthor;
+  ownerUserId: string;
+  checkpointName: string;
+}
+
+/** Add a comment and fan out best-effort notifications to the owner + prior commenters. */
+export async function submitComment({
+  checkpointId,
+  text,
+  author,
+  ownerUserId,
+  checkpointName,
+}: SubmitCommentParams): Promise<void> {
+  await addComment(checkpointId, text, author);
+  void notifyCommentRecipients(checkpointId, ownerUserId, author, checkpointName);
+}
+
+async function notifyCommentRecipients(
+  checkpointId: string,
+  ownerUserId: string,
+  author: CommentAuthor,
+  checkpointName: string,
+): Promise<void> {
+  const recipientIds = await getCommentNotificationRecipients(checkpointId, ownerUserId, author.id);
+  await rememberCommentParticipant(checkpointId, author.id);
+  void addCommentNotifications(recipientIds, author, checkpointId, checkpointName);
+}
+
+async function rememberCommentParticipant(checkpointId: string, userId: string): Promise<void> {
+  if (!userId) return;
+  try {
+    await setDoc(
+      commentParticipantDoc(checkpointId, userId),
+      { user_id: userId, updated_at: serverTimestamp() },
+      { merge: true },
+    );
+  } catch (error) {
+    trackError(error, { feature: "comments", action: "comment_participant_write", checkpoint_id: checkpointId });
+    trackEvent("comment_participant_write_failed", { checkpoint_id: checkpointId });
+  }
+}
+
+async function getCommentNotificationRecipients(
+  checkpointId: string,
+  ownerUserId: string,
+  actorId: string,
+): Promise<string[]> {
+  const recipients = new Set<string>();
+  if (ownerUserId && ownerUserId !== actorId) recipients.add(ownerUserId);
+
+  try {
+    const snap = await getDocs(commentParticipantsCol(checkpointId));
+    for (const d of snap.docs) {
+      const userId = (d.data().user_id as string | undefined) ?? d.id;
+      if (userId && userId !== actorId) recipients.add(userId);
+    }
+    if (snap.docs.length > 0) return Array.from(recipients);
+  } catch (error) {
+    trackError(error, { feature: "comments", action: "comment_participants_load", checkpoint_id: checkpointId });
+    trackEvent("comment_participants_load_failed", { checkpoint_id: checkpointId });
+  }
+
+  try {
+    const snap = await getDocs(commentsCol(checkpointId));
+    const legacyUserIds = new Set<string>();
+    for (const d of snap.docs) {
+      const userId = d.data().user_id as string | undefined;
+      if (!userId) continue;
+      legacyUserIds.add(userId);
+      if (userId !== actorId) recipients.add(userId);
+    }
+    void backfillCommentParticipants(checkpointId, legacyUserIds);
+  } catch (error) {
+    trackError(error, { feature: "comments", action: "comment_participants_fallback", checkpoint_id: checkpointId });
+    trackEvent("comment_participants_fallback_failed", { checkpoint_id: checkpointId });
+  }
+
+  return Array.from(recipients);
+}
+
+async function backfillCommentParticipants(checkpointId: string, userIds: Set<string>): Promise<void> {
+  try {
+    await Promise.all(Array.from(userIds).map((userId) => rememberCommentParticipant(checkpointId, userId)));
+  } catch {
+    // rememberCommentParticipant already reports per-user failures.
   }
 }
 

@@ -4,13 +4,12 @@ import { Icon } from "./ui/Icon";
 import { useCallback, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
-  addComment,
   deleteComment,
   fetchComments,
   getCommentCount,
+  submitComment,
   type Comment,
 } from "../lib/comments";
-import { addCommentNotification } from "../lib/notifications";
 import { Skeleton } from "./ui/Skeleton";
 import { UserAvatar } from "./ui/UserAvatar";
 
@@ -62,8 +61,7 @@ export function CommentSection({
         display_name: user.display_name,
         avatar_url: user.avatar_url,
       };
-      await addComment(checkpointId, value, actor);
-      void addCommentNotification(ownerUserId, actor, checkpointId, checkpointName);
+      await submitComment({ checkpointId, text: value, author: actor, ownerUserId, checkpointName });
       setText("");
       refresh();
     } catch {

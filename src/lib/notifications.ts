@@ -7,11 +7,13 @@
 import {
   addDoc,
   collection,
+  doc,
   limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
@@ -37,6 +39,7 @@ export interface AppNotification {
 }
 
 const notifCol = (userId: string) => collection(db, "users", userId, "notifications");
+const BATCH_WRITE_LIMIT = 450;
 
 function reportNotificationError(action: string, error: unknown): void {
   console.warn(`notification ${action} failed:`, error);
@@ -58,6 +61,21 @@ function reportNotificationInserted(
     ...(checkpointId ? { checkpointId } : {}),
   });
   trackEvent("notification_insert_success", { type, checkpoint_id: checkpointId });
+}
+
+function reportNotificationBatchInserted(
+  type: NotifType,
+  recipientCount: number,
+  actorId: string,
+  checkpointId?: string,
+): void {
+  console.info("notifications inserted:", {
+    type,
+    recipientCount,
+    actorId,
+    ...(checkpointId ? { checkpointId } : {}),
+  });
+  trackEvent("notification_insert_success", { type, checkpoint_id: checkpointId, count: recipientCount });
 }
 
 function actorFields(actor: NotifActor) {
@@ -106,6 +124,35 @@ export function subscribeNotifications(
   );
 }
 
+/** Notify all comment recipients. No-op for self and duplicate recipients. */
+export async function addCommentNotifications(
+  recipientIds: string[],
+  actor: NotifActor,
+  checkpointId: string,
+  checkpointName: string,
+): Promise<void> {
+  const recipients = Array.from(new Set(recipientIds.filter((id) => id && id !== actor.id)));
+  if (recipients.length === 0) return;
+  try {
+    for (let i = 0; i < recipients.length; i += BATCH_WRITE_LIMIT) {
+      const batch = writeBatch(db);
+      for (const recipientId of recipients.slice(i, i + BATCH_WRITE_LIMIT)) {
+        batch.set(doc(notifCol(recipientId)), {
+          type: "comment",
+          ...actorFields(actor),
+          checkpoint_id: checkpointId,
+          checkpoint_name: checkpointName,
+          created_at: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    }
+    reportNotificationBatchInserted("comment", recipients.length, actor.id, checkpointId);
+  } catch (error) {
+    reportNotificationError("comment batch write", error);
+  }
+}
+
 /** Notify a checkpoint owner that `actor` commented. No-op if actor is the owner. */
 export async function addCommentNotification(
   ownerId: string,
@@ -113,19 +160,7 @@ export async function addCommentNotification(
   checkpointId: string,
   checkpointName: string,
 ): Promise<void> {
-  if (!ownerId || ownerId === actor.id) return;
-  try {
-    const docRef = await addDoc(notifCol(ownerId), {
-      type: "comment",
-      ...actorFields(actor),
-      checkpoint_id: checkpointId,
-      checkpoint_name: checkpointName,
-      created_at: serverTimestamp(),
-    });
-    reportNotificationInserted("comment", ownerId, actor.id, docRef.id, checkpointId);
-  } catch (error) {
-    reportNotificationError("comment write", error);
-  }
+  await addCommentNotifications([ownerId], actor, checkpointId, checkpointName);
 }
 
 /** Notify a checkpoint owner that `actor` reacted. No-op if actor is the owner. */
