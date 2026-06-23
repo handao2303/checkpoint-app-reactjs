@@ -27,7 +27,8 @@ type MapFilters = {
   categoryMenuOpen: boolean;
 };
 
-const MAP_BOUNDS_DEBOUNCE_MS = 500;
+const MAP_BOUNDS_DEBOUNCE_MS = 300;
+const WORLD_VIEW_ZOOM = 2;
 
 function buildLabels(t: TFunction): Record<MapFilter, string> {
   return {
@@ -60,6 +61,13 @@ export function MapPage() {
   const { user } = useAuth();
   const { requireAuth } = useAuthGate();
   const labels = useMemo(() => buildLabels(t), [t]);
+  const shouldFetchGlobally =
+    zoom <= WORLD_VIEW_ZOOM ||
+    (queryBounds
+      ? queryBounds.minLng < -180 ||
+        queryBounds.maxLng > 180 ||
+        queryBounds.maxLng - queryBounds.minLng >= 360
+      : false);
 
   const mapRef = useRef<MapLibreMap | null>(null);
   const coordsRef = useRef<Coords | null>(null);
@@ -102,11 +110,21 @@ export function MapPage() {
 
   // Filtering (category + mine/following) is done server-side now, so the filter
   // is part of the query key — switching filters refetches the matching set.
-  const { data: fetchedCheckpoints, isSuccess: checkpointsLoaded } = useQuery({
-    queryKey: ["checkpoints", "bbox", queryBounds, mapFilter, categoryFilter],
+  const {
+    data: fetchedCheckpoints,
+    isFetching: checkpointsFetching,
+    isSuccess: checkpointsLoaded,
+  } = useQuery({
+    queryKey: [
+      "checkpoints",
+      shouldFetchGlobally ? "global" : "bbox",
+      shouldFetchGlobally ? null : queryBounds,
+      mapFilter,
+      categoryFilter,
+    ],
     queryFn: async () => {
       try {
-        const result = await getCheckpointsInBounds(queryBounds!, {
+        const result = await getCheckpointsInBounds(shouldFetchGlobally ? null : queryBounds!, {
           category: categoryFilter,
           filter: mapFilter,
         });
@@ -118,7 +136,7 @@ export function MapPage() {
         throw error;
       }
     },
-    enabled: !!queryBounds,
+    enabled: mapReady && (shouldFetchGlobally || !!queryBounds),
     gcTime: 0,
   });
 
@@ -334,6 +352,8 @@ export function MapPage() {
         })}
       </Map>
 
+      {mapReady && checkpointsFetching && <MapFetchProgress />}
+
       <div ref={filterControlRef} className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
         <button
           type="button"
@@ -468,6 +488,14 @@ export function MapPage() {
       )}
 
       <MapSkeleton hidden={mapReady} />
+    </div>
+  );
+}
+
+function MapFetchProgress() {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-1 overflow-hidden bg-primary/10" aria-hidden="true">
+      <div className="map-fetch-progress__bar h-full rounded-r-full" />
     </div>
   );
 }

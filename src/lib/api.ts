@@ -482,13 +482,11 @@ export interface CheckinInput {
  *  category key) and `filter` ("all" | "mine" | "following"). mine/following
  *  need an authenticated caller (the server returns none otherwise). */
 export async function getCheckpointsInBounds(
-  b: Bounds,
+  b: Bounds | null,
   opts?: { category?: string; filter?: string },
 ): Promise<Checkpoint[]> {
-  const p = new URLSearchParams({
-    bbox: `${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`,
-    limit: "300",
-  });
+  const p = new URLSearchParams({ limit: "300" });
+  if (b) p.set("bbox", `${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`);
   if (opts?.category && opts.category !== "all") p.set("category", opts.category);
   if (opts?.filter && opts.filter !== "all") p.set("filter", opts.filter);
   const res = await apiFetch(`/checkpoints?${p}`);

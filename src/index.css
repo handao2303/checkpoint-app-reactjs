@@ -195,6 +195,11 @@
 }
 @keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes map-fetch-progress {
+  0%   { transform: translateX(-70%) scaleX(0.35); }
+  45%  { transform: translateX(15%)  scaleX(0.72); }
+  100% { transform: translateX(115%) scaleX(0.35); }
+}
 
 @theme inline {
   --animate-slide-down:     slide-down 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -253,4 +258,21 @@
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+.map-fetch-progress__bar {
+  width: 72%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, transparent 0%, var(--primary) 36%, var(--color-accent-500) 72%, transparent 100%);
+  box-shadow: 0 0 10px rgba(240, 90, 40, 0.35);
+  animation: map-fetch-progress 1.15s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-fetch-progress__bar {
+    animation: none;
+    transform: none;
+    width: 100%;
+    opacity: 0.45;
+  }
 }
