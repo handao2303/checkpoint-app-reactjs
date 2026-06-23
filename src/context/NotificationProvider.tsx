@@ -1,5 +1,5 @@
 import i18n from "../lib/i18n";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
@@ -169,7 +169,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 }
 
 function revalidateCommentCaches(
-  queryClient: ReturnType<typeof useQueryClient>,
+  queryClient: QueryClient,
   checkpointIds: string[],
 ): void {
   for (const checkpointId of checkpointIds) {
@@ -177,6 +177,8 @@ function revalidateCommentCaches(
     queryClient.removeQueries({ queryKey: ["comment-count", checkpointId] });
     void queryClient.invalidateQueries({ queryKey: ["comments", checkpointId] });
     void queryClient.invalidateQueries({ queryKey: ["comment-count", checkpointId] });
+    void queryClient.refetchQueries({ queryKey: ["comments", checkpointId], type: "active" });
+    void queryClient.refetchQueries({ queryKey: ["comment-count", checkpointId], type: "active" });
   }
 }
 
