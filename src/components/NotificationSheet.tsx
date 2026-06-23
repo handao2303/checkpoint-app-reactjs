@@ -176,6 +176,9 @@ function NotificationRow({
         <p className="text-sm leading-snug text-foreground">
           <NotifText notif={notif} name={name} />
         </p>
+        {notif.type === "mention" && notif.comment_excerpt && (
+          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">“{notif.comment_excerpt}”</p>
+        )}
         <p className="mt-0.5 text-xs text-subtle-foreground">{relativeTime(notif.created_at)}</p>
       </div>
       {unseen && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />}
@@ -188,6 +191,8 @@ function NotifText({ notif, name }: { notif: AppNotification; name: string }) {
   const who = <span className="font-semibold">{name}</span>;
   const cp = <span className="font-semibold">{notif.checkpoint_name}</span>;
   switch (notif.type) {
+    case "mention":
+      return <>{who} {t('return_who_da_nhac_den_ban_o')} {cp}</>;
     case "comment":
       return <>{who} {t('return_who_da_binh_luan')} {cp}</>;
     case "reaction":

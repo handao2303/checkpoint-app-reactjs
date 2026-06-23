@@ -271,6 +271,16 @@ export async function getUserFollowingList(ref: string): Promise<PublicUserSumma
   return res.data as PublicUserSummary[];
 }
 
+/** Prefix-search users for the @-mention picker. Blank query → empty list. */
+export async function searchUsers(q: string, limit = 8): Promise<PublicUserSummary[]> {
+  const query = q.trim();
+  if (!query) return [];
+  const params = new URLSearchParams({ q: query, limit: String(limit) });
+  const res = await apiFetch(`/users/search?${params}`);
+  if (!isSuccessful(res)) throw new Error(`search users failed: ${res.status}`);
+  return res.data as PublicUserSummary[];
+}
+
 /** Update the caller's display name, bio and/or username. Returns the updated
  *  user. Surfaces friendly messages on a taken (409) / invalid (400) username. */
 export async function updateProfile(patch: {

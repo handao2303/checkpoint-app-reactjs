@@ -19,7 +19,9 @@ import {
 import { db } from "./firebase";
 import { trackError, trackEvent } from "./observability";
 
-export type NotifType = "comment" | "follow" | "unfollow" | "reaction" | "checkpoint";
+// "comment" is legacy (no longer generated) but kept so older stored
+// notifications still render. New comment activity uses "mention".
+export type NotifType = "comment" | "mention" | "follow" | "unfollow" | "reaction" | "checkpoint";
 
 export interface NotifActor {
   id: string;
@@ -35,7 +37,17 @@ export interface AppNotification {
   checkpoint_id?: string;
   checkpoint_name?: string;
   reaction?: string;
+  /** Snippet of the comment text, shown on "mention" notifications. */
+  comment_excerpt?: string;
   created_at: Date;
+}
+
+const EXCERPT_MAX = 120;
+
+/** Trim a comment down to a short, single-line excerpt for a notification. */
+function toExcerpt(text: string): string {
+  const clean = text.trim().replace(/\s+/g, " ");
+  return clean.length > EXCERPT_MAX ? `${clean.slice(0, EXCERPT_MAX - 1)}…` : clean;
 }
 
 const notifCol = (userId: string) => collection(db, "users", userId, "notifications");
@@ -111,6 +123,7 @@ export function subscribeNotifications(
             checkpoint_id: v.checkpoint_id ?? undefined,
             checkpoint_name: v.checkpoint_name ?? undefined,
             reaction: v.reaction ?? undefined,
+            comment_excerpt: v.comment_excerpt ?? undefined,
             created_at: v.created_at?.toDate() ?? new Date(),
           };
         }),
@@ -124,7 +137,8 @@ export function subscribeNotifications(
   );
 }
 
-/** Notify all comment recipients. No-op for self and duplicate recipients. */
+/** Notify comment recipients (checkpoint owner + prior commenters) of a new
+ *  comment. No-op for self and duplicate recipients. */
 export async function addCommentNotifications(
   recipientIds: string[],
   actor: NotifActor,
@@ -153,14 +167,37 @@ export async function addCommentNotifications(
   }
 }
 
-/** Notify a checkpoint owner that `actor` commented. No-op if actor is the owner. */
-export async function addCommentNotification(
-  ownerId: string,
+/** Notify each @-mentioned user that `actor` tagged them in a comment. The comment
+ *  text is stored as a short excerpt for context. No-op for self and duplicates. */
+export async function addMentionNotifications(
+  recipientIds: string[],
   actor: NotifActor,
   checkpointId: string,
   checkpointName: string,
+  commentText: string,
 ): Promise<void> {
-  await addCommentNotifications([ownerId], actor, checkpointId, checkpointName);
+  const recipients = Array.from(new Set(recipientIds.filter((id) => id && id !== actor.id)));
+  if (recipients.length === 0) return;
+  const excerpt = toExcerpt(commentText);
+  try {
+    for (let i = 0; i < recipients.length; i += BATCH_WRITE_LIMIT) {
+      const batch = writeBatch(db);
+      for (const recipientId of recipients.slice(i, i + BATCH_WRITE_LIMIT)) {
+        batch.set(doc(notifCol(recipientId)), {
+          type: "mention",
+          ...actorFields(actor),
+          checkpoint_id: checkpointId,
+          checkpoint_name: checkpointName,
+          comment_excerpt: excerpt,
+          created_at: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    }
+    reportNotificationBatchInserted("mention", recipients.length, actor.id, checkpointId);
+  } catch (error) {
+    reportNotificationError("mention batch write", error);
+  }
 }
 
 /** Notify a checkpoint owner that `actor` reacted. No-op if actor is the owner. */

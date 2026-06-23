@@ -1,15 +1,20 @@
+import { Fragment, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
+  commentDisplayText,
   deleteComment,
   getCommentCount,
+  parseCommentText,
   subscribeComments,
   submitComment,
   type Comment,
+  type CommentMention,
 } from "../lib/comments";
+import { CommentComposer } from "./CommentComposer";
 import { Sheet } from "./ui/Sheet";
 import { Button } from "./ui/Button";
 import { Skeleton } from "./ui/Skeleton";
@@ -31,7 +36,6 @@ export function CommentSection({
   const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [maxComments, setMaxComments] = useState(PAGE);
@@ -59,10 +63,8 @@ export function CommentSection({
     return unsubscribe;
   }, [checkpointId, maxComments, qc]);
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    const value = text.trim();
-    if (!value || !user || sending) return;
+  async function handleSubmit(value: string, mentions: CommentMention[]) {
+    if (!user || sending) return;
     setSending(true);
     try {
       const actor = {
@@ -71,14 +73,13 @@ export function CommentSection({
         display_name: user.display_name,
         avatar_url: user.avatar_url,
       };
-      await submitComment({ checkpointId, text: value, author: actor, ownerUserId, checkpointName });
-      setText("");
+      await submitComment({ checkpointId, text: value, author: actor, ownerUserId, checkpointName, mentions });
       // The subscription will push the new comment; no manual refresh needed.
-    } catch {
-      // best-effort; leave the text so the user can retry
-    } finally {
+    } catch (error) {
       setSending(false);
+      throw error; // let the composer keep the text for a retry
     }
+    setSending(false);
   }
 
   async function confirmDelete() {
@@ -115,25 +116,7 @@ export function CommentSection({
   return (
     <div className="flex flex-col gap-3 border-t border-border pt-3">
       <h3 className="font-display text-base font-bold">{t('binh_luan_count', { count })}</h3>
-      {user && (
-        <form onSubmit={submit} className="flex items-center gap-2">
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            maxLength={500}
-            placeholder={t('viet_binh_luan')}
-            className="flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-          <button
-            type="submit"
-            disabled={!text.trim() || sending}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
-            aria-label={t('gui')}
-          >
-            <Icon name="send" size={16} />
-          </button>
-        </form>
-      )}
+      {user && <CommentComposer sending={sending} onSubmit={handleSubmit} />}
 
       {(isLoading && !comments?.length) ? (
         <div className="flex flex-col gap-3">
@@ -169,7 +152,7 @@ export function CommentSection({
           <div className="flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">{t('xoa_binh_luan_xac_nhan')}</p>
             <p className="break-words rounded-xl bg-surface-muted p-3 text-sm text-foreground">
-              {pendingDelete.text}
+              {commentDisplayText(pendingDelete.text, pendingDelete.mentions)}
             </p>
             <Button
               variant="accent"
@@ -187,6 +170,30 @@ export function CommentSection({
       )}
     </div>
   );
+}
+
+/** Render comment text with @-mentions (stored as id tokens) shown as the tagged
+ *  user's display name and linked to their profile. */
+function renderCommentText(
+  text: string,
+  mentions: CommentMention[],
+  onOpenProfile?: (userId: string) => void,
+): ReactNode {
+  if (mentions.length === 0) return text;
+  return parseCommentText(text, mentions).map((seg, i) => {
+    if (seg.type === "text" || !seg.mention) return <Fragment key={i}>{seg.value}</Fragment>;
+    const mention = seg.mention;
+    return (
+      <button
+        key={i}
+        type="button"
+        onClick={() => onOpenProfile?.(mention.id)}
+        className="font-semibold text-primary hover:underline"
+      >
+        {seg.value}
+      </button>
+    );
+  });
 }
 
 function CommentRow({
@@ -227,7 +234,9 @@ function CommentRow({
           >
             {comment.display_name || comment.username}
           </button>
-          <span className="break-words text-foreground">{comment.text}</span>
+          <span className="break-words text-foreground">
+            {renderCommentText(comment.text, comment.mentions, onOpenProfile)}
+          </span>
         </p>
         <p className="text-xs text-subtle-foreground">
           {comment.created_at.toLocaleString("vi-VN")}

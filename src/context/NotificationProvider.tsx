@@ -191,6 +191,8 @@ export function useNotifications(): NotificationState {
 function notificationToastMessage(notification: AppNotification): string {
   const actor = notification.actor.display_name || notification.actor.username;
   switch (notification.type) {
+    case "mention":
+      return i18n.t("actor_da_nhac_den_ban", { actor });
     case "comment":
       return i18n.t("actor_da_binh_luan_ve", { actor, name: notification.checkpoint_name ?? i18n.t("checkin_cua_ban") });
     case "reaction":
