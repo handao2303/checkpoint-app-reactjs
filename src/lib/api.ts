@@ -447,6 +447,7 @@ export interface CheckinResult {
   xp_awarded: number;
   total_xp: number;
   level: number;
+  duplicate?: boolean;
   /** Badges unlocked by this check-in (for a celebratory toast). */
   new_badges?: Badge[];
 }
@@ -567,9 +568,18 @@ export async function deleteCheckpoint(id: string): Promise<void> {
   if (!isSuccessful(res)) throw new Error(`delete checkpoint failed: ${res.status}`);
 }
 
+export type UpdateCheckpointMediaInput =
+  | { id: string; type: "image" | "video" }
+  | { object_key: string; thumbnail_key?: string; type: "image" | "video" };
+
 export async function updateCheckpoint(
   id: string,
-  patch: { name: string; note?: string | null; rating?: number | null },
+  patch: {
+    name: string;
+    note?: string | null;
+    rating?: number | null;
+    images?: UpdateCheckpointMediaInput[];
+  },
 ): Promise<Checkpoint> {
   const res = await apiFetch(`/checkpoints/${id}`, {
     method: "PATCH",
@@ -865,12 +875,15 @@ export async function getNearbyAppPlaces(
 
 // ---- Journeys (Phase 3) ----
 
+export type JourneyVisibility = "only_me" | "followers" | "public";
+
 export interface Journey {
   id: string;
   user_id: string;
   title: string;
   description?: string;
   is_active: boolean;
+  visibility: JourneyVisibility;
   started_at?: string;
   ended_at?: string;
   created_at: string;
@@ -904,17 +917,28 @@ export async function getMyJourneys(): Promise<Journey[]> {
   return res.data.journeys ?? [];
 }
 
+/** Another user's journeys, filtered server-side by each journey's visibility. */
+export async function getUserJourneys(userId: string): Promise<Journey[]> {
+  const res = await apiFetch(`/users/${userId}/journeys`);
+  if (!isSuccessful(res)) throw new Error("load user journeys failed");
+  return res.data.journeys ?? [];
+}
+
 export async function getJourney(id: string): Promise<JourneyDetail> {
   const res = await apiFetch(`/journeys/${id}`);
   if (!isSuccessful(res)) throw new Error("load journey failed");
   return res.data;
 }
 
-export async function createJourney(title: string, description?: string): Promise<Journey> {
+export async function createJourney(
+  title: string,
+  description?: string,
+  visibility?: JourneyVisibility,
+): Promise<Journey> {
   const res = await apiFetch("/journeys", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title, description }),
+    body: JSON.stringify({ title, description, visibility }),
   });
   if (!isSuccessful(res)) throw new Error("create journey failed");
   return res.data;
@@ -922,7 +946,7 @@ export async function createJourney(title: string, description?: string): Promis
 
 export async function updateJourney(
   id: string,
-  patch: { title?: string; description?: string; is_active?: boolean },
+  patch: { title?: string; description?: string; is_active?: boolean; visibility?: JourneyVisibility },
 ): Promise<Journey> {
   const res = await apiFetch(`/journeys/${id}`, {
     method: "PATCH",
@@ -949,6 +973,18 @@ export async function assignCheckpointsToJourney(journeyId: string, checkpointId
     body: JSON.stringify({ checkpoint_ids: checkpointIds }),
   });
   if (!isSuccessful(res)) throw new Error("assign checkpoints to journey failed");
+}
+
+/** Replace a journey's checkpoint membership with exactly `checkpointIds` (in order):
+ *  the backend detaches the journey's current checkpoints and attaches these in one
+ *  transaction. An empty list clears the journey. Used when editing a journey. */
+export async function replaceJourneyCheckpoints(journeyId: string, checkpointIds: string[]): Promise<void> {
+  const res = await apiFetch(`/journeys/${journeyId}/checkpoints`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ checkpoint_ids: checkpointIds, replace: true }),
+  });
+  if (!isSuccessful(res)) throw new Error("replace journey checkpoints failed");
 }
 
 // ---- Google Drive integration ----

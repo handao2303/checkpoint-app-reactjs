@@ -1,17 +1,21 @@
 import { useTranslation } from "react-i18next";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
-import { useCallback, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
   deleteComment,
-  fetchComments,
   getCommentCount,
+  subscribeComments,
   submitComment,
   type Comment,
 } from "../lib/comments";
+import { Sheet } from "./ui/Sheet";
+import { Button } from "./ui/Button";
 import { Skeleton } from "./ui/Skeleton";
 import { UserAvatar } from "./ui/UserAvatar";
+
+const PAGE = 20;
 
 export function CommentSection({
   checkpointId,
@@ -29,25 +33,31 @@ export function CommentSection({
   const qc = useQueryClient();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [maxComments, setMaxComments] = useState(PAGE);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pendingDelete, setPendingDelete] = useState<Comment | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const { data: count = 0 } = useQuery({
     queryKey: ["comment-count", checkpointId],
     queryFn: () => getCommentCount(checkpointId),
   });
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
-    queryKey: ["comments", checkpointId],
-    queryFn: ({ pageParam }) => fetchComments(checkpointId, pageParam),
-    initialPageParam: undefined as Awaited<ReturnType<typeof fetchComments>>["cursor"],
-    getNextPageParam: (last) => last.cursor,
-    staleTime: 30000, // cache comments for 30s to prevent redundant refetches on reopen
-  });
-  const comments = data?.pages.flatMap((p) => p.items) ?? [];
-
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["comments", checkpointId] });
-    qc.invalidateQueries({ queryKey: ["comment-count", checkpointId] });
-  };
+  // Live subscription: new comments, edits, and deletes are pushed in realtime.
+  // Growing `maxComments` (via the scroll sentinel) widens the window for older comments.
+  useEffect(() => {
+    setIsLoading(true);
+    const unsubscribe = subscribeComments(checkpointId, maxComments, ({ items, hasMore }) => {
+      setComments(items);
+      setHasMore(hasMore);
+      setIsLoading(false);
+      // Keep the header count in sync with realtime additions/removals.
+      qc.invalidateQueries({ queryKey: ["comment-count", checkpointId] });
+    });
+    return unsubscribe;
+  }, [checkpointId, maxComments, qc]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -63,7 +73,7 @@ export function CommentSection({
       };
       await submitComment({ checkpointId, text: value, author: actor, ownerUserId, checkpointName });
       setText("");
-      refresh();
+      // The subscription will push the new comment; no manual refresh needed.
     } catch {
       // best-effort; leave the text so the user can retry
     } finally {
@@ -71,12 +81,17 @@ export function CommentSection({
     }
   }
 
-  async function remove(id: string) {
+  async function confirmDelete() {
+    if (!pendingDelete || deleting) return;
+    setDeleting(true);
     try {
-      await deleteComment(checkpointId, id);
-      refresh();
+      await deleteComment(checkpointId, pendingDelete.id);
+      // The subscription will drop the comment; no manual refresh needed.
+      setPendingDelete(null);
     } catch {
-      // ignore
+      // ignore — leave the modal open so the user can retry
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -88,19 +103,18 @@ export function CommentSection({
       if (!node) return;
       observer.current = new IntersectionObserver(
         (entries) => {
-          if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
+          if (entries[0].isIntersecting && hasMore) setMaxComments((current) => current + PAGE);
         },
         { rootMargin: "200px" },
       );
       observer.current.observe(node);
     },
-    [hasNextPage, isFetchingNextPage, fetchNextPage],
+    [hasMore],
   );
 
   return (
     <div className="flex flex-col gap-3 border-t border-border pt-3">
       <h3 className="font-display text-base font-bold">{t('binh_luan_count', { count })}</h3>
-
       {user && (
         <form onSubmit={submit} className="flex items-center gap-2">
           <input
@@ -121,7 +135,7 @@ export function CommentSection({
         </form>
       )}
 
-      {isLoading ? (
+      {(isLoading && !comments?.length) ? (
         <div className="flex flex-col gap-3">
           {Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="flex gap-2">
@@ -139,15 +153,37 @@ export function CommentSection({
               key={c.id}
               comment={c}
               mine={c.user_id === user?.id}
-              onDelete={() => remove(c.id)}
+              onDelete={() => setPendingDelete(c)}
               onOpenProfile={onOpenProfile}
             />
           ))}
           <div ref={sentinelRef} className="h-1" />
-          {isFetchingNextPage && (
+          {hasMore && (
             <p className="py-1 text-center text-xs text-muted-foreground">{t('dang_tai')}</p>
           )}
         </div>
+      )}
+
+      {pendingDelete && (
+        <Sheet title={t('xoa_binh_luan_hoi')} onClose={() => !deleting && setPendingDelete(null)}>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">{t('xoa_binh_luan_xac_nhan')}</p>
+            <p className="break-words rounded-xl bg-surface-muted p-3 text-sm text-foreground">
+              {pendingDelete.text}
+            </p>
+            <Button
+              variant="accent"
+              disabled={deleting}
+              icon={<Icon name="trash" size={18} />}
+              onClick={confirmDelete}
+            >
+              {deleting ? t('dang_xoa') : t('xoa')}
+            </Button>
+            <Button variant="outline" disabled={deleting} onClick={() => setPendingDelete(null)}>
+              {t('huy')}
+            </Button>
+          </div>
+        </Sheet>
       )}
     </div>
   );

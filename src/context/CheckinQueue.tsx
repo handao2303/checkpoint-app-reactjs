@@ -155,14 +155,16 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
           ]);
 
           const didLevelUp = res.level > (prevUser?.level ?? res.level);
-          setXpReward({ xp: res.xp_awarded, level: res.level, didLevelUp });
           trackEvent("checkin_create_success", {
             checkpoint_id: res.checkpoint.id,
             category: res.checkpoint.category,
             xp: res.xp_awarded,
             did_level_up: didLevelUp,
             badge_count: res.new_badges?.length ?? 0,
+            duplicate: !!res.duplicate,
           });
+          if (res.duplicate) break;
+          setXpReward({ xp: res.xp_awarded, level: res.level, didLevelUp });
           if (didLevelUp) trackEvent("checkin_level_up", { level: res.level });
           if (res.new_badges?.length) {
             trackEvent("checkin_badge_unlocked", { badge_count: res.new_badges.length });

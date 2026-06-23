@@ -12,12 +12,14 @@ import {
   getCountFromServer,
   getDocs,
   limit,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
   startAfter,
   type QueryDocumentSnapshot,
+  type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { trackError, trackEvent } from "./observability";
@@ -59,6 +61,28 @@ const commentParticipantsCol = (checkpointId: string) =>
 const commentParticipantDoc = (checkpointId: string, userId: string) =>
   doc(db, "checkpoints", checkpointId, "comment_participants", userId);
 
+/** Resolve author fields for a set of comment docs and map them to Comments. */
+async function mapCommentDocs(docs: QueryDocumentSnapshot[]): Promise<Comment[]> {
+  const userIds = Array.from(new Set(docs.map((d) => d.data().user_id as string).filter(Boolean)));
+  const users = userIds.length > 0 ? await getUsersByIDs(userIds) : [];
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  return docs.map((d): Comment => {
+    const v = d.data();
+    const user = userMap.get(v.user_id);
+    return {
+      id: d.id,
+      text: v.text,
+      user_id: v.user_id,
+      username: user?.username ?? t('nguoi_dung'),
+      display_name: user?.display_name ?? undefined,
+      avatar_url: user?.avatar_url ?? undefined,
+      // serverTimestamp() is null until the write resolves on the server.
+      created_at: v.created_at?.toDate() ?? new Date(),
+    };
+  });
+}
+
 /** Fetch one page of comments (newest first), optionally after a cursor. */
 export async function fetchComments(
   checkpointId: string,
@@ -67,25 +91,7 @@ export async function fetchComments(
   try {
     const base = [orderBy("created_at", "desc"), ...(after ? [startAfter(after)] : []), limit(PAGE)];
     const snap = await getDocs(query(commentsCol(checkpointId), ...base));
-
-    const userIds = Array.from(new Set(snap.docs.map((d) => d.data().user_id as string).filter(Boolean)));
-    const users = userIds.length > 0 ? await getUsersByIDs(userIds) : [];
-    const userMap = new Map(users.map((u) => [u.id, u]));
-
-    const items = snap.docs.map((d): Comment => {
-      const v = d.data();
-      const user = userMap.get(v.user_id);
-      return {
-        id: d.id,
-        text: v.text,
-        user_id: v.user_id,
-        username: user?.username ?? t('nguoi_dung'),
-        display_name: user?.display_name ?? undefined,
-        avatar_url: user?.avatar_url ?? undefined,
-        // serverTimestamp() is null until the write resolves on the server.
-        created_at: v.created_at?.toDate() ?? new Date(),
-      };
-    });
+    const items = await mapCommentDocs(snap.docs);
     trackEvent("comments_load_success", { checkpoint_id: checkpointId, count: items.length, has_cursor: !!after });
     return { items, cursor: snap.docs.length === PAGE ? snap.docs[snap.docs.length - 1] : undefined };
   } catch (error) {
@@ -93,6 +99,43 @@ export async function fetchComments(
     trackEvent("comments_load_failed", { checkpoint_id: checkpointId });
     throw error;
   }
+}
+
+export interface CommentSubscription {
+  items: Comment[];
+  /** True when more comments exist beyond the current limit. */
+  hasMore: boolean;
+}
+
+/** Subscribe to the latest `max` comments (newest first), live. Returns an
+ *  unsubscribe fn. New comments, edits, and deletes are pushed automatically. */
+export function subscribeComments(
+  checkpointId: string,
+  max: number,
+  cb: (result: CommentSubscription) => void,
+): Unsubscribe {
+  // Fetch one extra doc to detect whether older comments remain.
+  const q = query(commentsCol(checkpointId), orderBy("created_at", "desc"), limit(max + 1));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const hasMore = snap.docs.length > max;
+      const docs = hasMore ? snap.docs.slice(0, max) : snap.docs;
+      void mapCommentDocs(docs)
+        .then((items) => {
+          cb({ items, hasMore });
+          trackEvent("comments_load_success", { checkpoint_id: checkpointId, count: items.length });
+        })
+        .catch((error) => {
+          trackError(error, { feature: "comments", action: "comments_subscribe_map", checkpoint_id: checkpointId });
+        });
+    },
+    (error) => {
+      trackError(error, { feature: "comments", action: "comments_subscribe", checkpoint_id: checkpointId });
+      trackEvent("comments_subscribe_failed", { checkpoint_id: checkpointId });
+      cb({ items: [], hasMore: false });
+    },
+  );
 }
 
 /** Add a comment. Author fields are taken from the signed-in user. */

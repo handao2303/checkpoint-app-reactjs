@@ -46,7 +46,9 @@ export function CreatePage() {
     locate();
   }, [locate]);
 
-  const tabBar = (
+  const isAndroid = /android/i.test(navigator.userAgent);
+
+  const tabBar =!isAndroid &&  (
     <div className="flex gap-0 rounded-full bg-surface-muted p-1">
       {(["gps", "photo"] as Tab[]).map((tabKey) => (
         <button

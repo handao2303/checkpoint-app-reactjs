@@ -21,6 +21,7 @@ import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 import { trackEvent } from "../lib/observability";
 import { PassportSection } from "./PassportSection";
+import { UserJourneysSection } from "./UserJourneysSection";
 import { useUserProfile } from "../context/UserProfileProvider";
 
 // userRef is a user id (preferred, stable across username changes) or a legacy
@@ -166,6 +167,9 @@ export function UserProfileSheet({ userRef, onClose }: { userRef: string; onClos
               </div>
             )}
           </div>
+
+          {/* Journeys — read-only, filtered server-side by visibility */}
+          <UserJourneysSection userId={u.id} />
         </div>
       )}
     </Sheet>
