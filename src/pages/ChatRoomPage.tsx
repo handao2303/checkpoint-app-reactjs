@@ -18,6 +18,7 @@ import { getDoc, doc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Icon } from "../components/ui/Icon";
 import { trackEvent } from "../lib/observability";
+import { checkpointImageUrl } from "../lib/checkpointImages";
 
 const MSG_LIMIT = 50;
 
@@ -93,22 +94,19 @@ export function ChatRoomPage() {
     if (!roomId || !user) return;
     setUploadingImage(true);
     try {
-      // Upload raw image directly (no client resize — chat images are display-only)
       const slots = await getUploadSlots(["image"]);
       await putFilesToSlots(slots, [
         { original: file, type: "image" },
       ]);
-      const imageUrl = `https://media.checkpoint-app.space/${slots[0].object_key}`;
-      const thumbUrl = slots[0].thumbnail_key
-        ? `https://media.checkpoint-app.space/${slots[0].thumbnail_key}`
-        : imageUrl;
+      // Chat images only need the full URL — no thumbnail since we skip resize.
+      const imageUrl = slots[0]?.object_key ? checkpointImageUrl(`${slots[0]?.object_key}`) : "";
 
       await sendMessage(roomId, {
         id: user.id,
         display_name: user.display_name,
         username: user.username,
         avatar_url: user.avatar_url,
-      }, undefined, { url: imageUrl, thumbUrl });
+      }, undefined, { url: imageUrl, thumbUrl: imageUrl });
 
       void notifyRoomMembers(roomId, {
         id: user.id,
