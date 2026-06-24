@@ -191,12 +191,15 @@ export function useNotifications(): NotificationState {
   return ctx;
 }
 
-const REACTION_ICONS: Record<string, IconName> = {
-  like: "like",
-  love: "love",
-  fire: "fire",
-  haha: "haha",
-  sad: "sad",
+const REACTION_STYLES: Record<
+  string,
+  { icon: IconName; className: string; fill: boolean }
+> = {
+  like: { icon: "like", className: "text-primary", fill: true },
+  love: { icon: "love", className: "text-rose-500", fill: true },
+  fire: { icon: "fire", className: "text-orange-500", fill: true },
+  haha: { icon: "haha", className: "text-gold", fill: false },
+  sad: { icon: "sad", className: "text-sky-500", fill: false },
 };
 
 function notificationToastVariant(
@@ -233,43 +236,16 @@ function notificationToastMessage(notification: AppNotification): ReactNode {
 
   // ── Reaction: show inline reaction icon ──
   if (notification.type === "reaction") {
-    const reactionIcon =
-      notification.reaction && REACTION_ICONS[notification.reaction];
-      let className = '';
-      let fill = false;
-      switch (notification.reaction) {
-        case 'like':
-          className = 'text-primary';
-          fill = true;
-          break;
-        case 'love':
-          className = 'text-rose-500';
-          fill = true;
-          break;
-        case 'fire':
-          className = 'text-orange-500';
-          fill = true;
-          break;
-        case 'haha':
-          className = 'text-gold';
-          break;
-        case 'sad':
-          className = 'text-sky-500';
-          break;
-        default:
-          className = '';
-      }
-
-      console.log("Reaction notification:", notification, "Icon:", reactionIcon);
+    const style = notification.reaction && REACTION_STYLES[notification.reaction];
     return (
       <span>
         <strong>{actor}</strong>
         {line}{" "}
-        {reactionIcon && (
+        {style && (
           <Icon
-            name={reactionIcon}
+            name={style.icon}
             size={14}
-            className={`inline shrink-0 ${className} border-current bg-surface-muted font-semibold ${fill ? "fill-current" : ""}`}
+            className={`inline shrink-0 ${style.className} bg-surface-muted ${style.fill ? "fill-current" : ""}`}
           />
         )}
       </span>

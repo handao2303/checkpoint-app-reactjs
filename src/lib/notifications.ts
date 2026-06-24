@@ -243,6 +243,38 @@ export async function addFollowNotification(
   }
 }
 
+/** Notify all followers that `actor` posted a new check-in. No-op when there
+ *  are no followers or the actor has no id. Best-effort — failures are logged
+ *  but do not throw. */
+export async function addCheckinNotifications(
+  followerIds: string[],
+  actor: NotifActor,
+  checkpointId: string,
+  checkpointName: string,
+): Promise<void> {
+  if (!actor.id || followerIds.length === 0) return;
+  const recipients = followerIds.filter((id) => id && id !== actor.id);
+  if (recipients.length === 0) return;
+  try {
+    for (let i = 0; i < recipients.length; i += BATCH_WRITE_LIMIT) {
+      const batch = writeBatch(db);
+      for (const recipientId of recipients.slice(i, i + BATCH_WRITE_LIMIT)) {
+        batch.set(doc(notifCol(recipientId)), {
+          type: "checkpoint",
+          ...actorFields(actor),
+          checkpoint_id: checkpointId,
+          checkpoint_name: checkpointName,
+          created_at: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    }
+    reportNotificationBatchInserted("checkpoint", recipients.length, actor.id, checkpointId);
+  } catch (error) {
+    reportNotificationError("checkpoint batch write", error);
+  }
+}
+
 // ---- lastSeen (unread is derived from created_at > lastSeen; no write-on-read) ----
 
 const lastSeenKey = (userId: string) => `cp.notif.lastSeen.${userId}`;

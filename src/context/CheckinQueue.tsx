@@ -14,7 +14,8 @@ import {
 import { useTranslation } from "react-i18next";
 import { BadgeUnlockModal } from "../components/BadgeUnlockModal";
 import { Toast, XPToast } from "../components/ui/Toast";
-import { ApiError, createCheckpoint, type Badge, type CheckinInput, type User } from "../lib/api";
+import { ApiError, createCheckpoint, getUserFollowers, type Badge, type CheckinInput, type User } from "../lib/api";
+import { addCheckinNotifications } from "../lib/notifications";
 import { trackError, trackEvent } from "../lib/observability";
 
 // ---- persistence ----------------------------------------------------------
@@ -164,6 +165,28 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
             duplicate: !!res.duplicate,
           });
           if (res.duplicate) break;
+
+          // Fire-and-forget: notify followers about the new check-in.
+          if (prevUser) {
+            getUserFollowers(prevUser.id)
+              .then((followers) => {
+                if (followers.length === 0) return;
+                return addCheckinNotifications(
+                  followers.map((f) => f.id),
+                  {
+                    id: prevUser.id,
+                    username: prevUser.username,
+                    display_name: prevUser.display_name,
+                    avatar_url: prevUser.avatar_url,
+                  },
+                  res.checkpoint.id,
+                  res.checkpoint.name,
+                );
+              })
+              .catch(() => {
+                /* best-effort */
+              });
+          }
           setXpReward({ xp: res.xp_awarded, level: res.level, didLevelUp });
           if (didLevelUp) trackEvent("checkin_level_up", { level: res.level });
           if (res.new_badges?.length) {
