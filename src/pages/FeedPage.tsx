@@ -200,17 +200,6 @@ export function FeedPage() {
             </span>
           </div>
         )}
-
-        {/* <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5">
-        <Search size={18} className="text-muted-foreground" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Tìm địa điểm..."
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-subtle-foreground"
-        />
-      </div> */}
-
         {debounced ? (
           results?.length === 0 ? (
             <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
@@ -241,87 +230,86 @@ export function FeedPage() {
           )
         ) : (
           <>
-          {/* "Following" tab only for signed-in users; anon sees just "for you". */}
-          <div className="flex items-center justify-around border-b border-border">
-            {(
-              [
-                ["for-you", t('danh_cho_ban')],
-                ...(user ? [["following", t('dang_theo_doi')] as const] : []),
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => {
-                  trackEvent("discover_tab_change", { tab: key });
-                  setTab(key);
-                }}
-                className={`relative pb-2 font-display text-lg font-bold transition ${
-                  tab === key ? "text-clay-600" : "text-subtle-foreground"
-                }`}
-              >
-                {label}
-                {tab === key && (
-                  <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-clay-600" />
-                )}
-              </button>
-            ))}
-          </div>
-
-          {tab === "for-you" && pendingCount > 0 && <PendingCheckinStatus count={pendingCount} />}
-
-          {isLoading ? (
-        <>
-          {Array.from({ length: 3 }).map((_, i) => (
-            <FeedCardSkeleton key={i} />
-          ))}
-        </>
-      ) : items?.length === 0 ? (
-        <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-          {tab === "following"
-            ? t('chua_theo_doi_ai_bam')
-            : t('chua_co_checkin_nao_quanh')}
-        </p>
-      ) : (
-        <>
-          <div ref={listRef} style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
-            {virtualItems.map((vi) => {
-              const it = items[vi.index];
-              return (
-                <div
-                  key={vi.key}
-                  data-index={vi.index}
-                  ref={virtualizer.measureElement}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${vi.start - scrollMargin}px)`,
+            {/* "Following" tab only for signed-in users; anon sees just "for you". */}
+            {user && <div className="flex items-center justify-around border-b border-border">
+              {(
+                [
+                  ["for-you", t('danh_cho_ban')],
+                  ...(user ? [["following", t('dang_theo_doi')] as const] : []),
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    trackEvent("discover_tab_change", { tab: key });
+                    setTab(key);
                   }}
+                  className={`cursor-pointer relative pb-2 font-display text-lg font-bold transition ${tab === key ? "text-clay-600" : "text-subtle-foreground"
+                    }`}
                 >
-                  {/* pb-4 replaces the flex gap (rows are absolutely positioned). */}
-                  <div className="pb-4">
-                    <FeedCard
-                      item={it}
-                      mine={user != null && it.author.username === user.username}
-                      isFollowing={followingIds.includes(it.user_id)}
-                      onOpen={() => {
-                        trackEvent("feed_card_open", { checkpoint_id: it.id, category: it.category });
-                        setSelectedId(it.id);
-                      }}
-                      onOpenProfile={() => {
-                        trackEvent("feed_profile_open");
-                        setProfileUserId(it.user_id);
-                      }}
-                    />
-                  </div>
+                  {label}
+                  {tab === key && (
+                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-clay-600" />
+                  )}
+                </button>
+              ))}
+            </div>}
+
+            {tab === "for-you" && pendingCount > 0 && <PendingCheckinStatus count={pendingCount} />}
+
+            {isLoading ? (
+              <>
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <FeedCardSkeleton key={i} />
+                ))}
+              </>
+            ) : items?.length === 0 ? (
+              <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
+                {tab === "following"
+                  ? t('chua_theo_doi_ai_bam')
+                  : t('chua_co_checkin_nao_quanh')}
+              </p>
+            ) : (
+              <>
+                <div ref={listRef} style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+                  {virtualItems.map((vi) => {
+                    const it = items[vi.index];
+                    return (
+                      <div
+                        key={vi.key}
+                        data-index={vi.index}
+                        ref={virtualizer.measureElement}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          transform: `translateY(${vi.start - scrollMargin}px)`,
+                        }}
+                      >
+                        {/* pb-4 replaces the flex gap (rows are absolutely positioned). */}
+                        <div className="pb-4">
+                          <FeedCard
+                            item={it}
+                            mine={user != null && it.author.username === user.username}
+                            isFollowing={followingIds.includes(it.user_id)}
+                            onOpen={() => {
+                              trackEvent("feed_card_open", { checkpoint_id: it.id, category: it.category });
+                              setSelectedId(it.id);
+                            }}
+                            onOpenProfile={() => {
+                              trackEvent("feed_profile_open");
+                              setProfileUserId(it.user_id);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-          {isFetchingNextPage && <FeedCardSkeleton />}
-        </>
-      )}
+                {isFetchingNextPage && <FeedCardSkeleton />}
+              </>
+            )}
           </>
         )}
       </div>

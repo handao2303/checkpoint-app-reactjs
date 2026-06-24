@@ -2,6 +2,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import type { TFunction } from "i18next";
 import { useAuth } from "../auth/AuthContext";
 import { useScrollContainer } from "../components/AppLayout";
@@ -64,6 +65,7 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 
 export function DiscoverPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [placeId, setPlaceId] = useState<string | null>(null);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null);
@@ -452,6 +454,19 @@ export function DiscoverPage() {
                 );
               })}
             </div>
+            <hr className="border-border" />
+            <button
+              type="button"
+              onClick={() => {
+                trackEvent("discover_community_open");
+                setIsFilterSheetOpen(false);
+                navigate("/feed");
+              }}
+              className="flex items-center justify-center gap-2 rounded-full border-2 border-dashed border-primary/30 bg-primary/5 px-4 py-2 text-sm font-bold text-primary transition-all cursor-pointer hover:border-primary/60 hover:bg-primary/10 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Icon name="friends" size={16} />
+              {t('cong_dong')}
+            </button>
           </div>
         </Sheet>
       )}

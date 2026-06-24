@@ -12,6 +12,7 @@ import { AIPlanPage } from "./pages/AIPlanPage";
 import { BadgeCollectionPage } from "./pages/BadgeCollectionPage";
 import { CreatePage } from "./pages/CreatePage";
 import { DiscoverPage } from "./pages/DiscoverPage";
+import { FeedPage } from "./pages/FeedPage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { CheckpointLink, JourneyLink, UserProfileLink, PlaceLink } from "./pages/LinkRoutes";
 import { LoginPage } from "./pages/LoginPage";
@@ -74,6 +75,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route index element={<Suspense fallback={<MapSkeleton />}><MapPage /></Suspense>} />
             <Route path="discover" element={<DiscoverPage />} />
+            <Route path="feed" element={<FeedPage />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
             <Route path="c/:id" element={<CheckpointLink />} />
             <Route path="p/:id" element={<PlaceLink />} />
@@ -96,6 +98,7 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route index element={<Suspense fallback={<MapSkeleton />}><MapPage /></Suspense>} />
           <Route path="discover" element={<DiscoverPage />} />
+          <Route path="feed" element={<FeedPage />} />
           <Route path="create" element={<CreatePage />} />
           <Route path="ai-plan" element={<AIPlanPage />} />
           <Route path="profile" element={<ProfilePage />} />
