@@ -1,20 +1,20 @@
-import { createContext, useContext, useLayoutEffect, useState, useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Icon } from "./ui/Icon";
-import { Toast } from "./ui/Toast";
-import { BottomNav } from "./BottomNav";
-import { TopNav } from "./nav/TopNav";
-import { NavMenu } from "./nav/NavMenu";
-import { NotificationSheet } from "./NotificationSheet";
 import { useAuth } from "../auth/AuthContext";
-import { LocationProvider, useUserLocation } from "../location/LocationProvider";
 import { CheckinQueueProvider } from "../context/CheckinQueue";
 import { NotificationProvider, useNotifications } from "../context/NotificationProvider";
 import { useLocationLabel } from "../hooks/useLocationLabel";
-import { isStandalone } from "../lib/platform";
-import { trackEvent } from "../lib/observability";
 import { subscribeRooms } from "../lib/chat";
+import { trackEvent } from "../lib/observability";
+import { isStandalone } from "../lib/platform";
+import { LocationProvider, useUserLocation } from "../location/LocationProvider";
+import { BottomNav } from "./BottomNav";
+import { NavMenu } from "./nav/NavMenu";
+import { TopNav } from "./nav/TopNav";
+import { NotificationSheet } from "./NotificationSheet";
+import { Icon } from "./ui/Icon";
+import { Toast } from "./ui/Toast";
 
 // The app's single scrolling element is the layout's <main>. Pages reach it via
 // this context (e.g. to drive a virtualizer) since they render behind <Outlet/>.
@@ -125,9 +125,10 @@ function Brand() {
   const isDiscover = pathname === "/discover" || pathname === "/";
   const { coords } = useUserLocation();
   const { locationLabel } = useLocationLabel(coords);
+  const navigation = useNavigate();
 
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2" onClick={()=>navigation("/")}>
       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-surface-muted">
         <img src="/logo.png" alt="" className="h-full w-full object-contain" />
       </span>

@@ -104,6 +104,7 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
   const [errorToast, setErrorToast] = useState<string | null>(null);
   const [xpReward, setXpReward] = useState<XPReward | null>(null);
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [pendingBadges, setPendingBadges] = useState<Badge[]>([]);
   const processing = useRef(false);
 
   const enqueue = useCallback((input: CheckinInput) => {
@@ -191,7 +192,7 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
           if (didLevelUp) trackEvent("checkin_level_up", { level: res.level });
           if (res.new_badges?.length) {
             trackEvent("checkin_badge_unlocked", { badge_count: res.new_badges.length });
-            setBadges(res.new_badges);
+            setPendingBadges(res.new_badges);
           }
           break;
         } catch (err) {
@@ -221,7 +222,13 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
           xp={xpReward.xp}
           level={xpReward.level}
           didLevelUp={xpReward.didLevelUp}
-          onDone={() => setXpReward(null)}
+          onDone={() => {
+            setXpReward(null);
+            if (pendingBadges.length > 0) {
+              setBadges(pendingBadges);
+              setPendingBadges([]);
+            }
+          }}
         />
       )}
       {errorToast && <Toast message={errorToast} onDone={() => setErrorToast(null)} />}
