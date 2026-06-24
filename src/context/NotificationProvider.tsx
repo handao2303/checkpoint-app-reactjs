@@ -157,11 +157,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           onClick={() => {
             trackEvent("notification_toast_click", { type: toast.type });
             const target =
-              toast.type === "follow" || toast.type === "unfollow"
-                ? `/u/${encodeURIComponent(toast.actor.id)}`
-                : toast.checkpoint_id
-                  ? `/c/${encodeURIComponent(toast.checkpoint_id)}`
-                  : null;
+              toast.type === "chat_message"
+                ? toast.room_id
+                  ? `/chat/${encodeURIComponent(toast.room_id)}`
+                  : "/chat"
+                : toast.type === "follow" || toast.type === "unfollow"
+                  ? `/u/${encodeURIComponent(toast.actor.id)}`
+                  : toast.checkpoint_id
+                    ? `/c/${encodeURIComponent(toast.checkpoint_id)}`
+                    : null;
             setToast(null);
             if (target) navigate(target);
           }}
@@ -231,6 +235,8 @@ function notificationToastMessage(notification: AppNotification): ReactNode {
         return i18n.t("actor_da_bo_theo_doi", { actor: "" });
       case "checkpoint":
         return i18n.t("actor_vua_dang_checkin_moi", { actor: "", name });
+      case "chat_message":
+        return i18n.t("actor_da_gui_tin_nhan", { actor: "", room: name });
     }
   })();
 
@@ -266,6 +272,23 @@ function notificationToastMessage(notification: AppNotification): ReactNode {
         <span className="truncate text-xs text-muted-foreground">
           “{notification.comment_excerpt}”
         </span>
+      </div>
+    );
+  }
+
+  // ── Chat message: show preview below ──
+  if (notification.type === "chat_message") {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span>
+          <strong>{actor}</strong>
+          {line}
+        </span>
+        {notification.comment_excerpt && (
+          <span className="truncate text-xs text-muted-foreground">
+            {notification.comment_excerpt}
+          </span>
+        )}
       </div>
     );
   }

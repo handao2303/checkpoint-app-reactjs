@@ -10,6 +10,8 @@ import { lazyWithRetry } from "./lib/lazyWithRetry";
 import { quickCheckinSettings } from "./lib/settings";
 import { AIPlanPage } from "./pages/AIPlanPage";
 import { BadgeCollectionPage } from "./pages/BadgeCollectionPage";
+import { ChatListPage } from "./pages/ChatListPage";
+import { ChatRoomPage } from "./pages/ChatRoomPage";
 import { CreatePage } from "./pages/CreatePage";
 import { DiscoverPage } from "./pages/DiscoverPage";
 import { FeedPage } from "./pages/FeedPage";
@@ -76,6 +78,8 @@ export default function App() {
             <Route index element={<Suspense fallback={<MapSkeleton />}><MapPage /></Suspense>} />
             <Route path="discover" element={<DiscoverPage />} />
             <Route path="feed" element={<FeedPage />} />
+            <Route path="chat" element={<ChatListPage />} />
+            <Route path="chat/:roomId" element={<ChatRoomPage />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
             <Route path="c/:id" element={<CheckpointLink />} />
             <Route path="p/:id" element={<PlaceLink />} />
@@ -99,6 +103,8 @@ export default function App() {
           <Route index element={<Suspense fallback={<MapSkeleton />}><MapPage /></Suspense>} />
           <Route path="discover" element={<DiscoverPage />} />
           <Route path="feed" element={<FeedPage />} />
+          <Route path="chat" element={<ChatListPage />} />
+          <Route path="chat/:roomId" element={<ChatRoomPage />} />
           <Route path="create" element={<CreatePage />} />
           <Route path="ai-plan" element={<AIPlanPage />} />
           <Route path="profile" element={<ProfilePage />} />

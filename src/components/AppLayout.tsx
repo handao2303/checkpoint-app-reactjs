@@ -1,6 +1,6 @@
 import { createContext, useContext, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Icon } from "./ui/Icon";
 import { BottomNav } from "./BottomNav";
 import { TopNav } from "./nav/TopNav";
@@ -49,6 +49,21 @@ function NotificationBell() {
   );
 }
 
+function ChatBell() {
+  const navigate = useNavigate();
+  // Unread: for now a simple dot indicator. Full count can come from a
+  // chat-specific context later.
+  return (
+    <button
+      onClick={() => navigate("/chat")}
+      className="relative rounded-full p-2 text-clay-600 hover:bg-surface-muted"
+      aria-label="Tin nhắn"
+    >
+      <Icon name="send" size={22} />
+    </button>
+  );
+}
+
 function ScrollToTop({ scrollEl }: { scrollEl: HTMLElement | null }) {
   const { pathname } = useLocation();
   useLayoutEffect(() => {
@@ -90,6 +105,7 @@ function Header({ showBell }: { showBell: boolean }) {
       <Brand />
       {/* The bell consumes NotificationProvider, which only mounts for signed-in
           users — hide it for anonymous visitors. */}
+      {showBell && <ChatBell />}
       {showBell && <NotificationBell />}
     </header>
   );
@@ -106,6 +122,7 @@ function BrowserHeader({ showBell }: { showBell: boolean }) {
         <Brand />
         <div className="ml-auto flex items-center gap-1">
           <TopNav className="hidden md:block" />
+          {showBell && <ChatBell />}
           {showBell && <NotificationBell />}
           <NavMenu className="md:hidden" />
         </div>

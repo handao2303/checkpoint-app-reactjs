@@ -21,7 +21,7 @@ import { trackError, trackEvent } from "./observability";
 
 // "comment" is legacy (no longer generated) but kept so older stored
 // notifications still render. New comment activity uses "mention".
-export type NotifType = "comment" | "mention" | "follow" | "unfollow" | "reaction" | "checkpoint";
+export type NotifType = "comment" | "mention" | "follow" | "unfollow" | "reaction" | "checkpoint" | "chat_message";
 
 export interface NotifActor {
   id: string;
@@ -39,6 +39,8 @@ export interface AppNotification {
   reaction?: string;
   /** Snippet of the comment text, shown on "mention" notifications. */
   comment_excerpt?: string;
+  /** Chat room id (for chat_message notifications). */
+  room_id?: string;
   created_at: Date;
 }
 
@@ -124,6 +126,7 @@ export function subscribeNotifications(
             checkpoint_name: v.checkpoint_name ?? undefined,
             reaction: v.reaction ?? undefined,
             comment_excerpt: v.comment_excerpt ?? undefined,
+            room_id: v.room_id ?? undefined,
             created_at: v.created_at?.toDate() ?? new Date(),
           };
         }),
