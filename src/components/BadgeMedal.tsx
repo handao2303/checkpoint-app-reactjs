@@ -20,11 +20,11 @@ const PALETTES: Record<string, { bg: string; ring: string }> = {
 // When present and awarded, the medallion shows the artwork instead of the
 // generic hexagon + glyph.
 const BADGE_ART: Record<string, string> = {
-  first_checkin: checkpointImageUrl("badges/badge_01.png"),
-  explorer_10: checkpointImageUrl("badges/badge_02.png"),
-  provinces_5: checkpointImageUrl("badges/badge_03.png"),
-  night_owl: checkpointImageUrl("badges/badge_04.png"),
-  journey_starter: checkpointImageUrl("badges/badge_05.png"),
+  first_checkin: checkpointImageUrl("badges/badge_01.webp"),
+  explorer_10: checkpointImageUrl("badges/badge_02.webp"),
+  provinces_5: checkpointImageUrl("badges/badge_03.webp"),
+  night_owl: checkpointImageUrl("badges/badge_04.webp"),
+  journey_starter: checkpointImageUrl("badges/badge_05.webp"),
 };
 
 const SIZES = {
