@@ -1,7 +1,8 @@
-import { createContext, useContext, useLayoutEffect, useState, useEffect } from "react";
+import { createContext, useContext, useLayoutEffect, useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Icon } from "./ui/Icon";
+import { Toast } from "./ui/Toast";
 import { BottomNav } from "./BottomNav";
 import { TopNav } from "./nav/TopNav";
 import { NavMenu } from "./nav/NavMenu";
@@ -52,29 +53,60 @@ function NotificationBell() {
 
 function ChatBell() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [toast, setToast] = useState<{ sender: string; preview: string } | null>(null);
+  const prevUnreadRooms = useRef(new Set<string>());
 
   useEffect(() => {
     if (!user) return;
     return subscribeRooms(user.id, (rooms) => {
-      setUnreadCount(rooms.filter((r) => r.unread).length);
+      const unreadRooms = rooms.filter((r) => r.unread);
+      setUnreadCount(unreadRooms.length);
+
+      // Show toast for NEW unread messages (not on initial load)
+      for (const room of unreadRooms) {
+        if (!prevUnreadRooms.current.has(room.id) && room.last_message) {
+          setToast({
+            sender: room.last_message.sender_name,
+            preview: room.last_message.text,
+          });
+          break;
+        }
+      }
+      prevUnreadRooms.current = new Set(unreadRooms.map((r) => r.id));
     });
   }, [user]);
 
   return (
-    <button
-      onClick={() => navigate("/chat")}
-      className="relative rounded-full p-2 text-clay-600 hover:bg-surface-muted"
-      aria-label="Tin nhắn"
-    >
-      <Icon name="send" size={22} />
-      {unreadCount > 0 && (
-        <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-bold text-white">
-          {unreadCount > 99 ? "99+" : unreadCount}
-        </span>
+    <>
+      <button
+        onClick={() => navigate("/chat")}
+        className="relative rounded-full p-2 text-clay-600 hover:bg-surface-muted"
+        aria-label="Tin nhắn"
+      >
+        <Icon name="send" size={22} />
+        {unreadCount > 0 && (
+          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-bold text-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </button>
+      {toast && (
+        <Toast
+          variant="info"
+          message={
+            <div className="flex flex-col gap-0.5">
+              <span><strong>{toast.sender}</strong> {t('da_gui_tin_nhan')}</span>
+              <span className="truncate text-xs text-muted-foreground">{toast.preview}</span>
+            </div>
+          }
+          onDone={() => setToast(null)}
+          onClick={() => navigate("/chat")}
+        />
       )}
-    </button>
+    </>
   );
 }
 

@@ -135,6 +135,14 @@ export function Toast({
        {isNotification ? <Icon name="bell" size={16} className={v.iconColor} /> : <Icon name={v.icon} size={16} className={v.iconColor} />} 
       </div>
       <p className="flex-1 text-sm font-medium text-foreground">{message}</p>
+      <button
+        type="button"
+        onClick={() => setExiting(true)}
+        className="flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+        aria-label="Đóng"
+      >
+        <Icon name="x" size={14} />
+      </button>
     </div>
   );
 
