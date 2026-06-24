@@ -41,6 +41,8 @@ export interface Room {
     has_image: boolean;
     sent_at: Date;
   };
+  /** Derived: true if last_message was sent after the user's last read. */
+  unread?: boolean;
 }
 
 export interface Message {
@@ -193,14 +195,22 @@ export function subscribeRooms(
     q,
     (snap) => {
       const rooms = snap.docs
-        .map((d) => ({
-          id: d.id,
-          ...d.data(),
-          created_at: d.data().created_at?.toDate?.() ?? new Date(),
-          last_message: d.data().last_message
-            ? { ...d.data().last_message, sent_at: d.data().last_message.sent_at?.toDate?.() ?? new Date() }
-            : undefined,
-        }))
+        .map((d) => {
+          const data = d.data();
+          const lastMsg = data.last_message;
+          const lastSent = lastMsg?.sent_at?.toDate?.()?.getTime?.() ?? 0;
+          const readMap = data.read as Record<string, any> | undefined;
+          const readAt = readMap?.[uid]?.toDate?.()?.getTime?.() ?? getRoomReadAtLocal(d.id);
+          return {
+            id: d.id,
+            ...data,
+            created_at: data.created_at?.toDate?.() ?? new Date(),
+            last_message: lastMsg
+              ? { ...lastMsg, sent_at: lastMsg.sent_at?.toDate?.() ?? new Date() }
+              : undefined,
+            unread: lastMsg?.sender_id !== uid && lastSent > readAt,
+          } as Room;
+        })
         .sort((a, b) => {
           const aTime = a.last_message?.sent_at?.getTime() ?? a.created_at.getTime();
           const bTime = b.last_message?.sent_at?.getTime() ?? b.created_at.getTime();
@@ -220,6 +230,22 @@ export function roomDisplayName(room: Room, myUid: string): string {
   if (room.type === "group") return room.name || "Nhóm";
   const other = room.members.find((id) => id !== myUid);
   return other ? (room.member_names[other] || "Người dùng") : "DM";
+}
+
+/** Mark a room as read for a user. Writes to the room doc so subscribers re-fire. */
+export async function markRoomRead(roomId: string, userId: string): Promise<void> {
+  await updateDoc(doc(db, "rooms", roomId), {
+    [`read.${userId}`]: serverTimestamp(),
+  });
+  // Local cache as fallback for when Firestore read field isn't synced yet
+  localStorage.setItem(`cp.chat.read.${roomId}`, Date.now().toString());
+  trackEvent("chat_room_read", { room_id: roomId });
+}
+
+/** Get the local cached read time for a room. Returns 0 if never read. */
+export function getRoomReadAtLocal(roomId: string): number {
+  const raw = localStorage.getItem(`cp.chat.read.${roomId}`);
+  return raw ? Number(raw) || 0 : 0;
 }
 
 /** Get avatar URL for a room (group avatar, or nothing for DM — client renders

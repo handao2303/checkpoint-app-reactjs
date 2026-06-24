@@ -34,7 +34,8 @@
     "react-photo-view": "^1.2.7",
     "react-router-dom": "^7.1.1",
     "react-webcam": "^7.2.0",
-    "supercluster": "^8.0.1"
+    "supercluster": "^8.0.1",
+    "yet-another-react-lightbox": "^3.32.0"
   },
   "overrides": {
     "sharp": "0.34.5"

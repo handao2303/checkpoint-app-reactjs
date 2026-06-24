@@ -1,4 +1,4 @@
-import { createContext, useContext, useLayoutEffect, useState } from "react";
+import { createContext, useContext, useLayoutEffect, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Icon } from "./ui/Icon";
@@ -13,6 +13,7 @@ import { NotificationProvider, useNotifications } from "../context/NotificationP
 import { useLocationLabel } from "../hooks/useLocationLabel";
 import { isStandalone } from "../lib/platform";
 import { trackEvent } from "../lib/observability";
+import { subscribeRooms } from "../lib/chat";
 
 // The app's single scrolling element is the layout's <main>. Pages reach it via
 // this context (e.g. to drive a virtualizer) since they render behind <Outlet/>.
@@ -50,9 +51,17 @@ function NotificationBell() {
 }
 
 function ChatBell() {
+  const { user } = useAuth();
   const navigate = useNavigate();
-  // Unread: for now a simple dot indicator. Full count can come from a
-  // chat-specific context later.
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    return subscribeRooms(user.id, (rooms) => {
+      setUnreadCount(rooms.filter((r) => r.unread).length);
+    });
+  }, [user]);
+
   return (
     <button
       onClick={() => navigate("/chat")}
@@ -60,6 +69,11 @@ function ChatBell() {
       aria-label="Tin nhắn"
     >
       <Icon name="send" size={22} />
+      {unreadCount > 0 && (
+        <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-bold text-white">
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </span>
+      )}
     </button>
   );
 }

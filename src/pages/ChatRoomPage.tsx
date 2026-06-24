@@ -8,12 +8,13 @@ import { ChatImagePreview } from "../components/chat/ChatImagePreview";
 import { EditGroupSheet } from "../components/chat/EditGroupSheet";
 import {
   sendMessage,
-  notifyRoomMembers,
   subscribeMessages,
   roomDisplayName,
+  markRoomRead,
   type Message as ChatMessage,
 } from "../lib/chat";
 import { getUploadSlots, putFilesToSlots } from "../lib/api";
+import { prepareCheckpointImage } from "../lib/image";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Icon } from "../components/ui/Icon";
@@ -37,9 +38,10 @@ export function ChatRoomPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollEl = useRef<HTMLDivElement>(null);
 
-  // Resolve room name
+  // Resolve room name + mark as read
   useEffect(() => {
     if (!roomId || !user) return;
+    markRoomRead(roomId, user.id);
     getDoc(doc(db, "rooms", roomId)).then((snap) => {
       if (snap.exists()) {
         const room = snap.data();
@@ -79,12 +81,6 @@ export function ChatRoomPage() {
         username: user.username,
         avatar_url: user.avatar_url,
       }, text);
-      // Fire-and-forget notification
-      void notifyRoomMembers(roomId, {
-        id: user.id,
-        display_name: user.display_name,
-        username: user.username,
-      }, text);
     } finally {
       setSending(false);
     }
@@ -94,25 +90,21 @@ export function ChatRoomPage() {
     if (!roomId || !user) return;
     setUploadingImage(true);
     try {
+      // Resize + generate thumbnail client-side
+      const prepared = await prepareCheckpointImage(file);
       const slots = await getUploadSlots(["image"]);
       await putFilesToSlots(slots, [
-        { original: file, type: "image" },
+        { original: prepared.original, thumbnail: prepared.thumbnail, type: "image" },
       ]);
-      // Chat images only need the full URL — no thumbnail since we skip resize.
       const imageUrl = slots[0]?.object_key ? checkpointImageUrl(`${slots[0]?.object_key}`) : "";
+      const thumbUrl = slots[0]?.thumbnail_key ? checkpointImageUrl(`${slots[0]?.thumbnail_key}`) : "";
 
       await sendMessage(roomId, {
         id: user.id,
         display_name: user.display_name,
         username: user.username,
         avatar_url: user.avatar_url,
-      }, undefined, { url: imageUrl, thumbUrl: imageUrl });
-
-      void notifyRoomMembers(roomId, {
-        id: user.id,
-        display_name: user.display_name,
-        username: user.username,
-      }, "📷 Hình ảnh");
+      }, undefined, { url: imageUrl, thumbUrl });
     } catch (err) {
       console.error("chat: image upload failed", err);
     } finally {
@@ -131,7 +123,7 @@ export function ChatRoomPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface px-4 py-3">
+      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface py-2">
         <button
           onClick={() => navigate("/chat")}
           className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-muted hover:text-foreground"
@@ -154,7 +146,7 @@ export function ChatRoomPage() {
       </div>
 
       {/* Messages */}
-      <div ref={scrollEl} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <div ref={scrollEl} className="min-h-0 flex-1 overflow-y-auto py-1">
         <div className="flex flex-col gap-2">
           {messages.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">

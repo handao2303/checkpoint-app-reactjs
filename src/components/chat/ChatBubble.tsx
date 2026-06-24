@@ -32,7 +32,7 @@ export function ChatBubble({ message, isMine, showAvatar, onImageClick }: ChatBu
           fallbackClassName="h-6 w-6"
         />
       ) : (
-        <div className="h-7 w-7 shrink-0" />
+        <div className="h-1 w-1 shrink-0" />
       )}
 
       <div
@@ -59,7 +59,7 @@ export function ChatBubble({ message, isMine, showAvatar, onImageClick }: ChatBu
             )}
           >
             <img
-              src={message.image_url}
+              src={message.image_thumb_url || message.image_url}
               alt=""
               className="max-h-48 max-w-60 object-cover"
               loading="lazy"

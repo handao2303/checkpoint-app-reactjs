@@ -161,6 +161,9 @@ function RoomRow({
           </p>
         )}
       </div>
+      {room.unread && (
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
+      )}
     </button>
   );
 }
