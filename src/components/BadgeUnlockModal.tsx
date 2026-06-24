@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { Badge } from "../lib/api";
+import { badgeDescription, badgeName } from "../lib/badgeText";
 import { Icon } from "./ui/Icon";
 import { BadgeMedal } from "./BadgeMedal";
 import { trackEvent } from "../lib/observability";
@@ -105,8 +106,8 @@ export function BadgeUnlockModal({
 
           {/* Badge info */}
           <div className="mb-6 text-center">
-            <p className="font-display text-2xl font-bold text-foreground">{t(badge.name)}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{t(badge.description)}</p>
+            <p className="font-display text-2xl font-bold text-foreground">{badgeName(t, badge)}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{badgeDescription(t, badge)}</p>
             {badge.level != null && (
               <span className="mt-2 inline-block rounded-full bg-surface-muted px-3 py-0.5 text-xs font-semibold text-muted-foreground">
                 {t('cap_level', { level: badge.level })}

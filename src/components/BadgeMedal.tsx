@@ -25,6 +25,13 @@ const BADGE_ART: Record<string, string> = {
   provinces_5: checkpointImageUrl("badges/badge_03.webp"),
   night_owl: checkpointImageUrl("badges/badge_04.webp"),
   journey_starter: checkpointImageUrl("badges/badge_05.webp"),
+  coffee_hunter: checkpointImageUrl("badges/badge_06.webp"),
+  social_scout: checkpointImageUrl("badges/badge_07.webp"),
+  city_collector: checkpointImageUrl("badges/badge_08.webp"),
+  weekend_wanderer: checkpointImageUrl("badges/badge_09.webp"),
+  photo_storyteller: checkpointImageUrl("badges/badge_10.webp"),
+  hidden_gem_finder: checkpointImageUrl("badges/badge_11.webp"),
+  passport_pro: checkpointImageUrl("badges/badge_12.webp"),
 };
 
 const SIZES = {

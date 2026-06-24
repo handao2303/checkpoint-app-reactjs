@@ -377,6 +377,13 @@ export async function getBadges(): Promise<UserBadge[]> {
   return res.data as UserBadge[];
 }
 
+/** Newly eligible badges that have not been shown yet; marks them shown. */
+export async function claimUnsentBadges(): Promise<Badge[]> {
+  const res = await apiFetch("/me/badges/claim-unsent", { method: "POST" });
+  if (!isSuccessful(res)) throw new Error(`claimUnsentBadges failed: ${res.status}`);
+  return res.data as Badge[];
+}
+
 /** Upload a new avatar (multipart). Returns the updated user. */
 export async function uploadAvatar(file: File): Promise<User> {
   const form = new FormData();

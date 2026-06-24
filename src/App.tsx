@@ -1,11 +1,14 @@
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
+import { BadgeUnlockModal } from "./components/BadgeUnlockModal";
 import { AuthGateProvider } from "./context/AuthGate";
 import { AppLayout } from "./components/AppLayout";
 import { InstallHint } from "./components/InstallHint";
 import { MapSkeleton } from "./components/MapSkeleton";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
+import { claimUnsentBadges, type Badge } from "./lib/api";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
 import { quickCheckinSettings } from "./lib/settings";
 import { AIPlanPage } from "./pages/AIPlanPage";
@@ -44,8 +47,11 @@ function Splash() {
 
 export default function App() {
   const { user, loading } = useAuth();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const openCreateOnLaunch = useRef(quickCheckinSettings.openCreateOnLaunch);
+  const claimedBadgeUserRef = useRef<string | null>(null);
+  const [unsentBadges, setUnsentBadges] = useState<Badge[]>([]);
 
   useEffect(() => {
     if (!loading && user && openCreateOnLaunch.current) {
@@ -53,6 +59,21 @@ export default function App() {
       navigate("/create", { replace: true });
     }
   }, [loading, navigate, user]);
+
+  useEffect(() => {
+    if (loading || !user || claimedBadgeUserRef.current === user.id) return;
+    claimedBadgeUserRef.current = user.id;
+    claimUnsentBadges()
+      .then((badges) => {
+        if (badges.length > 0) {
+          setUnsentBadges(badges);
+          void queryClient.invalidateQueries({ queryKey: ["badges"] });
+        }
+      })
+      .catch(() => {
+        claimedBadgeUserRef.current = null;
+      });
+  }, [loading, queryClient, user]);
 
   if (loading) return <Splash />;
 
@@ -62,6 +83,9 @@ export default function App() {
     <>
       <PWAUpdatePrompt />
       <InstallHint />
+      {unsentBadges.length > 0 && (
+        <BadgeUnlockModal badges={unsentBadges} onDone={() => setUnsentBadges([])} />
+      )}
     </>
   );
 

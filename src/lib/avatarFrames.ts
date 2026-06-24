@@ -68,13 +68,13 @@ export const BADGE_FRAMES: AvatarFrame[] = [
   { id: "around-the-country-map", file: avatarFrameSvgUrl("03-around-the-country-map.svg"), previewFile: avatarFrameSvgUrl("03-around-the-country-map.svg"), labelKey: "vong_quanh_dat_nuoc", kind: "badge", badgeKey: "provinces_5" },
   { id: "night-owl", file: avatarFrameSvgUrl("04-night-owl.svg"), previewFile: avatarFrameSvgUrl("04-night-owl.svg"), labelKey: "cu_dem", kind: "badge", badgeKey: "night_owl" },
   { id: "traveler-passport", file: avatarFrameSvgUrl("05-traveler-passport.svg"), previewFile: avatarFrameSvgUrl("05-traveler-passport.svg"), labelKey: "ke_lu_hanh", kind: "badge", badgeKey: "journey_starter" },
-  { id: "coffee-hunter", file: avatarFrameSvgUrl("06-coffee-hunter.svg"), previewFile: avatarFrameSvgUrl("06-coffee-hunter.svg"), labelKey: "coffee_hunter", kind: "badge" },
-  { id: "social-scout", file: avatarFrameSvgUrl("07-social-scout.svg"), previewFile: avatarFrameSvgUrl("07-social-scout.svg"), labelKey: "social_scout", kind: "badge" },
-  { id: "city-collector", file: avatarFrameSvgUrl("08-city-collector.svg"), previewFile: avatarFrameSvgUrl("08-city-collector.svg"), labelKey: "city_collector", kind: "badge" },
-  { id: "weekend-wanderer", file: avatarFrameSvgUrl("09-weekend-wanderer.svg"), previewFile: avatarFrameSvgUrl("09-weekend-wanderer.svg"), labelKey: "weekend_wanderer", kind: "badge" },
-  { id: "photo-storyteller", file: avatarFrameSvgUrl("10-photo-storyteller.svg"), previewFile: avatarFrameSvgUrl("10-photo-storyteller.svg"), labelKey: "photo_storyteller", kind: "badge" },
-  { id: "hidden-gem-finder", file: avatarFrameSvgUrl("11-hidden-gem-finder.svg"), previewFile: avatarFrameSvgUrl("11-hidden-gem-finder.svg"), labelKey: "hidden_gem_finder", kind: "badge" },
-  { id: "passport-pro", file: avatarFrameSvgUrl("12-passport-pro.svg"), previewFile: avatarFrameSvgUrl("12-passport-pro.svg"), labelKey: "passport_pro", kind: "badge" },
+  { id: "coffee-hunter", file: avatarFrameSvgUrl("06-coffee-hunter.svg"), previewFile: avatarFrameSvgUrl("06-coffee-hunter.svg"), labelKey: "coffee_hunter", kind: "badge", badgeKey: "coffee_hunter" },
+  { id: "social-scout", file: avatarFrameSvgUrl("07-social-scout.svg"), previewFile: avatarFrameSvgUrl("07-social-scout.svg"), labelKey: "social_scout", kind: "badge", badgeKey: "social_scout" },
+  { id: "city-collector", file: avatarFrameSvgUrl("08-city-collector.svg"), previewFile: avatarFrameSvgUrl("08-city-collector.svg"), labelKey: "city_collector", kind: "badge", badgeKey: "city_collector" },
+  { id: "weekend-wanderer", file: avatarFrameSvgUrl("09-weekend-wanderer.svg"), previewFile: avatarFrameSvgUrl("09-weekend-wanderer.svg"), labelKey: "weekend_wanderer", kind: "badge", badgeKey: "weekend_wanderer" },
+  { id: "photo-storyteller", file: avatarFrameSvgUrl("10-photo-storyteller.svg"), previewFile: avatarFrameSvgUrl("10-photo-storyteller.svg"), labelKey: "photo_storyteller", kind: "badge", badgeKey: "photo_storyteller" },
+  { id: "hidden-gem-finder", file: avatarFrameSvgUrl("11-hidden-gem-finder.svg"), previewFile: avatarFrameSvgUrl("11-hidden-gem-finder.svg"), labelKey: "hidden_gem_finder", kind: "badge", badgeKey: "hidden_gem_finder" },
+  { id: "passport-pro", file: avatarFrameSvgUrl("12-passport-pro.svg"), previewFile: avatarFrameSvgUrl("12-passport-pro.svg"), labelKey: "passport_pro", kind: "badge", badgeKey: "passport_pro" },
 ];
 
 export const LEADERBOARD_FRAMES: AvatarFrame[] = [

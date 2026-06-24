@@ -4,6 +4,7 @@ import { Card } from "./ui/Card";
 import { Icon } from "./ui/Icon";
 import { BadgeMedal } from "./BadgeMedal";
 import { getBadges } from "../lib/api";
+import { badgeDescription, badgeName } from "../lib/badgeText";
 import { Skeleton } from "./ui/Skeleton";
 
 interface BadgesSectionProps {
@@ -71,8 +72,8 @@ export function BadgesSection({ maxPreview, onViewAll }: BadgesSectionProps) {
               }`}
             >
               <BadgeMedal badge={b} awarded={b.awarded} />
-              <p className="text-sm font-medium">{t(b.name)}</p>
-              <p className="text-xs text-muted-foreground">{t(b.description)}</p>
+              <p className="text-sm font-medium">{badgeName(t, b)}</p>
+              <p className="text-xs text-muted-foreground">{badgeDescription(t, b)}</p>
             </Card>
           ))}
         </div>

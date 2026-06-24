@@ -8,6 +8,7 @@ import { Card } from "../components/ui/Card";
 import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
 import { getBadges, getPassport } from "../lib/api";
+import { badgeDescription, badgeName } from "../lib/badgeText";
 import { trackEvent } from "../lib/observability";
 
 // Maps badge keys to measurable progress the frontend can derive from user/passport data.
@@ -123,8 +124,8 @@ export function BadgeCollectionPage() {
               }`}
             >
               <BadgeMedal badge={b} awarded={b.awarded} size="md" showLevel={b.level} />
-              <p className="text-sm font-semibold leading-tight">{t(b.name)}</p>
-              <p className="text-xs text-muted-foreground">{t(b.description)}</p>
+              <p className="text-sm font-semibold leading-tight">{badgeName(t, b)}</p>
+              <p className="text-xs text-muted-foreground">{badgeDescription(t, b)}</p>
               {b.awarded ? (
                 <div className="flex flex-col items-center gap-0.5">
                   <span className="flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
@@ -165,7 +166,7 @@ export function BadgeCollectionPage() {
                     <BadgeMedal badge={b} awarded={false} size="sm" />
                     <div className="min-w-0 flex-1">
                       <div className="mb-1 flex items-center justify-between">
-                        <p className="text-sm font-semibold">{t(b.name)}</p>
+                        <p className="text-sm font-semibold">{badgeName(t, b)}</p>
                         <p className="text-xs text-muted-foreground">
                           {current}/{hint.max} {hint.label}
                         </p>
