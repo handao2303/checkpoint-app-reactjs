@@ -105,8 +105,10 @@ function Header({ showBell }: { showBell: boolean }) {
       <Brand />
       {/* The bell consumes NotificationProvider, which only mounts for signed-in
           users — hide it for anonymous visitors. */}
-      {showBell && <ChatBell />}
-      {showBell && <NotificationBell />}
+      <div className="flex items-center gap-1 justify-end w-full">
+        {showBell && <ChatBell />}
+        {showBell && <NotificationBell />}
+      </div>
     </header>
   );
 }

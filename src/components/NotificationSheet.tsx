@@ -1,6 +1,7 @@
 import i18n from "../lib/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthContext";
@@ -34,6 +35,7 @@ function relativeTime(d: Date): string {
 export function NotificationSheet({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { items, markAllSeen } = useNotifications();
   const [checkpointId, setCheckpointId] = useState<string | null>(null);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
@@ -109,7 +111,10 @@ export function NotificationSheet({ onClose }: { onClose: () => void }) {
                     unseen={n.created_at.getTime() > seenCutoff.current}
                     onOpen={() => {
                       trackEvent("notification_row_open", { type: n.type });
-                      if (n.type === "follow" || n.type === "unfollow") {
+                      if (n.type === "chat_message" && n.room_id) {
+                        onClose();
+                        navigate(`/chat/${encodeURIComponent(n.room_id)}`);
+                      } else if (n.type === "follow" || n.type === "unfollow") {
                         // Use the actor's stable id — the stored username snapshot
                         // can be stale after the actor renamed themselves.
                         setProfileUserId(n.actor.id);
@@ -179,6 +184,9 @@ function NotificationRow({
         {notif.type === "mention" && notif.comment_excerpt && (
           <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">“{notif.comment_excerpt}”</p>
         )}
+        {notif.type === "chat_message" && notif.comment_excerpt && (
+          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{notif.comment_excerpt}</p>
+        )}
         <p className="mt-0.5 text-xs text-subtle-foreground">{relativeTime(notif.created_at)}</p>
       </div>
       {unseen && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />}
@@ -203,5 +211,7 @@ function NotifText({ notif, name }: { notif: AppNotification; name: string }) {
       return <>{who} {t('return_who_da_bo_theo')}</>;
     case "checkpoint":
       return <>{who} {t('return_who_vua_dang_checkin')} {cp}</>;
+    case "chat_message":
+      return <>{who} {t('return_who_da_gui_tin_nhan_vao')} {cp}</>;
   }
 }
