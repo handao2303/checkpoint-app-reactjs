@@ -16,6 +16,7 @@ import { UserAvatar } from "./ui/UserAvatar";
 import { ShareButton } from "./share/ShareButton";
 import { MediaPreview } from "./MediaPreview";
 import { trackEvent } from "../lib/observability";
+import { openDirectionsInMaps } from "../lib/geo";
 
 export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: () => void; }) {
   const { t, i18n } = useTranslation();
@@ -126,6 +127,16 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Icon name="eye" size={14} /> {data.checkpoint.view_count}
               </span>
+              <button
+                onClick={() => {
+                  trackEvent("checkpoint_open_directions", { checkpoint_id: data.checkpoint.id });
+                  openDirectionsInMaps(data.checkpoint.lat, data.checkpoint.lng, data.checkpoint.name)
+                }}
+                aria-label="Xem trên bản đồ"
+                className="ml-auto flex size-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+              >
+                <Icon name="compass" size={18} />
+              </button>
             </div>
             <div className="flex flex-col gap-0.5 text-xs text-subtle-foreground">
               {data.checkpoint.taken_at ? (
@@ -139,9 +150,9 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                 isMine
                   ? t('minh_vua_checkin_tai', { name: data.checkpoint.name })
                   : t('actor_da_checkin_tai', {
-                      actor: data.author.display_name || data.author.username,
-                      name: data.checkpoint.name,
-                    })
+                    actor: data.author.display_name || data.author.username,
+                    name: data.checkpoint.name,
+                  })
               }
               url={`${API_URL}/share/checkpoint/${data.checkpoint.id}`}
             />

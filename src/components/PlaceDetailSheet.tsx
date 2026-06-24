@@ -18,6 +18,7 @@ import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
 import { DetailSheetSkeleton } from "./ui/Skeleton";
 import { UserAvatar } from "./ui/UserAvatar";
+import { openDirectionsInMaps } from "../lib/geo";
 
 function formatDistance(m: number | null | undefined): string | null {
   if (m == null || !Number.isFinite(m) || m < 0) return null;
@@ -109,7 +110,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
   const openDirections = () => {
     if (!placeInfo) return;
     trackEvent("place_directions_open", { place_id: placeInfo.id });
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${placeInfo.lat},${placeInfo.lng}`, "_blank", "noopener,noreferrer");
+    openDirectionsInMaps(placeInfo.lat, placeInfo.lng, placeInfo.name);
   };
 
   const sharePlace = async () => {
@@ -249,7 +250,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
               onClick={openDirections}
               className="flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border border-border bg-surface text-xs font-bold text-foreground shadow-sm transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <Icon name="route" size={17} />
+              <Icon name="compass" size={17} />
               {t('chi_duong')}
             </button>
             <button
