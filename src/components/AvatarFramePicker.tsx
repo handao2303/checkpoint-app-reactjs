@@ -20,6 +20,8 @@ function FrameThumb({
   frame: AvatarFrame | null;
   avatarUrl?: string;
 }) {
+  const frameSrc = frame?.previewFile ?? frame?.file;
+
   return (
     <span className="relative block h-16 w-16">
       {/* sample disc behind the ring */}
@@ -34,8 +36,8 @@ function FrameThumb({
           fit="cover"
         />
       </span>
-      {frame && (
-        <img src={frame.file} alt="" className="absolute inset-0 h-full w-full" draggable={false} />
+      {frameSrc && (
+        <img src={frameSrc} alt="" className="absolute inset-0 h-full w-full" draggable={false} />
       )}
     </span>
   );
@@ -98,8 +100,7 @@ export function AvatarFramePicker({
           >
             <span
               className={cn(
-                "relative rounded-full border-2 transition",
-                selected ? "border-primary" : "border-transparent",
+                "relative rounded-full border-2 transition border-transparent",
               )}
             >
               <span className={cn(!unlocked && "opacity-40 grayscale")}>

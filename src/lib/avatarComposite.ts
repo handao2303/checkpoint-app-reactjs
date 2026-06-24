@@ -8,13 +8,16 @@
 
 import axios from "axios";
 
-// Frame SVG geometry (all frames share the template, viewBox 0 0 220 220).
+// Frame geometry (the new raster frames are exported from a 220x220 template).
 const FRAME_VIEWBOX = 220;
 const HOLE_CX = 110;
 const HOLE_CY = 104;
 const HOLE_R = 66; // avatar hole radius (rim inner edge)
 
 const OUTPUT_SIZE = 512;
+const FRAMED_SIZE = 440;
+const FRAMED_OFFSET = (OUTPUT_SIZE - FRAMED_SIZE) / 2;
+const FRAMED_AVATAR_ZOOM = 1.3;
 // Unframed: a centred disc that nearly fills the square (small transparent gap).
 const PLAIN_R = OUTPUT_SIZE / 2 - 6;
 
@@ -37,8 +40,13 @@ function loadImage(src: string, crossOrigin?: "anonymous"): Promise<HTMLImageEle
   });
 }
 
+/** Detect frame format from URL extension. */
+function isSvgFrame(url: string): boolean {
+  return /\.svg(\?|$)/i.test(url);
+}
+
 /** Load an SVG as a same-origin blob URL so drawing it never taints the canvas. */
-async function loadSvgImage(url: string): Promise<{ img: HTMLImageElement; revoke: () => void }> {
+async function loadSvgFrame(url: string): Promise<{ img: HTMLImageElement; revoke: () => void }> {
   // Distinct query so this CORS request never reuses a non-CORS copy the page
   // already cached via a plain <img> (the frame preview). That cached response
   // lacks Access-Control-Allow-Origin and would otherwise fail the CORS check.
@@ -56,6 +64,20 @@ async function loadSvgImage(url: string): Promise<{ img: HTMLImageElement; revok
     URL.revokeObjectURL(objUrl);
     throw err;
   }
+}
+
+/** Load a raster (PNG) frame with CORS so it can be drawn to canvas. */
+async function loadRasterFrame(url: string): Promise<{ img: HTMLImageElement; revoke: () => void }> {
+  const separator = url.includes("?") ? "&" : "?";
+  const img = await loadImage(url + separator + "cors=1", "anonymous");
+  return { img, revoke: () => {} };
+}
+
+/** Load any frame (SVG or raster) for compositing. */
+async function loadFrameImage(
+  url: string,
+): Promise<{ img: HTMLImageElement; revoke: () => void }> {
+  return isSvgFrame(url) ? loadSvgFrame(url) : loadRasterFrame(url);
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
@@ -107,11 +129,35 @@ export async function composeAvatar(
     return canvasToBlob(canvas, "image/png");
   }
 
-  const frame = await loadSvgImage(frameUrl);
+  const frame = await loadFrameImage(frameUrl);
   try {
-    const scale = OUTPUT_SIZE / FRAME_VIEWBOX; // frame fills the whole square
-    drawAvatarInCircle(ctx, avatar, HOLE_CX * scale, HOLE_CY * scale, HOLE_R * scale);
-    ctx.drawImage(frame.img, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+    if (isSvgFrame(frameUrl)) {
+      // SVG frames follow the 220x220 viewBox template with a known hole.
+      const scale = FRAMED_SIZE / FRAME_VIEWBOX;
+      drawAvatarInCircle(
+        ctx,
+        avatar,
+        FRAMED_OFFSET + HOLE_CX * scale,
+        FRAMED_OFFSET + HOLE_CY * scale,
+        HOLE_R * scale * FRAMED_AVATAR_ZOOM,
+      );
+      ctx.drawImage(frame.img, FRAMED_OFFSET, FRAMED_OFFSET, FRAMED_SIZE, FRAMED_SIZE);
+    } else {
+      // Raster (PNG) frames: use the image's intrinsic size to derive geometry.
+      // Assumes the frame is square and the design follows the same hole layout.
+      const fw = frame.img.naturalWidth || frame.img.width;
+      const fh = frame.img.naturalHeight || frame.img.height;
+      const frameSize = Math.max(fw, fh) || OUTPUT_SIZE;
+      const scale = FRAMED_SIZE / frameSize;
+      drawAvatarInCircle(
+        ctx,
+        avatar,
+        FRAMED_OFFSET + HOLE_CX * scale,
+        FRAMED_OFFSET + HOLE_CY * scale,
+        HOLE_R * scale * FRAMED_AVATAR_ZOOM,
+      );
+      ctx.drawImage(frame.img, FRAMED_OFFSET, FRAMED_OFFSET, FRAMED_SIZE, FRAMED_SIZE);
+    }
     return await canvasToBlob(canvas, "image/png");
   } finally {
     frame.revoke();
