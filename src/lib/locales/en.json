@@ -84,6 +84,7 @@
   "lat_camera_truoc_sau": "Flip camera",
   "xoa_checkin": "Delete",
   "binh_luan_count": "Comments ({{count}})",
+  "binh_luan_count_plus": "Comments ({{count}}+)",
   "viet_binh_luan": "Write a comment...",
   "gui": "Send",
   "chua_co_binh_luan_nao": "No comments yet.",

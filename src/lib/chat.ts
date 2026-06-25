@@ -7,6 +7,7 @@
 import {
   collection,
   doc,
+  documentId,
   getDoc,
   limit,
   onSnapshot,
@@ -16,15 +17,15 @@ import {
   setDoc,
   updateDoc,
   where,
-  writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { getUsersByIDs } from "./api";
 import { trackError, trackEvent } from "./observability";
 
-const PRESENCE_STALE_MS = 90_000;
-const PRESENCE_REFRESH_MS = 45_000;
+const PRESENCE_STALE_MS = 6 * 60_000;
+const PRESENCE_REFRESH_MS = 4 * 60_000;
+const PRESENCE_QUERY_CHUNK = 30;
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -273,10 +274,13 @@ function normalizePresence(data: Record<string, any> | undefined): PresenceStatu
 /** Keep the current user's presence fresh while the signed-in app shell is mounted. */
 export function startUserPresence(uid: string): Unsubscribe {
   let stopped = false;
+  let lastOnline: boolean | null = null;
   const ref = doc(db, "presence", uid);
 
-  const writePresence = (online: boolean) => {
+  const writePresence = (online: boolean, force = false) => {
     if (stopped) return;
+    if (!force && lastOnline === online) return;
+    lastOnline = online;
     setDoc(ref, { online, updated_at: serverTimestamp() }, { merge: true }).catch((error) => {
       trackError(error, { feature: "chat", action: "presence_write" });
     });
@@ -285,13 +289,19 @@ export function startUserPresence(uid: string): Unsubscribe {
   const updateForVisibility = () => {
     writePresence(document.visibilityState !== "hidden" && navigator.onLine);
   };
+  const heartbeat = () => {
+    if (document.visibilityState !== "hidden" && navigator.onLine) {
+      writePresence(true, true);
+    }
+  };
+  const handleBeforeUnload = () => writePresence(false);
 
   writePresence(document.visibilityState !== "hidden" && navigator.onLine);
-  const interval = window.setInterval(updateForVisibility, PRESENCE_REFRESH_MS);
+  const interval = window.setInterval(heartbeat, PRESENCE_REFRESH_MS);
   document.addEventListener("visibilitychange", updateForVisibility);
   window.addEventListener("online", updateForVisibility);
   window.addEventListener("offline", updateForVisibility);
-  window.addEventListener("beforeunload", () => writePresence(false));
+  window.addEventListener("beforeunload", handleBeforeUnload);
 
   return () => {
     stopped = true;
@@ -299,6 +309,7 @@ export function startUserPresence(uid: string): Unsubscribe {
     document.removeEventListener("visibilitychange", updateForVisibility);
     window.removeEventListener("online", updateForVisibility);
     window.removeEventListener("offline", updateForVisibility);
+    window.removeEventListener("beforeunload", handleBeforeUnload);
     setDoc(ref, { online: false, updated_at: serverTimestamp() }, { merge: true }).catch(() => {
       /* best-effort */
     });
@@ -317,11 +328,21 @@ export function subscribePresence(
   }
 
   const presence: Record<string, PresenceStatus> = {};
-  const unsubs = ids.map((uid) =>
+  for (const uid of ids) presence[uid] = normalizePresence(undefined);
+
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += PRESENCE_QUERY_CHUNK) {
+    chunks.push(ids.slice(i, i + PRESENCE_QUERY_CHUNK));
+  }
+
+  const unsubs = chunks.map((chunk) =>
     onSnapshot(
-      doc(db, "presence", uid),
+      query(collection(db, "presence"), where(documentId(), "in", chunk)),
       (snap) => {
-        presence[uid] = normalizePresence(snap.data());
+        for (const uid of chunk) presence[uid] = normalizePresence(undefined);
+        for (const docSnap of snap.docs) {
+          presence[docSnap.id] = normalizePresence(docSnap.data());
+        }
         cb({ ...presence });
       },
       (error) => {
@@ -370,44 +391,6 @@ export async function sendMessage(
     },
   });
   trackEvent("chat_message_sent", { room_id: roomId, has_image: !!image });
-  await notifyRoomMembers(roomId, sender, text);
-}
-
-/** Notify other room members about a new message. Fire-and-forget. */
-export async function notifyRoomMembers(
-  roomId: string,
-  sender: { id: string; display_name?: string; username: string },
-  text?: string,
-): Promise<void> {
-  try {
-    const snap = await getDoc(doc(db, "rooms", roomId));
-    if (!snap.exists()) return;
-    const room = snap.data();
-    const senderName = sender.display_name || sender.username;
-    const preview = (text || "📷 Hình ảnh").slice(0, 120);
-    const otherMembers: string[] = (room.members as string[]).filter((id: string) => id !== sender.id);
-    if (otherMembers.length === 0) return;
-
-    const batch = writeBatch(db);
-    for (const uid of otherMembers) {
-      const notifRef = doc(collection(db, "users", uid, "notifications"));
-      batch.set(notifRef, {
-        type: "chat_message",
-        actor_id: sender.id,
-        actor_username: sender.username,
-        actor_display_name: sender.display_name || null,
-        actor_avatar_url: null, // filled by NotificationSheet from getUsersByIDs
-        room_id: roomId,
-        checkpoint_name: room.type === "group" ? (room.name || "Nhóm") : senderName,
-        comment_excerpt: preview,
-        created_at: serverTimestamp(),
-      });
-    }
-    await batch.commit();
-    trackEvent("chat_notification_sent", { room_id: roomId, recipient_count: otherMembers.length });
-  } catch (error) {
-    trackError(error, { feature: "chat", action: "notify_room_members" });
-  }
 }
 
 /** Subscribe to the latest messages in a room, returned oldest first for display. */

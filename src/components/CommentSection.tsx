@@ -1,13 +1,13 @@
 import { Fragment, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { QueryDocumentSnapshot } from "firebase/firestore";
 import { Icon } from "./ui/Icon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
   commentDisplayText,
   deleteComment,
-  getCommentCount,
+  fetchComments,
   parseCommentText,
   subscribeComments,
   submitComment,
@@ -35,33 +35,56 @@ export function CommentSection({
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const qc = useQueryClient();
   const [sending, setSending] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [maxComments, setMaxComments] = useState(PAGE);
-  const [hasMore, setHasMore] = useState(false);
+  const [liveComments, setLiveComments] = useState<Comment[]>([]);
+  const [olderComments, setOlderComments] = useState<Comment[]>([]);
+  const [nextCursor, setNextCursor] = useState<QueryDocumentSnapshot>();
+  const [loadingMore, setLoadingMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingDelete, setPendingDelete] = useState<Comment | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const olderLoadedRef = useRef(false);
 
-  const { data: count = 0 } = useQuery({
-    queryKey: ["comment-count", checkpointId],
-    queryFn: () => getCommentCount(checkpointId),
-  });
-
-  // Live subscription: new comments, edits, and deletes are pushed in realtime.
-  // Growing `maxComments` (via the scroll sentinel) widens the window for older comments.
+  // Keep only the newest page live. Older pages use one-shot reads so scrolling
+  // down does not widen the realtime listener and reread the entire window.
   useEffect(() => {
     setIsLoading(true);
-    const unsubscribe = subscribeComments(checkpointId, maxComments, ({ items, hasMore }) => {
-      setComments(items);
-      setHasMore(hasMore);
+    setOlderComments([]);
+    setNextCursor(undefined);
+    olderLoadedRef.current = false;
+    const unsubscribe = subscribeComments(checkpointId, PAGE, ({ items, cursor }) => {
+      setLiveComments(items);
+      if (!olderLoadedRef.current) setNextCursor(cursor);
       setIsLoading(false);
-      // Keep the header count in sync with realtime additions/removals.
-      qc.invalidateQueries({ queryKey: ["comment-count", checkpointId] });
     });
     return unsubscribe;
-  }, [checkpointId, maxComments, qc]);
+  }, [checkpointId]);
+
+  const comments = [
+    ...liveComments,
+    ...olderComments.filter((older) => !liveComments.some((live) => live.id === older.id)),
+  ];
+  const hasMore = !!nextCursor;
+
+  const countLabel = hasMore
+    ? t('binh_luan_count_plus', { count: comments.length })
+    : t('binh_luan_count', { count: comments.length });
+
+  async function loadMoreComments() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      olderLoadedRef.current = true;
+      const page = await fetchComments(checkpointId, nextCursor);
+      setOlderComments((current) => {
+        const seen = new Set([...liveComments, ...current].map((comment) => comment.id));
+        return [...current, ...page.items.filter((comment) => !seen.has(comment.id))];
+      });
+      setNextCursor(page.cursor);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function handleSubmit(value: string, mentions: CommentMention[]) {
     if (!user || sending) return;
@@ -104,18 +127,18 @@ export function CommentSection({
       if (!node) return;
       observer.current = new IntersectionObserver(
         (entries) => {
-          if (entries[0].isIntersecting && hasMore) setMaxComments((current) => current + PAGE);
+          if (entries[0].isIntersecting && hasMore) void loadMoreComments();
         },
         { rootMargin: "200px" },
       );
       observer.current.observe(node);
     },
-    [hasMore],
+    [hasMore, loadingMore, nextCursor, checkpointId, liveComments],
   );
 
   return (
     <div className="flex flex-col gap-3 border-t border-border pt-3">
-      <h3 className="font-display text-base font-bold">{t('binh_luan_count', { count })}</h3>
+      <h3 className="font-display text-base font-bold">{countLabel}</h3>
       {user && <CommentComposer sending={sending} onSubmit={handleSubmit} />}
 
       {(isLoading && !comments?.length) ? (
@@ -141,7 +164,7 @@ export function CommentSection({
             />
           ))}
           <div ref={sentinelRef} className="h-1" />
-          {hasMore && (
+          {(hasMore || loadingMore) && (
             <p className="py-1 text-center text-xs text-muted-foreground">{t('dang_tai')}</p>
           )}
         </div>

@@ -9,7 +9,7 @@ type EventParam = string | number | boolean | null | undefined;
 type EventParams = Record<string, EventParam>;
 
 const analyticsEnabled = import.meta.env.VITE_ANALYTICS_ENABLED !== "false";
-const remoteLogEnabled = import.meta.env.VITE_REMOTE_LOG_ENABLED !== "false";
+const remoteLogEnabled = import.meta.env.VITE_REMOTE_LOG_ENABLED === "true";
 const explicitDebug = import.meta.env.VITE_ANALYTICS_DEBUG === "true";
 const isLocalhost =
   typeof window !== "undefined" &&
@@ -20,11 +20,14 @@ const DROP_KEY = /(email|token|secret|password|display_?name|username|avatar|url
 const ALLOW_KEY = /^(error_message_short|error_name|component_stack)$/i;
 const MAX_VALUE = 100;
 const MAX_STACK = 1800;
+const MAX_REMOTE_LOGS_PER_SESSION = 20;
 const SESSION_KEY = "cp.observability.session";
 
 let currentUserId: string | null = null;
 let currentAuthState: "anonymous" | "authenticated" | "guest" = "guest";
 let analyticsCache: Analytics | null | undefined;
+let remoteLogCount = 0;
+const remoteLogSignatures = new Set<string>();
 
 function getSessionId(): string {
   try {
@@ -148,6 +151,10 @@ export function trackError(
   });
 
   if (!remoteLogEnabled || (severity !== "error" && severity !== "fatal" && !debugMode)) return;
+  const signature = `${params.action ?? "unknown"}:${normalized.name}:${normalized.message}`;
+  if (remoteLogCount >= MAX_REMOTE_LOGS_PER_SESSION || remoteLogSignatures.has(signature)) return;
+  remoteLogCount += 1;
+  remoteLogSignatures.add(signature);
   void addDoc(collection(db, "web_debug_events"), {
     event_name: "app_exception",
     ...params,

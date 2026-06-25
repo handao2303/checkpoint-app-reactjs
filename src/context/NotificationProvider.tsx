@@ -187,11 +187,8 @@ function revalidateCommentCaches(
 ): void {
   for (const checkpointId of checkpointIds) {
     queryClient.removeQueries({ queryKey: ["comments", checkpointId] });
-    queryClient.removeQueries({ queryKey: ["comment-count", checkpointId] });
     void queryClient.invalidateQueries({ queryKey: ["comments", checkpointId] });
-    void queryClient.invalidateQueries({ queryKey: ["comment-count", checkpointId] });
     void queryClient.refetchQueries({ queryKey: ["comments", checkpointId], type: "active" });
-    void queryClient.refetchQueries({ queryKey: ["comment-count", checkpointId], type: "active" });
   }
 }
 

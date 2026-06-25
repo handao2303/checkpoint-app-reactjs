@@ -9,7 +9,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getCountFromServer,
   getDocs,
   limit,
   onSnapshot,
@@ -201,6 +200,8 @@ export interface CommentSubscription {
   items: Comment[];
   /** True when more comments exist beyond the current limit. */
   hasMore: boolean;
+  /** Cursor for loading older comments outside the live subscription. */
+  cursor?: QueryDocumentSnapshot;
 }
 
 /** Subscribe to the latest `max` comments (newest first), live. Returns an
@@ -217,9 +218,10 @@ export function subscribeComments(
     (snap) => {
       const hasMore = snap.docs.length > max;
       const docs = hasMore ? snap.docs.slice(0, max) : snap.docs;
+      const cursor = hasMore ? docs[docs.length - 1] : undefined;
       void mapCommentDocs(docs)
         .then((items) => {
-          cb({ items, hasMore });
+          cb({ items, hasMore, cursor });
           trackEvent("comments_load_success", { checkpoint_id: checkpointId, count: items.length });
         })
         .catch((error) => {
@@ -341,30 +343,7 @@ async function getCommentNotificationRecipients(
     trackEvent("comment_participants_load_failed", { checkpoint_id: checkpointId });
   }
 
-  try {
-    const snap = await getDocs(commentsCol(checkpointId));
-    const legacyUserIds = new Set<string>();
-    for (const d of snap.docs) {
-      const userId = d.data().user_id as string | undefined;
-      if (!userId) continue;
-      legacyUserIds.add(userId);
-      if (userId !== actorId) recipients.add(userId);
-    }
-    void backfillCommentParticipants(checkpointId, legacyUserIds);
-  } catch (error) {
-    trackError(error, { feature: "comments", action: "comment_participants_fallback", checkpoint_id: checkpointId });
-    trackEvent("comment_participants_fallback_failed", { checkpoint_id: checkpointId });
-  }
-
   return Array.from(recipients);
-}
-
-async function backfillCommentParticipants(checkpointId: string, userIds: Set<string>): Promise<void> {
-  try {
-    await Promise.all(Array.from(userIds).map((userId) => rememberCommentParticipant(checkpointId, userId)));
-  } catch {
-    // rememberCommentParticipant already reports per-user failures.
-  }
 }
 
 /** Delete a comment. Ownership is checked by the caller (no Firebase Auth). */
@@ -377,10 +356,4 @@ export async function deleteComment(checkpointId: string, commentId: string): Pr
     trackEvent("comment_delete_failed", { checkpoint_id: checkpointId });
     throw error;
   }
-}
-
-/** Total comment count for the header (server-side aggregation). */
-export async function getCommentCount(checkpointId: string): Promise<number> {
-  const snap = await getCountFromServer(commentsCol(checkpointId));
-  return snap.data().count;
 }

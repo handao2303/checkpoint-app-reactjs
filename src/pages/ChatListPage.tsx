@@ -4,7 +4,6 @@ import { useAuth } from "../auth/AuthContext";
 import { useTranslation } from "react-i18next";
 import {
   subscribePresence,
-  subscribeRooms,
   roomDisplayName,
   roomAvatarUrl,
   type PresenceStatus,
@@ -15,6 +14,7 @@ import { Icon } from "../components/ui/Icon";
 import { trackEvent } from "../lib/observability";
 import { NewChatSheet } from "../components/chat/NewChatSheet";
 import { getUsersByIDs } from "../lib/api";
+import { useChatRooms } from "../context/ChatRoomsContext";
 
 /** Format a Date as relative time (Vietnamese). */
 function relativeTime(d: Date): string {
@@ -30,18 +30,14 @@ export function ChatListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const { rooms } = useChatRooms();
   const [showNewChat, setShowNewChat] = useState(false);
   const [presence, setPresence] = useState<Record<string, PresenceStatus>>({});
   const [memberAvatars, setMemberAvatars] = useState<Record<string, string | undefined>>({});
 
   useEffect(() => {
-    if (!user) {
-      setRooms([]);
-      return;
-    }
+    if (!user) return;
     trackEvent("chat_list_open");
-    return subscribeRooms(user.id, setRooms);
   }, [user]);
 
   const presenceIds = useMemo(() => {

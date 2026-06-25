@@ -1,11 +1,12 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { ChatRoomsProvider, useChatRooms } from "../context/ChatRoomsContext";
 import { CheckinQueueProvider } from "../context/CheckinQueue";
 import { NotificationProvider, useNotifications } from "../context/NotificationProvider";
 import { useLocationLabel } from "../hooks/useLocationLabel";
-import { startUserPresence, subscribeRooms } from "../lib/chat";
+import { startUserPresence } from "../lib/chat";
 import { trackEvent } from "../lib/observability";
 import { isStandalone } from "../lib/platform";
 import { LocationProvider, useUserLocation } from "../location/LocationProvider";
@@ -52,32 +53,18 @@ function NotificationBell() {
 }
 
 function ChatBell() {
-  const { user } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { unreadCount, newestUnreadRoom } = useChatRooms();
   const [toast, setToast] = useState<{ sender: string; preview: string } | null>(null);
-  const prevUnreadRooms = useRef(new Set<string>());
 
   useEffect(() => {
-    if (!user) return;
-    return subscribeRooms(user.id, (rooms) => {
-      const unreadRooms = rooms.filter((r) => r.unread);
-      setUnreadCount(unreadRooms.length);
-
-      // Show toast for NEW unread messages (not on initial load)
-      for (const room of unreadRooms) {
-        if (!prevUnreadRooms.current.has(room.id) && room.last_message) {
-          setToast({
-            sender: room.last_message.sender_name,
-            preview: room.last_message.text,
-          });
-          break;
-        }
-      }
-      prevUnreadRooms.current = new Set(unreadRooms.map((r) => r.id));
+    if (!newestUnreadRoom?.last_message) return;
+    setToast({
+      sender: newestUnreadRoom.last_message.sender_name,
+      preview: newestUnreadRoom.last_message.text,
     });
-  }, [user]);
+  }, [newestUnreadRoom]);
 
   return (
     <>
@@ -246,13 +233,19 @@ export function AppLayout() {
   // LocationProvider; the notification + check-in queue providers hit auth-only
   // endpoints, so they mount only when signed in.
   if (!user) {
-    return <LocationProvider>{shell}</LocationProvider>;
+    return (
+      <LocationProvider>
+        <ChatRoomsProvider>{shell}</ChatRoomsProvider>
+      </LocationProvider>
+    );
   }
 
   return (
     <CheckinQueueProvider>
       <LocationProvider>
-        <NotificationProvider>{shell}</NotificationProvider>
+        <ChatRoomsProvider>
+          <NotificationProvider>{shell}</NotificationProvider>
+        </ChatRoomsProvider>
       </LocationProvider>
     </CheckinQueueProvider>
   );

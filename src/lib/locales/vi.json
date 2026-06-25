@@ -85,6 +85,7 @@
   "lat_camera_truoc_sau": "Lật camera trước sau",
   "xoa_checkin": "Xoá",
   "binh_luan_count": "Bình luận ({{count}})",
+  "binh_luan_count_plus": "Bình luận ({{count}}+)",
   "viet_binh_luan": "Viết bình luận...",
   "gui": "Gửi",
   "chua_co_binh_luan_nao": "Chưa có bình luận nào.",
