@@ -128,7 +128,7 @@ function Brand() {
   const navigation = useNavigate();
 
   return (
-    <div className="flex min-w-0 items-center gap-2" onClick={()=>navigation("/")}>
+    <div className="flex min-w-0 items-center gap-2" onClick={() => navigation("/")}>
       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-surface-muted">
         <img src="/logo.png" alt="" className="h-full w-full object-contain" />
       </span>
@@ -167,7 +167,7 @@ function Header({ showBell }: { showBell: boolean }) {
 function BrowserHeader({ showBell }: { showBell: boolean }) {
   return (
     <header className="shrink-0 sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur pt-[calc(1rem+env(safe-area-inset-top,0px))]">
-      <div className="mx-auto flex w-full max-w-5xl items-center gap-3 px-4 pb-4">
+      <div className="mx-auto flex w-full max-w-5xl items-center gap-3 px-4 pb-4 justify-between">
         <Brand />
         <div className="flex items-center gap-1 justify-end w-fit">
           <TopNav className="hidden md:block" />
