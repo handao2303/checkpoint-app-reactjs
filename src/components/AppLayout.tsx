@@ -152,7 +152,7 @@ function Header({ showBell }: { showBell: boolean }) {
       <Brand />
       {/* The bell consumes NotificationProvider, which only mounts for signed-in
           users — hide it for anonymous visitors. */}
-      <div className="flex items-center gap-1 justify-end w-full">
+      <div className="flex items-center gap-1 justify-end w-fit">
         {showBell && <ChatBell />}
         {showBell && <NotificationBell />}
       </div>
@@ -169,7 +169,7 @@ function BrowserHeader({ showBell }: { showBell: boolean }) {
     <header className="shrink-0 sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur pt-[calc(1rem+env(safe-area-inset-top,0px))]">
       <div className="mx-auto flex w-full max-w-5xl items-center gap-3 px-4 pb-4">
         <Brand />
-        <div className="flex items-center gap-1 justify-end w-full">
+        <div className="flex items-center gap-1 justify-end w-fit">
           <TopNav className="hidden md:block" />
           {showBell && <ChatBell />}
           {showBell && <NotificationBell />}
