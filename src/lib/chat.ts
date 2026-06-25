@@ -410,7 +410,7 @@ export async function notifyRoomMembers(
   }
 }
 
-/** Subscribe to messages in a room (oldest first, limited). */
+/** Subscribe to the latest messages in a room, returned oldest first for display. */
 export function subscribeMessages(
   roomId: string,
   maxCount: number,
@@ -418,7 +418,7 @@ export function subscribeMessages(
 ): Unsubscribe {
   const q = query(
     collection(db, "rooms", roomId, "messages"),
-    orderBy("created_at", "asc"),
+    orderBy("created_at", "desc"),
     limit(maxCount),
   );
   return onSnapshot(
@@ -438,7 +438,7 @@ export function subscribeMessages(
             image_thumb_url: v.image_thumb_url ?? undefined,
             created_at: v.created_at?.toDate?.() ?? new Date(),
           };
-        }) as Message[],
+        }).reverse() as Message[],
       );
     },
     (error) => {
