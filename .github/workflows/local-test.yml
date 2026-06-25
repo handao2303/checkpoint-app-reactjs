@@ -17,7 +17,7 @@ jobs:
 
     defaults:
       run:
-        shell: bash
+        shell: cmd
 
     steps:
       - name: Checkout source code
@@ -29,10 +29,10 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm install
+        run: npm.cmd install
 
       - name: Typecheck
-        run: npm run typecheck
+        run: npm.cmd run typecheck
 
       - name: Build project
-        run: npm run build
+        run: npm.cmd run build

@@ -16,15 +16,10 @@ runs:
   using: composite
   steps:
     - name: Send Telegram message
-      shell: bash
+      shell: cmd
       env:
         TELEGRAM_BOT_TOKEN: ${{ inputs.bot_token }}
         TELEGRAM_CHAT_ID: ${{ inputs.chat_id }}
         MESSAGE: ${{ inputs.message }}
       run: |
-        curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-          -d chat_id="${TELEGRAM_CHAT_ID}" \
-          -d parse_mode="HTML" \
-          -d text="${MESSAGE}" \
-          -d disable_web_page_preview=true \
-          > /dev/null
+        curl -s -X POST "https://api.telegram.org/bot%TELEGRAM_BOT_TOKEN%/sendMessage" -d chat_id="%TELEGRAM_CHAT_ID%" -d parse_mode="HTML" -d text="%MESSAGE%" -d disable_web_page_preview=true > NUL

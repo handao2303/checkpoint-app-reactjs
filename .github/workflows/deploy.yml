@@ -14,7 +14,7 @@ concurrency:
 
 defaults:
   run:
-    shell: bash
+    shell: cmd
 
 jobs:
   # ── Notify start ──────────────────────────────────────────────
@@ -42,10 +42,10 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm install
+      - run: npm.cmd install
 
       - name: Typecheck
-        run: npm run typecheck
+        run: npm.cmd run typecheck
 
       - name: Notify typecheck result
         if: always()
@@ -74,10 +74,10 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm.cmd install
 
       - name: Deploy
-        run: npm run deploy
+        run: npm.cmd run deploy
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
