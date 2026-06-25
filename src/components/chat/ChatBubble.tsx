@@ -6,10 +6,21 @@ interface ChatBubbleProps {
   message: Message;
   isMine: boolean;
   showAvatar: boolean;       // true for group chats (other people's messages)
+  senderOnline?: boolean;
+  onlineLabel?: string;
+  offlineLabel?: string;
   onImageClick?: (url: string) => void;
 }
 
-export function ChatBubble({ message, isMine, showAvatar, onImageClick }: ChatBubbleProps) {
+export function ChatBubble({
+  message,
+  isMine,
+  showAvatar,
+  senderOnline = false,
+  onlineLabel = "Online",
+  offlineLabel = "Offline",
+  onImageClick,
+}: ChatBubbleProps) {
   const time = message.created_at.toLocaleTimeString("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -43,8 +54,10 @@ export function ChatBubble({ message, isMine, showAvatar, onImageClick }: ChatBu
       >
         {/* Sender name in groups */}
         {showAvatar && !isMine && (
-          <span className="px-1 text-xs font-medium text-muted-foreground">
-            {message.sender_name}
+          <span className="flex items-center gap-1.5 px-1 text-xs font-medium text-muted-foreground">
+            <span>{message.sender_name}</span>
+            <span className={senderOnline ? "h-1.5 w-1.5 rounded-full bg-emerald-500" : "h-1.5 w-1.5 rounded-full bg-muted-foreground/40"} />
+            <span className="font-normal">{senderOnline ? onlineLabel : offlineLabel}</span>
           </span>
         )}
 

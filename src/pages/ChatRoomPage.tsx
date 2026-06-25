@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useTranslation } from "react-i18next";
@@ -11,6 +11,8 @@ import {
   subscribeMessages,
   roomDisplayName,
   markRoomRead,
+  subscribePresence,
+  type PresenceStatus,
   type Message as ChatMessage,
 } from "../lib/chat";
 import { getUploadSlots, putFilesToSlots } from "../lib/api";
@@ -34,10 +36,11 @@ export function ChatRoomPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [roomName, setRoomName] = useState("");
   const [isGroup, setIsGroup] = useState(false);
+  const [roomMembers, setRoomMembers] = useState<string[]>([]);
+  const [presence, setPresence] = useState<Record<string, PresenceStatus>>({});
   const [editingGroup, setEditingGroup] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollEl = useRef<HTMLDivElement>(null);
-
   // Resolve room name + mark as read
   useEffect(() => {
     if (!roomId || !user) return;
@@ -46,6 +49,7 @@ export function ChatRoomPage() {
       if (snap.exists()) {
         const room = snap.data();
         setIsGroup(room.type === "group");
+        setRoomMembers((room.members as string[] | undefined) ?? []);
         setRoomName(
           room.type === "group"
             ? room.name || "Nhóm"
@@ -55,8 +59,20 @@ export function ChatRoomPage() {
               ),
         );
       }
-    }).catch(() => setRoomName(""));
+    }).catch(() => {
+      setRoomMembers([]);
+      setRoomName("");
+    });
   }, [roomId, user]);
+
+  const presenceIds = useMemo(() => {
+    if (!user) return [];
+    return [...new Set(roomMembers.filter((id) => id !== user.id))].sort();
+  }, [roomMembers, user]);
+
+  useEffect(() => {
+    return subscribePresence(presenceIds, setPresence);
+  }, [presenceIds.join("|")]);
 
   // Subscribe to messages
   useEffect(() => {
@@ -66,9 +82,13 @@ export function ChatRoomPage() {
     return unsub;
   }, [roomId]);
 
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  // Keep the latest message in view when opening a room and when new messages arrive.
+  useLayoutEffect(() => {
+    const el = scrollEl.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
   }, [messages.length]);
 
   async function handleSend(text: string) {
@@ -120,6 +140,15 @@ export function ChatRoomPage() {
     );
   }
 
+  const onlineMembers = roomMembers.filter((id) => id !== user.id && presence[id]?.online).length;
+  const dmOtherId = !isGroup ? roomMembers.find((id) => id !== user.id) : undefined;
+  const dmOnline = dmOtherId ? presence[dmOtherId]?.online === true : false;
+  const statusText = isGroup
+    ? t("online_count", { count: onlineMembers })
+    : dmOnline
+      ? t("dang_online")
+      : t("dang_offline");
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -131,9 +160,15 @@ export function ChatRoomPage() {
         >
           <Icon name="chevron-left" size={22} />
         </button>
-        <h1 className="min-w-0 flex-1 truncate font-display text-base font-bold">
-          {roomName || t('dang_tai')}
-        </h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate font-display text-base font-bold">
+            {roomName || t('dang_tai')}
+          </h1>
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className={onlineMembers > 0 || dmOnline ? "h-2 w-2 rounded-full bg-emerald-500" : "h-2 w-2 rounded-full bg-muted-foreground/40"} />
+            {statusText}
+          </p>
+        </div>
         {isGroup && (
           <button
             onClick={() => setEditingGroup(true)}
@@ -159,6 +194,9 @@ export function ChatRoomPage() {
                 message={msg}
                 isMine={msg.sender_id === user.id}
                 showAvatar={roomId.startsWith("group_")}
+                senderOnline={presence[msg.sender_id]?.online === true}
+                onlineLabel={t("dang_online")}
+                offlineLabel={t("dang_offline")}
                 onImageClick={(url) => setPreviewUrl(url)}
               />
             ))

@@ -2,7 +2,7 @@ import { useRef, useState, type FormEvent, type ChangeEvent } from "react";
 import { Icon } from "../ui/Icon";
 
 interface ChatInputProps {
-  onSend: (text: string) => void;
+  onSend: (text: string) => void | Promise<void>;
   onPickImage?: (file: File) => void;
   disabled?: boolean;
   uploadingImage?: boolean;
@@ -13,13 +13,16 @@ export function ChatInput({ onSend, onPickImage, disabled, uploadingImage }: Cha
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = text.trim();
     if (!trimmed) return;
-    onSend(trimmed);
     setText("");
-    inputRef.current?.focus();
+    try {
+      await onSend(trimmed);
+    } finally {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {

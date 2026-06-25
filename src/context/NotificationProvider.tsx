@@ -100,9 +100,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     staleTime: 60_000,
   });
 
+  const storedCheckpointIds = useMemo(
+    () => new Set(stored.filter((n) => n.type === "checkpoint" && n.checkpoint_id).map((n) => n.checkpoint_id as string)),
+    [stored],
+  );
+
   const derived = useMemo<AppNotification[]>(() => {
     if (!followingFeed?.items || !user) return [];
     return followingFeed?.items?.filter((it) => it.user_id !== user.id)
+      .filter((it) => !storedCheckpointIds.has(it.id))
       .map((it) => ({
         id: `cp-${it.id}`,
         type: "checkpoint" as const,
@@ -116,7 +122,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         checkpoint_name: it.name,
         created_at: new Date(it.created_at),
       }));
-  }, [followingFeed, user]);
+  }, [followingFeed, storedCheckpointIds, user]);
 
   const items = useMemo(
     () =>

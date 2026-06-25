@@ -5,7 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { CheckinQueueProvider } from "../context/CheckinQueue";
 import { NotificationProvider, useNotifications } from "../context/NotificationProvider";
 import { useLocationLabel } from "../hooks/useLocationLabel";
-import { subscribeRooms } from "../lib/chat";
+import { startUserPresence, subscribeRooms } from "../lib/chat";
 import { trackEvent } from "../lib/observability";
 import { isStandalone } from "../lib/platform";
 import { LocationProvider, useUserLocation } from "../location/LocationProvider";
@@ -206,6 +206,11 @@ export function AppLayout() {
   const { user } = useAuth();
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
   const standalone = isStandalone();
+
+  useEffect(() => {
+    if (!user) return;
+    return startUserPresence(user.id);
+  }, [user]);
 
   const content = (
     <main

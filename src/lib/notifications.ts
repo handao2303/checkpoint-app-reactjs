@@ -256,7 +256,7 @@ export async function addCheckinNotifications(
   checkpointName: string,
 ): Promise<void> {
   if (!actor.id || followerIds.length === 0) return;
-  const recipients = followerIds.filter((id) => id && id !== actor.id);
+  const recipients = [...new Set(followerIds)].filter((id) => id && id !== actor.id);
   if (recipients.length === 0) return;
   try {
     for (let i = 0; i < recipients.length; i += BATCH_WRITE_LIMIT) {

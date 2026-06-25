@@ -23,6 +23,9 @@ import { db } from "./firebase";
 import { getUsersByIDs } from "./api";
 import { trackError, trackEvent } from "./observability";
 
+const PRESENCE_STALE_MS = 90_000;
+const PRESENCE_REFRESH_MS = 45_000;
+
 // ── Types ────────────────────────────────────────────────────────
 
 export interface Room {
@@ -55,6 +58,11 @@ export interface Message {
   image_url?: string;
   image_thumb_url?: string;
   created_at: Date;
+}
+
+export interface PresenceStatus {
+  online: boolean;
+  updated_at: Date;
 }
 
 // ── Room helpers ─────────────────────────────────────────────────
@@ -254,6 +262,79 @@ export function roomAvatarUrl(room: Room): string | undefined {
   return room.type === "group" ? room.avatar_url : undefined;
 }
 
+function normalizePresence(data: Record<string, any> | undefined): PresenceStatus {
+  const updatedAt = data?.updated_at?.toDate?.() ?? new Date(0);
+  return {
+    online: data?.online === true && Date.now() - updatedAt.getTime() <= PRESENCE_STALE_MS,
+    updated_at: updatedAt,
+  };
+}
+
+/** Keep the current user's presence fresh while the signed-in app shell is mounted. */
+export function startUserPresence(uid: string): Unsubscribe {
+  let stopped = false;
+  const ref = doc(db, "presence", uid);
+
+  const writePresence = (online: boolean) => {
+    if (stopped) return;
+    setDoc(ref, { online, updated_at: serverTimestamp() }, { merge: true }).catch((error) => {
+      trackError(error, { feature: "chat", action: "presence_write" });
+    });
+  };
+
+  const updateForVisibility = () => {
+    writePresence(document.visibilityState !== "hidden" && navigator.onLine);
+  };
+
+  writePresence(document.visibilityState !== "hidden" && navigator.onLine);
+  const interval = window.setInterval(updateForVisibility, PRESENCE_REFRESH_MS);
+  document.addEventListener("visibilitychange", updateForVisibility);
+  window.addEventListener("online", updateForVisibility);
+  window.addEventListener("offline", updateForVisibility);
+  window.addEventListener("beforeunload", () => writePresence(false));
+
+  return () => {
+    stopped = true;
+    window.clearInterval(interval);
+    document.removeEventListener("visibilitychange", updateForVisibility);
+    window.removeEventListener("online", updateForVisibility);
+    window.removeEventListener("offline", updateForVisibility);
+    setDoc(ref, { online: false, updated_at: serverTimestamp() }, { merge: true }).catch(() => {
+      /* best-effort */
+    });
+  };
+}
+
+/** Subscribe to presence rows for a bounded set of users. */
+export function subscribePresence(
+  userIds: string[],
+  cb: (presence: Record<string, PresenceStatus>) => void,
+): Unsubscribe {
+  const ids = [...new Set(userIds)].filter(Boolean);
+  if (ids.length === 0) {
+    cb({});
+    return () => {};
+  }
+
+  const presence: Record<string, PresenceStatus> = {};
+  const unsubs = ids.map((uid) =>
+    onSnapshot(
+      doc(db, "presence", uid),
+      (snap) => {
+        presence[uid] = normalizePresence(snap.data());
+        cb({ ...presence });
+      },
+      (error) => {
+        trackError(error, { feature: "chat", action: "presence_subscribe" });
+      },
+    ),
+  );
+
+  return () => {
+    for (const unsub of unsubs) unsub();
+  };
+}
+
 // ── Message helpers ──────────────────────────────────────────────
 
 /** Send a message to a room. Updates last_message and notifies other members. */
@@ -289,6 +370,7 @@ export async function sendMessage(
     },
   });
   trackEvent("chat_message_sent", { room_id: roomId, has_image: !!image });
+  await notifyRoomMembers(roomId, sender, text);
 }
 
 /** Notify other room members about a new message. Fire-and-forget. */

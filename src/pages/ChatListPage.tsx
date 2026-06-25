@@ -1,12 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useTranslation } from "react-i18next";
-import { subscribeRooms, roomDisplayName, roomAvatarUrl, type Room } from "../lib/chat";
+import {
+  subscribePresence,
+  subscribeRooms,
+  roomDisplayName,
+  roomAvatarUrl,
+  type PresenceStatus,
+  type Room,
+} from "../lib/chat";
 import { UserAvatar } from "../components/ui/UserAvatar";
 import { Icon } from "../components/ui/Icon";
 import { trackEvent } from "../lib/observability";
 import { NewChatSheet } from "../components/chat/NewChatSheet";
+import { getUsersByIDs } from "../lib/api";
 
 /** Format a Date as relative time (Vietnamese). */
 function relativeTime(d: Date): string {
@@ -24,6 +32,8 @@ export function ChatListPage() {
   const { t } = useTranslation();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [showNewChat, setShowNewChat] = useState(false);
+  const [presence, setPresence] = useState<Record<string, PresenceStatus>>({});
+  const [memberAvatars, setMemberAvatars] = useState<Record<string, string | undefined>>({});
 
   useEffect(() => {
     if (!user) {
@@ -33,6 +43,36 @@ export function ChatListPage() {
     trackEvent("chat_list_open");
     return subscribeRooms(user.id, setRooms);
   }, [user]);
+
+  const presenceIds = useMemo(() => {
+    if (!user) return [];
+    return [...new Set(rooms.flatMap((room) => room.members).filter((id) => id !== user.id))].sort();
+  }, [rooms, user]);
+
+  useEffect(() => {
+    return subscribePresence(presenceIds, setPresence);
+  }, [presenceIds.join("|")]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (presenceIds.length === 0) {
+      setMemberAvatars({});
+      return;
+    }
+    getUsersByIDs(presenceIds)
+      .then((users) => {
+        if (cancelled) return;
+        const avatars: Record<string, string | undefined> = {};
+        for (const u of users) avatars[u.id] = u.avatar_url;
+        setMemberAvatars(avatars);
+      })
+      .catch(() => {
+        if (!cancelled) setMemberAvatars({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [presenceIds.join("|")]);
 
   if (!user) {
     return (
@@ -82,6 +122,13 @@ export function ChatListPage() {
                 key={room.id}
                 room={room}
                 myUid={user.id}
+                presence={presence}
+                memberAvatars={memberAvatars}
+                labels={{
+                  online: t("dang_online"),
+                  offline: t("dang_offline"),
+                  onlineCount: t("online_count", { count: onlineCount(room, user.id, presence) }),
+                }}
                 onClick={() => {
                   trackEvent("chat_room_tap", { room_id: room.id, type: room.type });
                   navigate(`/chat/${encodeURIComponent(room.id)}`);
@@ -103,17 +150,24 @@ export function ChatListPage() {
 function RoomRow({
   room,
   myUid,
+  presence,
+  memberAvatars,
+  labels,
   onClick,
 }: {
   room: Room;
   myUid: string;
+  presence: Record<string, PresenceStatus>;
+  memberAvatars: Record<string, string | undefined>;
+  labels: { online: string; offline: string; onlineCount: string };
   onClick: () => void;
 }) {
   const name = roomDisplayName(room, myUid);
   const avatar = roomAvatarUrl(room);
   const last = room.last_message;
-  // For DM, we don't have the other user's avatar in the room doc. The client
-  // could fetch it, but for now we show initials via UserAvatar.
+  const otherId = room.type === "dm" ? room.members.find((id) => id !== myUid) : undefined;
+  const isOtherOnline = otherId ? presence[otherId]?.online === true : false;
+  const dmAvatar = otherId ? memberAvatars[otherId] : undefined;
 
   return (
     <button
@@ -128,7 +182,7 @@ function RoomRow({
         />
       ) : (
         <UserAvatar
-          src={undefined}
+          src={dmAvatar}
           name={name}
           username={name}
           className="h-12 w-12 shrink-0"
@@ -152,6 +206,18 @@ function RoomRow({
             </span>
           )}
         </div>
+        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span
+            className={isOtherOnline || (room.type === "group" && onlineCount(room, myUid, presence) > 0)
+              ? "h-2 w-2 rounded-full bg-emerald-500"
+              : "h-2 w-2 rounded-full bg-muted-foreground/40"}
+          />
+          {room.type === "group"
+            ? labels.onlineCount
+            : isOtherOnline
+              ? labels.online
+              : labels.offline}
+        </p>
         {last && (
           <p className="truncate text-sm text-muted-foreground">
             {!last.sender_id || last.sender_id === myUid
@@ -166,4 +232,8 @@ function RoomRow({
       )}
     </button>
   );
+}
+
+function onlineCount(room: Room, myUid: string, presence: Record<string, PresenceStatus>): number {
+  return room.members.filter((id) => id !== myUid && presence[id]?.online).length;
 }
