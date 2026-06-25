@@ -325,11 +325,11 @@
   "cu_dem": "Cú đêm",
   "ke_lu_hanh": "Kẻ lữ hành",
   "coffee_hunter": "Thợ săn cà phê",
-  "social_scout": "Hướng đạo xã hội",
-  "city_collector": "Người sưu tầm thành phố",
+  "social_scout": "Trinh sát xã hội",
+  "city_collector": "Người sưu tập thành phố",
   "weekend_wanderer": "Kẻ lang thang cuối tuần",
-  "photo_storyteller": "Người kể chuyện bằng ảnh",
-  "hidden_gem_finder": "Người tìm viên ngọc ẩn",
+  "photo_storyteller": "Người kể chuyện bằng hình ảnh",
+  "hidden_gem_finder": "Người tìm kho báu ẩn",
   "passport_pro": "Chuyên gia hộ chiếu",
   "badge_name_first_checkin": "Bước chân đầu tiên",
   "badge_desc_first_checkin": "Cắm cờ lần đầu tiên",
@@ -542,5 +542,11 @@
   "Cú đêm": "Cú đêm",
   "Check-in trong khoảng 0–5h sáng": "Check-in trong khoảng 0–5h sáng",
   "Kẻ lữ hành": "Kẻ lữ hành",
-  "Bắt đầu hành trình đầu tiên": "Bắt đầu hành trình đầu tiên"
+  "Bắt đầu hành trình đầu tiên": "Bắt đầu hành trình đầu tiên",
+  "Thợ săn cà phê": "Thợ săn cà phê",
+  "Trinh sát xã hội": "Trinh sát xã hội",
+  "Người sưu tập thành phố": "Người sưu tập thành phố",
+  "Người kể chuyện bằng hình ảnh": "Người kể chuyện bằng hình ảnh",
+  "Người tìm kho báu ẩn": "Người tìm kho báu ẩn",
+  "Chuyên gia hộ chiếu": "Chuyên gia hộ chiếu"
 }
