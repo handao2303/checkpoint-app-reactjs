@@ -17,7 +17,7 @@ jobs:
 
     defaults:
       run:
-        shell: cmd
+        shell: bash
 
     steps:
       - name: Checkout source code
@@ -29,10 +29,10 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: yarn.cmd install
+        run: npm install
 
       - name: Typecheck
-        run: yarn.cmd typecheck
+        run: npm run typecheck
 
       - name: Build project
-        run: yarn.cmd build
+        run: npm run build
