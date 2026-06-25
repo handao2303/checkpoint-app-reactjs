@@ -1,6 +1,9 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import type { TFunction } from "i18next";
 import { useAuth } from "../auth/AuthContext";
 import { useScrollContainer } from "../components/AppLayout";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
@@ -24,16 +27,18 @@ import { trackEvent } from "../lib/observability";
 import { useUserLocation } from "../location/LocationProvider";
 
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
-type FilterKey = "all" | "nearest" | "hot" | "cafe" | "food" | "photos";
+type FilterKey = "all" | "nearest" | "hot" | "cafe" | "food";
 
-const FILTER_CHIPS: Array<{ key: FilterKey; label: string; icon?: "map-pin" | "flag" | "coffee" | "utensils" | "image" }> = [
-  { key: "all", label: "Tất cả" },
-  // { key: "nearest", label: "Gần nhất", icon: "map-pin" },
-  { key: "hot", label: "Đang hot", icon: "flag" },
-  { key: "cafe", label: "Cafe", icon: "coffee" },
-  { key: "food", label: "Ăn uống", icon: "utensils" },
-  { key: "photos", label: "Có ảnh", icon: "image" },
-];
+function buildFilterChips(
+  t: TFunction,
+): Array<{ key: FilterKey; label: string; icon?: "map-pin" | "flag" | "coffee" | "utensils" | "image" }> {
+  return [
+    { key: "all", label: t('tat_ca') },
+    { key: "hot", label: t('dang_hot'), icon: "flag" },
+    { key: "cafe", label: "Cafe", icon: "coffee" },
+    { key: "food", label: t('an_uong'), icon: "utensils" },
+  ];
+}
 
 function formatDistance(m: number | null | undefined): string | null {
   if (m == null || !Number.isFinite(m) || m < 0) return null;
@@ -59,8 +64,10 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 }
 
 export function DiscoverPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const [placeId, setPlaceId] = useState<string | null>(null);
-  const [profileUsername, setProfileUsername] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -74,6 +81,7 @@ export function DiscoverPage() {
   const pendingCount = useOptionalCheckinQueue()?.pendingCount ?? 0;
   const { coords } = useUserLocation();
   const at: LatLng = coords ?? FALLBACK;
+  const filterChips = useMemo(() => buildFilterChips(t), [t]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 300);
@@ -87,7 +95,22 @@ export function DiscoverPage() {
     enabled: debounced?.length > 0,
   });
 
-  // Nearby places infinite query (default travel-first Discover view)
+  // The active filter maps to server-side category/sort params; the main list is
+  // a single paged query, so cafe/food/hot all page like the default view.
+  const nearbyOpts = useMemo((): { category?: string; sort?: "popular" } => {
+    switch (filters.active) {
+      case "hot":
+        return { sort: "popular" };
+      case "cafe":
+        return { category: "cafe" };
+      case "food":
+        return { category: "food" };
+      default:
+        return {};
+    }
+  }, [filters.active]);
+
+  // Nearby places infinite query (filtered/sorted server-side, keyed by filter).
   const {
     data,
     isLoading: isNearbyLoading,
@@ -95,24 +118,27 @@ export function DiscoverPage() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["places", "nearby", at],
-    queryFn: ({ pageParam = 0 }) => getNearbyAppPlaces(at, { limit: 20, offset: pageParam }),
+    queryKey: ["places", "nearby", at, filters.active],
+    queryFn: ({ pageParam = 0 }) =>
+      getNearbyAppPlaces(at, { limit: 20, offset: pageParam, ...nearbyOpts }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next_offset,
   });
 
-  const nearbyPlaces = data?.pages.flatMap((page) => page.places) ?? [];
+  const visiblePlaces = data?.pages.flatMap((page) => page.places) ?? [];
+  // Server-counted total for the active filter (cached backend-side); falls back
+  // to the loaded count until the first page resolves.
+  const totalPlaces = data?.pages[0]?.total ?? visiblePlaces.length;
+
+  // Popular strip ("đang hot gần bạn") — independent top-10 carousel.
   const { data: popularPlaces = [], isLoading: isPopularLoading } = useQuery({
     queryKey: ["places", "popular", at],
     queryFn: () => getPopularPlaces(at),
     staleTime: 60_000,
   });
 
-  const visiblePlaces = useMemo(() => {
-    const source = filters.active === "hot" ? popularPlaces : nearbyPlaces;
-    return filterPlaces(source, filters.active);
-  }, [filters.active, nearbyPlaces, popularPlaces]);
-
+  // Search results are name-matched; keep the lightweight client category filter
+  // over that already-loaded set (search has no server category param).
   const visibleResults = useMemo(
     () => filterPlaces(results, filters.active === "hot" ? "all" : filters.active),
     [filters.active, results],
@@ -124,7 +150,7 @@ export function DiscoverPage() {
   );
 
   const scrollEl = useScrollContainer();
-  const canLoadMorePlaces = !debounced && filters.active !== "hot" && hasNextPage;
+  const canLoadMorePlaces = !debounced && hasNextPage;
   const virtualPlaceCount = visiblePlaces.length + (canLoadMorePlaces ? 1 : 0);
   const placeVirtualizer = useVirtualizer({
     count: virtualPlaceCount,
@@ -138,11 +164,11 @@ export function DiscoverPage() {
 
   const { pullDistance, pullProgress, isPulling, isRefreshing, isReady } = usePullToRefresh({
     scrollElement: scrollEl,
-    disabled: placeId != null || profileUsername != null || selectedCheckpointId != null || debounced !== "",
+    disabled: placeId != null || profileUserId != null || selectedCheckpointId != null || debounced !== "",
     onRefresh: () => {
       trackEvent("pull_to_refresh", { type: "nearby_places" });
       return queryClient.resetQueries({
-        queryKey: ["places", "nearby", at],
+        queryKey: ["places", "nearby", at, filters.active],
         exact: true,
       });
     },
@@ -159,7 +185,6 @@ export function DiscoverPage() {
     if (
       !last ||
       debounced ||
-      filters.active === "hot" ||
       !hasNextPage ||
       isFetchingNextPage ||
       last.index < visiblePlaces.length - 1
@@ -211,10 +236,10 @@ export function DiscoverPage() {
             )}
             <span>
               {isRefreshing
-                ? "Đang làm mới..."
+                ? t('dang_lam_moi')
                 : isReady
-                  ? "Thả để làm mới"
-                  : "Kéo xuống để làm mới"}
+                  ? t('tha_de_lam_moi')
+                  : t('keo_xuong_de_lam_moi')}
             </span>
           </div>
         )}
@@ -224,11 +249,11 @@ export function DiscoverPage() {
             <Icon name="search" size={19} className="shrink-0 text-foreground" />
             <input
               name="place-search"
-              aria-label="Tìm địa điểm"
+              aria-label={t('tim_dia_diem')}
               autoComplete="off"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Tìm địa điểm, quán cafe, nơi check-in…"
+              placeholder={t('tim_dia_diem_quan_cafe')}
               className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-subtle-foreground"
             />
             {query && (
@@ -236,7 +261,7 @@ export function DiscoverPage() {
                 type="button"
                 onClick={() => setQuery("")}
                 className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Xóa tìm kiếm"
+                aria-label={t('xoa_tim_kiem')}
               >
                 <Icon name="x" size={16} />
               </button>
@@ -251,7 +276,7 @@ export function DiscoverPage() {
                 ? "border-primary bg-primary text-primary-foreground shadow-cta"
                 : "border-border bg-surface text-foreground shadow-card hover:border-primary/40"
             )}
-            aria-label="Mở bộ lọc"
+            aria-label={t('mo_bo_loc')}
           >
             <Icon name="filter" size={18} strokeWidth={filters.active !== "all" ? 2.5 : 2.2} />
             {filters.active !== "all" && (
@@ -269,7 +294,7 @@ export function DiscoverPage() {
             </div>
           ) : visibleResults.length === 0 ? (
             <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-              Không tìm thấy địa điểm “{debounced}”.
+              {t('khong_tim_thay_dia_diem', { query: debounced })}
             </p>
           ) : (
             <div className="flex flex-col gap-3">
@@ -293,46 +318,48 @@ export function DiscoverPage() {
             {(isPopularLoading || hotPlaces.length > 0) && filters.active !== "hot" && (
               <section className="flex flex-col gap-3">
                 <div className="flex items-end justify-between px-1">
-                  <div>
+                  <div className="w-full">
                     <h2 className="flex items-center gap-2 font-display text-xl font-extrabold text-foreground">
-                      <Icon name="star" size={22} className="fill-gold text-gold" /> Đang hot gần bạn
+                      <Icon name="star" size={22} className="fill-gold text-gold" /> {t('dang_hot_gan_ban')}
+                      <span className="h-px flex-1 border-t border-dashed border-primary-200" />
                     </h2>
-                    <p className="text-xs text-muted-foreground">Nhiều người vừa cắm cờ</p>
+                    <p className="text-xs text-muted-foreground">{t('nhieu_nguoi_vua_cam_co')}</p>
                   </div>
                 </div>
                 <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none">
                   {isPopularLoading
                     ? Array.from({ length: 3 }).map((_, i) => <HotPlaceSkeleton key={i} />)
                     : hotPlaces.map((p) => (
-                        <PlaceCard
-                          key={p.id}
-                          place={p}
-                          distance={formatDistance(haversine(at.lat, at.lng, p.lat, p.lng))}
-                          signedIn={!!user}
-                          onOpen={() => {
-                            trackEvent("discover_hot_place_open", { place_id: p.id });
-                            setPlaceId(p.id);
-                          }}
-                          variant="hot"
-                        />
-                      ))}
+                      <PlaceCard
+                        key={p.id}
+                        place={p}
+                        distance={formatDistance(haversine(at.lat, at.lng, p.lat, p.lng))}
+                        signedIn={!!user}
+                        onOpen={() => {
+                          trackEvent("discover_hot_place_open", { place_id: p.id });
+                          setPlaceId(p.id);
+                        }}
+                        variant="hot"
+                      />
+                    ))}
                 </div>
               </section>
             )}
 
             <section className="flex items-end justify-between px-1">
-              <div>
+              <div className="w-full">
                 <h2 className="flex items-center gap-2 font-display text-xl font-extrabold text-foreground">
                   <Icon name="pin-filled" size={22} className="text-primary" />
-                  {filters.active === "hot" ? "Địa điểm đang hot" : "Địa điểm gần bạn"}
+                  {filters.active === "hot" ? t('dia_diem_dang_hot') : t('dia_diem_gan_ban')}
+                  <span className="h-px flex-1 border-t border-dashed border-primary-200" />
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  {visiblePlaces.length} địa điểm trong danh sách hiện tại
+                  {t('dia_diem_trong_danh_sach', { total: totalPlaces })}
                 </p>
               </div>
             </section>
 
-            {isNearbyLoading || (filters.active === "hot" && isPopularLoading) ? (
+            {isNearbyLoading ? (
               <div className="flex flex-col gap-3">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <PlaceCardSkeleton key={i} />
@@ -340,7 +367,7 @@ export function DiscoverPage() {
               </div>
             ) : visiblePlaces.length === 0 ? (
               <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-                Chưa có địa điểm nào quanh đây. Hãy là người cắm cờ đầu tiên!
+                {t('chua_co_dia_diem_nao')}
               </p>
             ) : (
               <div
@@ -391,18 +418,18 @@ export function DiscoverPage() {
       </div>
 
       {placeId && <PlaceDetailSheet id={placeId} onClose={() => setPlaceId(null)} />}
-      {profileUsername && (
-        <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
+      {profileUserId && (
+        <UserProfileSheet userRef={profileUserId} onClose={() => setProfileUserId(null)} />
       )}
       {selectedCheckpointId && (
         <CheckpointDetailSheet id={selectedCheckpointId} onClose={() => setSelectedCheckpointId(null)} />
       )}
       {isFilterSheetOpen && (
-        <Sheet title="Bộ lọc tìm kiếm" onClose={() => setIsFilterSheetOpen(false)}>
+        <Sheet title={t('bo_loc_tim_kiem')} onClose={() => setIsFilterSheetOpen(false)}>
           <div className="flex flex-col gap-4 py-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Chọn danh mục lọc nhanh</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('chon_danh_muc_loc_nhanh')}</p>
             <div className="flex flex-wrap gap-2.5">
-              {FILTER_CHIPS.map((chip) => {
+              {filterChips.map((chip) => {
                 const active = filters.active === chip.key;
                 return (
                   <button
@@ -427,6 +454,19 @@ export function DiscoverPage() {
                 );
               })}
             </div>
+            <hr className="border-border" />
+            <button
+              type="button"
+              onClick={() => {
+                trackEvent("discover_community_open");
+                setIsFilterSheetOpen(false);
+                navigate("/feed");
+              }}
+              className="flex items-center justify-center gap-2 rounded-full border-2 border-dashed border-primary/30 bg-primary/5 px-4 py-2 text-sm font-bold text-primary transition-all cursor-pointer hover:border-primary/60 hover:bg-primary/10 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Icon name="friends" size={16} />
+              {t('cong_dong')}
+            </button>
           </div>
         </Sheet>
       )}
@@ -437,7 +477,6 @@ export function DiscoverPage() {
 function filterPlaces(places: Place[], active: FilterKey): Place[] {
   const filtered = places.filter((place) => {
     if (active === "cafe" || active === "food") return place.category === active;
-    if (active === "photos") return (place.image_count ?? 0) > 0 || !!place.cover_thumbnail_url || !!place.cover_image_url;
     return true;
   });
   if (active === "hot") {
@@ -459,9 +498,10 @@ function PlaceCard({
   onOpen: () => void;
   variant?: "compact" | "hot";
 }) {
+  const { t } = useTranslation();
   const imageUrl = place.cover_thumbnail_url ?? place.cover_image_url;
   const category = CATEGORIES.find((c) => c.key === place.category);
-  const cta = place.viewer_has_checked_in ? "Đã cắm" : signedIn ? "Cắm cờ" : "Xem";
+  const cta = place.viewer_has_checked_in ? t('da_cam') : signedIn ? t('cam_co') : "Xem";
 
   if (variant === "hot") {
     return (
@@ -476,7 +516,7 @@ function PlaceCard({
           <div className="flex min-w-0 items-center gap-2 text-[11px] font-medium text-muted-foreground">
             {place.avg_rating != null && (
               <span className="flex items-center gap-0.5 text-foreground">
-              <Icon name="star" size={12} className="fill-gold text-gold" /> {place.avg_rating.toFixed(1)}
+                <Icon name="star" size={12} className="fill-gold text-gold" /> {place.avg_rating.toFixed(1)}
               </span>
             )}
             <span className="flex items-center gap-0.5">
@@ -502,7 +542,7 @@ function PlaceCard({
           <div className="min-w-0">
             <p className="truncate font-display text-base font-bold text-foreground">{place.name}</p>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {place.address || category?.label || "Checkpoint"}
+              {place.address || (category ? t(category.labelKey) : "") || "Checkpoint"}
             </p>
           </div>
         </div>
@@ -528,13 +568,12 @@ function PlaceCard({
       </div>
 
       <span
-        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${
-          place.viewer_has_checked_in
-            ? "border border-green-100 bg-green-50 text-green-700"
-            : signedIn
-              ? "border border-primary bg-primary-50 text-primary"
-              : "border border-border bg-surface-muted text-muted-foreground"
-        }`}
+        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${place.viewer_has_checked_in
+          ? "border border-green-100 bg-green-50 text-green-700"
+          : signedIn
+            ? "border border-primary bg-primary-50 text-primary"
+            : "border border-border bg-surface-muted text-muted-foreground"
+          }`}
       >
         {cta}
       </span>
@@ -602,6 +641,7 @@ function HotPlaceSkeleton() {
 }
 
 function PendingCheckinStatus({ count }: { count: number }) {
+  const { t } = useTranslation();
   return (
     <div
       role="status"
@@ -610,7 +650,7 @@ function PendingCheckinStatus({ count }: { count: number }) {
     >
       <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-border border-t-primary" />
       <span className="truncate font-medium">
-        {count === 1 ? "Đang đăng check-in..." : `Đang đăng ${count} check-in...`}
+        {count === 1 ? t('dang_dang_checkin') : t('dang_dang_checkin', { count: count })}
       </span>
     </div>
   );

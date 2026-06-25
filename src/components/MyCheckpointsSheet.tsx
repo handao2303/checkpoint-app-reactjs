@@ -1,32 +1,67 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
 import {
+  getCheckpointDetail,
   getMyCheckpointPage,
+  getUploadSlots,
+  putFilesToSlots,
   updateCheckpoint,
   type Checkpoint,
+  type CheckpointImage,
+  type UpdateCheckpointMediaInput,
 } from "../lib/api";
+import { prepareCheckpointImage } from "../lib/image";
 import { categoryIcon } from "../lib/maps";
 import { trackError, trackEvent } from "../lib/observability";
+import { prepareCheckpointVideo } from "../lib/video";
+import {
+  CheckpointFormFields,
+  CHECKPOINT_MAX_IMAGES,
+  CHECKPOINT_MAX_VIDEOS,
+  isProbablyVideoFile,
+  isNewFormMedia,
+  revokeMedia,
+  type FormMedia,
+  type ExistingFormMedia,
+  type NewFormMedia,
+} from "./CheckpointFormFields";
 import { CheckpointDetailSheet } from "./CheckpointDetailSheet";
-import { Button } from "./ui/Button";
 import { ImagePlaceholder } from "./ui/Card";
 import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
+
+const MAX_EDIT_IMAGES = CHECKPOINT_MAX_IMAGES;
+const MAX_EDIT_VIDEOS = CHECKPOINT_MAX_VIDEOS;
 
 type EditState = {
   checkpoint: Checkpoint;
   name: string;
   note: string;
   rating: string;
+  media: FormMedia[];
+  mediaLoading: boolean;
+  mediaProcessing: boolean;
   busy: boolean;
   error: string | null;
 };
 
+function existingMediaFromDetail(image: CheckpointImage): ExistingFormMedia {
+  return {
+    kind: "existing",
+    id: image.id,
+    type: image.type,
+    url: image.url,
+    thumbnailUrl: image.thumbnail_url,
+  };
+}
+
 export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -63,15 +98,150 @@ export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
     }
   }, [checkpoints.length, checkpointsQuery, virtualItems]);
 
-  function openEdit(checkpoint: Checkpoint) {
+  async function openEdit(checkpoint: Checkpoint) {
     trackEvent("checkpoint_edit_open", { checkpoint_id: checkpoint.id });
-    setEditing({
-      checkpoint,
-      name: checkpoint.name,
-      note: checkpoint.note ?? "",
-      rating: checkpoint.rating == null ? "" : String(checkpoint.rating),
-      busy: false,
-      error: null,
+    setEditing((current) => {
+      if (current) revokeMedia(current.media);
+      return {
+        checkpoint,
+        name: checkpoint.name,
+        note: checkpoint.note ?? "",
+        rating: checkpoint.rating == null ? "" : String(checkpoint.rating),
+        media: [],
+        mediaLoading: true,
+        mediaProcessing: false,
+        busy: false,
+        error: null,
+      };
+    });
+    try {
+      const detail = await getCheckpointDetail(checkpoint.id);
+      setEditing((current) =>
+        current?.checkpoint.id === checkpoint.id
+          ? { ...current, media: detail.images.map(existingMediaFromDetail), mediaLoading: false }
+          : current,
+      );
+    } catch (error) {
+      trackError(error, { feature: "checkpoint", action: "checkpoint_edit_load_media", checkpoint_id: checkpoint.id });
+      setEditing((current) =>
+        current?.checkpoint.id === checkpoint.id
+          ? { ...current, mediaLoading: false, error: t('khong_luu_duoc_checkin_vui') }
+          : current,
+      );
+    }
+  }
+
+  function closeEdit() {
+    if (editing) revokeMedia(editing.media);
+    setEditing(null);
+  }
+
+  async function addEditFiles(files: File[]) {
+    if (!editing || files.length === 0) return;
+    const hasVideo = files.some(isProbablyVideoFile);
+    const hasImage = files.some((file) => !isProbablyVideoFile(file));
+    setEditing((current) => (current ? { ...current, mediaProcessing: true, error: null } : current));
+    try {
+      let nextImageCount = editing.media.filter((item) => item.type === "image").length;
+      let nextVideoCount = editing.media.filter((item) => item.type === "video").length;
+      const prepared: NewFormMedia[] = [];
+      for (const file of files) {
+        if (isProbablyVideoFile(file)) {
+          if (nextVideoCount >= MAX_EDIT_VIDEOS) {
+            setEditing((current) => (current ? { ...current, error: t('toi_da_1_videocheckin') } : current));
+            continue;
+          }
+          const { original, thumbnail } = await prepareCheckpointVideo(file);
+          prepared.push({
+            kind: "new",
+            type: "video",
+            original,
+            thumbnail,
+            url: URL.createObjectURL(original),
+            thumbnailUrl: URL.createObjectURL(thumbnail),
+          });
+          nextVideoCount += 1;
+          continue;
+        }
+
+        if (nextImageCount >= MAX_EDIT_IMAGES) {
+          setEditing((current) =>
+            current ? { ...current, error: t('toi_da_anh_checkin', { maxImages: MAX_EDIT_IMAGES }) } : current,
+          );
+          continue;
+        }
+        const { original, thumbnail } = await prepareCheckpointImage(file);
+        prepared.push({
+          kind: "new",
+          type: "image",
+          original,
+          thumbnail,
+          url: URL.createObjectURL(original),
+          thumbnailUrl: URL.createObjectURL(thumbnail),
+        });
+        nextImageCount += 1;
+      }
+      if (prepared.length > 0) {
+        setEditing((current) => (current ? { ...current, media: [...current.media, ...prepared] } : current));
+      }
+      trackEvent("checkpoint_edit_media_prepare_success", {
+        checkpoint_id: editing.checkpoint.id,
+        media_count: prepared.length,
+        has_image: hasImage,
+        has_video: hasVideo,
+      });
+    } catch (error) {
+      trackError(error, { feature: "checkpoint", action: "checkpoint_edit_media_prepare", checkpoint_id: editing.checkpoint.id });
+      setEditing((current) =>
+        current
+          ? { ...current, error: error instanceof Error ? error.message : t('khong_xu_ly_duoc_media') }
+          : current,
+      );
+    } finally {
+      setEditing((current) => (current ? { ...current, mediaProcessing: false } : current));
+    }
+  }
+
+  function removeEditMedia(index: number) {
+    setEditing((current) => {
+      if (!current) return current;
+      const removed = current.media[index];
+      if (removed && isNewFormMedia(removed)) {
+        URL.revokeObjectURL(removed.url);
+        URL.revokeObjectURL(removed.thumbnailUrl);
+      }
+      return { ...current, media: current.media.filter((_, i) => i !== index), error: null };
+    });
+  }
+
+  async function buildMediaPayload(media: FormMedia[]): Promise<UpdateCheckpointMediaInput[]> {
+    const newMedia = media.filter(isNewFormMedia);
+    let slots: Awaited<ReturnType<typeof getUploadSlots>> = [];
+    if (newMedia.length > 0) {
+      try {
+        slots = await getUploadSlots(newMedia.map((item) => item.type));
+      } catch {
+        throw new Error(t('khong_lay_duoc_link_upload'));
+      }
+      try {
+        await putFilesToSlots(
+          slots,
+          newMedia.map((item) => ({ original: item.original, thumbnail: item.thumbnail, type: item.type })),
+        );
+      } catch {
+        throw new Error(t('upload_anhvideo_that_bai_vui'));
+      }
+    }
+
+    let newIndex = 0;
+    return media.map((item) => {
+      if (item.kind === "existing") {
+        return { id: item.id, type: item.type };
+      }
+      const slot = slots[newIndex++];
+      return item.type === "video"
+        ? { object_key: slot.object_key, type: item.type }
+        : { object_key: slot.object_key, thumbnail_key: slot.thumbnail_key, type: item.type };
     });
   }
 
@@ -80,19 +250,26 @@ export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
     if (!editing) return;
     const name = editing.name.trim();
     if (!name) return;
+    if (editing.mediaLoading || editing.mediaProcessing) return;
+    if (editing.media.length === 0) {
+      setEditing((current) => (current ? { ...current, error: t('bat_buoc_phai_co_it') } : current));
+      return;
+    }
     const rating = editing.rating === "" ? null : Number(editing.rating);
     if (rating != null && (!Number.isInteger(rating) || rating < 1 || rating > 5)) {
       setEditing((current) =>
-        current ? { ...current, error: "Điểm đánh giá phải từ 1 đến 5." } : current,
+        current ? { ...current, error: t('diem_danh_gia_phai_tu') } : current,
       );
       return;
     }
     setEditing((current) => (current ? { ...current, busy: true, error: null } : current));
     try {
+      const images = await buildMediaPayload(editing.media);
       await updateCheckpoint(editing.checkpoint.id, {
         name,
         note: editing.note.trim() || null,
         rating,
+        images,
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["checkpoints"] }),
@@ -102,19 +279,21 @@ export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
         queryClient.invalidateQueries({ queryKey: ["journeys"] }),
       ]);
       trackEvent("checkpoint_edit_success", { checkpoint_id: editing.checkpoint.id });
-      setEditing(null);
+      closeEdit();
     } catch (error) {
       trackError(error, { feature: "checkpoint", action: "checkpoint_edit", checkpoint_id: editing.checkpoint.id });
       trackEvent("checkpoint_edit_failed", { checkpoint_id: editing.checkpoint.id });
       setEditing((current) =>
-        current ? { ...current, busy: false, error: "Không lưu được check-in. Vui lòng thử lại." } : current,
+        current
+          ? { ...current, busy: false, error: error instanceof Error ? error.message : t('khong_luu_duoc_checkin_vui') }
+          : current,
       );
     }
   }
 
   return (
     <>
-      <Sheet title="Check-in của tôi" onClose={onClose} grow className="h-[90dvh]">
+      <Sheet title={t('checkin_cua_toi')} onClose={onClose} grow className="h-[90dvh]">
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
           {checkpointsQuery.isLoading ? (
             <div className="flex flex-col gap-3">
@@ -124,7 +303,7 @@ export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
             </div>
           ) : checkpoints.length === 0 ? (
             <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-              Chưa có check-in nào.
+              {t('chua_co_checkin_nao')}
             </p>
           ) : (
             <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
@@ -171,60 +350,27 @@ export function MyCheckpointsSheet({ onClose }: { onClose: () => void }) {
       {selectedId && <CheckpointDetailSheet id={selectedId} onClose={() => setSelectedId(null)} />}
 
       {editing && (
-        <Sheet title="Sửa check-in" onClose={() => setEditing(null)}>
-          <form onSubmit={submitEdit} className="flex flex-col gap-3">
-            <input
-              required
-              autoFocus
-              value={editing.name}
-              onChange={(event) =>
-                setEditing((current) => (current ? { ...current, name: event.target.value } : current))
-              }
-              placeholder="Tên địa điểm"
-              className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
-            <textarea
-              rows={3}
-              value={editing.note}
-              onChange={(event) =>
-                setEditing((current) => (current ? { ...current, note: event.target.value } : current))
-              }
-              placeholder="Ghi chú (tùy chọn)"
-              className="resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
-            <div className="flex items-center gap-1 rounded-2xl border border-border bg-surface p-3">
-              {[1, 2, 3, 4, 5].map((value) => {
-                const currentRating = editing.rating === "" ? undefined : Number(editing.rating);
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() =>
-                      setEditing((current) =>
-                        current
-                          ? { ...current, rating: current.rating === String(value) ? "" : String(value) }
-                          : current,
-                      )
-                    }
-                    className={`rounded-full p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                      currentRating && value <= currentRating ? "opacity-100" : "opacity-30"
-                    }`}
-                    aria-label={`${value} sao`}
-                  >
-                    <Icon name="star" size={30} className="fill-gold text-gold" />
-                  </button>
-                );
-              })}
-            </div>
-            {editing.error && <p className="text-sm font-medium text-accent-700">{editing.error}</p>}
-            <Button
-              type="submit"
-              disabled={editing.busy || editing.name.trim() === ""}
-              icon={<Icon name="pencil" size={18} />}
-            >
-              {editing.busy ? "Đang lưu..." : "Lưu thay đổi"}
-            </Button>
-          </form>
+        <Sheet title={t('sua_checkin')} onClose={closeEdit}>
+          <CheckpointFormFields
+            mode="edit"
+          {...editing}
+            onNameChange={(value) =>
+              setEditing((current) => (current ? { ...current, name: value } : current))
+            }
+            onNoteChange={(value) =>
+              setEditing((current) => (current ? { ...current, note: value } : current))
+            }
+            onRatingChange={(value) =>
+              setEditing((current) =>
+                current ? { ...current, rating: value as string } : current,
+              )
+            }
+            onAddFiles={(files) => void addEditFiles(files)}
+            onRemoveMedia={(index) => removeEditMedia(index)}
+            onSubmit={submitEdit}
+            submitLabel={t('luu_thay_doi')}
+            submitIcon={<Icon name="pencil" size={18} />}
+          />
         </Sheet>
       )}
     </>
@@ -242,6 +388,7 @@ function CheckpointManageRow({
   onEdit: () => void;
   onDeleted: () => void;
 }) {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -328,7 +475,7 @@ function CheckpointManageRow({
               setMenuOpen((open) => !open);
             }}
             className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-muted"
-            aria-label="Tùy chọn check-in"
+            aria-label={t('tuy_chon_checkin')}
             aria-expanded={menuOpen}
           >
             <Icon name="more-vertical" size={18} />
@@ -347,7 +494,7 @@ function CheckpointManageRow({
                 }}
                 className="flex w-full items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-surface-muted"
               >
-                <Icon name="pencil" size={16} /> Sửa
+                <Icon name="pencil" size={16} /> {t('sua')}
               </button>
               <button
                 type="button"
@@ -357,7 +504,7 @@ function CheckpointManageRow({
                 }}
                 className="flex w-full items-center gap-2 px-4 py-3 text-sm text-accent-600 hover:bg-accent-50"
               >
-                <Icon name="trash" size={16} /> Xóa
+                <Icon name="trash" size={16} /> {t('xoa')}
               </button>
             </div>,
             document.body,

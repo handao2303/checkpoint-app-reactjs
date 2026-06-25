@@ -1,7 +1,7 @@
 export interface GeoResult {
   address: string;
   province: string;     // ISO Province Code (e.g. "VN-SG")
-  provinceName: string; // Display name (e.g. "Thành phố Hồ Chí Minh")
+  provinceName: string; // Display name (e.g. t('thanh_pho_ho_chi_minh'))
 }
 
 const BASE = "https://api.bigdatacloud.net/data/reverse-geocode-client";
@@ -27,7 +27,7 @@ interface BigDataCloudResponse {
   principalSubdivision?: string;     // Province name (e.g. "Thành phố Hồ Chí Minh")
   principalSubdivisionCode?: string; // ISO Province Code (e.g. "VN-SG")
   city?: string;
-  locality?: string;                  // Ward/Commune/Neighborhood (e.g. "Hạnh Thông")
+  locality?: string;                  // Ward/Commune/Neighborhood (e.g. t('hanh_thong'))
   localityInfo?: {
     informative?: Array<{ name: string; order: number }>;
   };

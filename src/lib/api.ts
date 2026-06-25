@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 // Thin client for the Checkpoint backend. Stores our backend-issued tokens,
 // attaches the access token, and transparently re-auths on 401.
 
@@ -66,6 +67,13 @@ export interface User {
   xp_to_next: number;
   /** Derived: progress within the current level band, 0..1. */
   level_progress: number;
+}
+
+export interface PublicUserSummary {
+  id: string;
+  username: string;
+  display_name?: string;
+  avatar_url?: string;
 }
 
 async function postJSON(path: string, body: unknown): Promise<AxiosResponse> {
@@ -186,7 +194,8 @@ export async function apiFetch(
 function endpointGroup(path: string): string {
   const clean = path.split("?")[0] || "/";
   if (clean.startsWith("/auth/")) return "/auth/:action";
-  if (clean.startsWith("/users/") && clean.endsWith("/follow")) return "/users/:username/follow";
+  if (clean.startsWith("/users/") && clean.endsWith("/follow")) return "/users/:id/follow";
+  if (clean.startsWith("/users/") && clean.endsWith("/passport")) return "/users/:id/passport";
   if (clean.startsWith("/users/")) return "/users/:id";
   if (clean.startsWith("/checkpoints/") && clean.includes("/reaction")) return "/checkpoints/:id/reaction";
   if (clean.startsWith("/checkpoints/") && clean.endsWith("/view")) return "/checkpoints/:id/view";
@@ -213,15 +222,31 @@ export async function exchange(supabaseToken: string): Promise<User> {
   return data.user as User;
 }
 
+/** Log in by username OR email + password. The backend resolves the username to
+ *  its email and verifies the password against Supabase server-side, so the
+ *  email is never exposed to the client. */
+export async function loginWithPassword(identifier: string, password: string): Promise<User> {
+  const res = await postJSON("/auth/login", { identifier, password });
+  if (!isSuccessful(res)) {
+    trackEvent("auth_login_failed", { status_code: res.status });
+    throw new Error(res.status === 401 ? t("dang_nhap_sai_thong_tin") : t("co_loi_xay_ra"));
+  }
+  const data = res.data;
+  tokens.set(data.access_token, data.refresh_token);
+  trackEvent("auth_login_success");
+  return data.user as User;
+}
+
 export async function getMe(): Promise<User> {
   const res = await apiFetch("/users/me");
   if (!isSuccessful(res)) throw new Error(`getMe failed: ${res.status}`);
   return res.data as User;
 }
 
-/** Public profile of any user by username. */
-export async function getUserByUsername(username: string): Promise<User> {
-  const res = await apiFetch(`/users/${encodeURIComponent(username)}`);
+/** Public profile of any user by id (preferred, stable) or username (legacy).
+ *  Usernames can change, so callers should pass the user id where available. */
+export async function getUserProfile(ref: string): Promise<User> {
+  const res = await apiFetch(`/users/${encodeURIComponent(ref)}`);
   if (!isSuccessful(res)) throw new Error(`load user failed: ${res.status}`);
   return res.data as User;
 }
@@ -234,18 +259,55 @@ export async function getUsersByIDs(ids: string[]): Promise<User[]> {
   return res.data as User[];
 }
 
-/** Update the caller's display name and/or bio. Returns the updated user. */
+export async function getUserFollowers(ref: string): Promise<PublicUserSummary[]> {
+  const res = await apiFetch(`/users/${encodeURIComponent(ref)}/followers`);
+  if (!isSuccessful(res)) throw new Error(`load followers failed: ${res.status}`);
+  return res.data as PublicUserSummary[];
+}
+
+export async function getUserFollowingList(ref: string): Promise<PublicUserSummary[]> {
+  const res = await apiFetch(`/users/${encodeURIComponent(ref)}/following-list`);
+  if (!isSuccessful(res)) throw new Error(`load following users failed: ${res.status}`);
+  return res.data as PublicUserSummary[];
+}
+
+/** Prefix-search users for the @-mention picker. Blank query → empty list. */
+export async function searchUsers(q: string, limit = 8): Promise<PublicUserSummary[]> {
+  const query = q.trim();
+  if (!query) return [];
+  const params = new URLSearchParams({ q: query, limit: String(limit) });
+  const res = await apiFetch(`/users/search?${params}`);
+  if (!isSuccessful(res)) throw new Error(`search users failed: ${res.status}`);
+  return res.data as PublicUserSummary[];
+}
+
+/** Update the caller's display name, bio and/or username. Returns the updated
+ *  user. Surfaces friendly messages on a taken (409) / invalid (400) username. */
 export async function updateProfile(patch: {
   display_name?: string;
   bio?: string;
+  username?: string;
 }): Promise<User> {
   const res = await apiFetch("/users/me", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
-  if (!isSuccessful(res)) throw new Error(`updateProfile failed: ${res.status}`);
+  if (!isSuccessful(res)) {
+    if (res.status === 409) throw new Error(t("username_da_dung"));
+    if (res.status === 400) throw new Error(t("username_khong_hop_le"));
+    throw new Error(`updateProfile failed: ${res.status}`);
+  }
   return res.data as User;
+}
+
+/** Returns true if `username` is free (no user owns it). Used for live
+ *  availability checks while editing the profile. */
+export async function isUsernameAvailable(username: string): Promise<boolean> {
+  const res = await apiFetch(`/users/${encodeURIComponent(username)}`);
+  if (res.status === 404) return true;
+  if (isSuccessful(res)) return false;
+  throw new Error(`check username failed: ${res.status}`);
 }
 
 // ---- Gamification (Phase 5) ----
@@ -272,9 +334,10 @@ export async function getPassport(): Promise<Passport> {
   return res.data as Passport;
 }
 
-/** Another user's digital passport (provinces visited) by their username. */
-export async function getUserPassport(username: string): Promise<Passport> {
-  const res = await apiFetch(`/users/${encodeURIComponent(username)}/passport`);
+/** Another user's digital passport (provinces visited) by id (preferred) or
+ *  username (legacy). */
+export async function getUserPassport(ref: string): Promise<Passport> {
+  const res = await apiFetch(`/users/${encodeURIComponent(ref)}/passport`);
   if (!isSuccessful(res)) throw new Error(`getUserPassport failed: ${res.status}`);
   return res.data as Passport;
 }
@@ -314,13 +377,20 @@ export async function getBadges(): Promise<UserBadge[]> {
   return res.data as UserBadge[];
 }
 
+/** Newly eligible badges that have not been shown yet; marks them shown. */
+export async function claimUnsentBadges(): Promise<Badge[]> {
+  const res = await apiFetch("/me/badges/claim-unsent", { method: "POST" });
+  if (!isSuccessful(res)) throw new Error(`claimUnsentBadges failed: ${res.status}`);
+  return res.data as Badge[];
+}
+
 /** Upload a new avatar (multipart). Returns the updated user. */
 export async function uploadAvatar(file: File): Promise<User> {
   const form = new FormData();
   form.append("avatar", file);
   // No Content-Type header — the browser sets the multipart boundary.
   const res = await apiFetch("/users/me/avatar", { method: "POST", body: form });
-  if (res.status === 415) throw new Error("Ảnh phải là jpeg, png, webp hoặc gif.");
+  if (res.status === 415) throw new Error(t('anh_phai_la_jpeg_png'));
   if (!isSuccessful(res)) throw new Error(`uploadAvatar failed: ${res.status}`);
   return res.data as User;
 }
@@ -394,6 +464,7 @@ export interface CheckinResult {
   xp_awarded: number;
   total_xp: number;
   level: number;
+  duplicate?: boolean;
   /** Badges unlocked by this check-in (for a celebratory toast). */
   new_badges?: Badge[];
 }
@@ -425,9 +496,18 @@ export interface CheckinInput {
   images: { object_key: string; thumbnail_key?: string; type?: "image" | "video" }[];
 }
 
-export async function getCheckpointsInBounds(b: Bounds): Promise<Checkpoint[]> {
-  const bbox = `${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`;
-  const res = await apiFetch(`/checkpoints?bbox=${bbox}&limit=300`);
+/** Map viewport checkpoints. Filtering is server-side: `category` ("all" or a
+ *  category key) and `filter` ("all" | "mine" | "following"). mine/following
+ *  need an authenticated caller (the server returns none otherwise). */
+export async function getCheckpointsInBounds(
+  b: Bounds | null,
+  opts?: { category?: string; filter?: string },
+): Promise<Checkpoint[]> {
+  const p = new URLSearchParams({ limit: "300" });
+  if (b) p.set("bbox", `${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`);
+  if (opts?.category && opts.category !== "all") p.set("category", opts.category);
+  if (opts?.filter && opts.filter !== "all") p.set("filter", opts.filter);
+  const res = await apiFetch(`/checkpoints?${p}`);
   if (!isSuccessful(res)) throw new Error("load checkpoints failed");
   return res.data.checkpoints ?? [];
 }
@@ -505,9 +585,18 @@ export async function deleteCheckpoint(id: string): Promise<void> {
   if (!isSuccessful(res)) throw new Error(`delete checkpoint failed: ${res.status}`);
 }
 
+export type UpdateCheckpointMediaInput =
+  | { id: string; type: "image" | "video" }
+  | { object_key: string; thumbnail_key?: string; type: "image" | "video" };
+
 export async function updateCheckpoint(
   id: string,
-  patch: { name: string; note?: string | null; rating?: number | null },
+  patch: {
+    name: string;
+    note?: string | null;
+    rating?: number | null;
+    images?: UpdateCheckpointMediaInput[];
+  },
 ): Promise<Checkpoint> {
   const res = await apiFetch(`/checkpoints/${id}`, {
     method: "PATCH",
@@ -663,13 +752,15 @@ export async function getFollowing(): Promise<string[]> {
   return res.data.ids ?? [];
 }
 
-export async function followUser(username: string): Promise<void> {
-  const res = await apiFetch(`/users/${encodeURIComponent(username)}/follow`, { method: "POST" });
+/** Follow a user by id (preferred) or username (legacy). */
+export async function followUser(ref: string): Promise<void> {
+  const res = await apiFetch(`/users/${encodeURIComponent(ref)}/follow`, { method: "POST" });
   if (!isSuccessful(res)) throw new Error(`follow failed: ${res.status}`);
 }
 
-export async function unfollowUser(username: string): Promise<void> {
-  const res = await apiFetch(`/users/${encodeURIComponent(username)}/follow`, { method: "DELETE" });
+/** Unfollow a user by id (preferred) or username (legacy). */
+export async function unfollowUser(ref: string): Promise<void> {
+  const res = await apiFetch(`/users/${encodeURIComponent(ref)}/follow`, { method: "DELETE" });
   if (!isSuccessful(res)) throw new Error(`unfollow failed: ${res.status}`);
 }
 
@@ -769,6 +860,8 @@ export async function getNearbyPlaces(lat: number, lng: number): Promise<PlaceSu
 export interface NearbyPlacesResponse {
   places: Place[];
   next_offset?: number;
+  /** Total places matching the filter (server-counted, cached). */
+  total?: number;
 }
 
 /** Returns nearby places (our own backend) for the Discover experience.
@@ -776,25 +869,30 @@ export interface NearbyPlacesResponse {
    */
 export async function getNearbyAppPlaces(
   at: LatLng,
-  opts?: { limit?: number; offset?: number }
+  opts?: { limit?: number; offset?: number; category?: string; sort?: "distance" | "popular" }
 ): Promise<NearbyPlacesResponse> {
-  const { limit = 20, offset = 0 } = opts ?? {};
+  const { limit = 20, offset = 0, category, sort } = opts ?? {};
   const p = new URLSearchParams({
     lat: String(at.lat),
     lng: String(at.lng),
     limit: String(limit),
     offset: String(offset),
   });
+  if (category && category !== "all") p.set("category", category);
+  if (sort) p.set("sort", sort);
   const res = await apiFetch(`/places/nearby?${p}`);
   if (!isSuccessful(res)) throw new Error("load nearby places failed");
   const places = res.data.places ?? [];
   return {
     places,
     next_offset: places.length === limit ? offset + limit : undefined,
+    total: res.data.total,
   };
 }
 
 // ---- Journeys (Phase 3) ----
+
+export type JourneyVisibility = "only_me" | "followers" | "public";
 
 export interface Journey {
   id: string;
@@ -802,6 +900,7 @@ export interface Journey {
   title: string;
   description?: string;
   is_active: boolean;
+  visibility: JourneyVisibility;
   started_at?: string;
   ended_at?: string;
   created_at: string;
@@ -835,17 +934,28 @@ export async function getMyJourneys(): Promise<Journey[]> {
   return res.data.journeys ?? [];
 }
 
+/** Another user's journeys, filtered server-side by each journey's visibility. */
+export async function getUserJourneys(userId: string): Promise<Journey[]> {
+  const res = await apiFetch(`/users/${userId}/journeys`);
+  if (!isSuccessful(res)) throw new Error("load user journeys failed");
+  return res.data.journeys ?? [];
+}
+
 export async function getJourney(id: string): Promise<JourneyDetail> {
   const res = await apiFetch(`/journeys/${id}`);
   if (!isSuccessful(res)) throw new Error("load journey failed");
   return res.data;
 }
 
-export async function createJourney(title: string, description?: string): Promise<Journey> {
+export async function createJourney(
+  title: string,
+  description?: string,
+  visibility?: JourneyVisibility,
+): Promise<Journey> {
   const res = await apiFetch("/journeys", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title, description }),
+    body: JSON.stringify({ title, description, visibility }),
   });
   if (!isSuccessful(res)) throw new Error("create journey failed");
   return res.data;
@@ -853,7 +963,7 @@ export async function createJourney(title: string, description?: string): Promis
 
 export async function updateJourney(
   id: string,
-  patch: { title?: string; description?: string; is_active?: boolean },
+  patch: { title?: string; description?: string; is_active?: boolean; visibility?: JourneyVisibility },
 ): Promise<Journey> {
   const res = await apiFetch(`/journeys/${id}`, {
     method: "PATCH",
@@ -880,6 +990,18 @@ export async function assignCheckpointsToJourney(journeyId: string, checkpointId
     body: JSON.stringify({ checkpoint_ids: checkpointIds }),
   });
   if (!isSuccessful(res)) throw new Error("assign checkpoints to journey failed");
+}
+
+/** Replace a journey's checkpoint membership with exactly `checkpointIds` (in order):
+ *  the backend detaches the journey's current checkpoints and attaches these in one
+ *  transaction. An empty list clears the journey. Used when editing a journey. */
+export async function replaceJourneyCheckpoints(journeyId: string, checkpointIds: string[]): Promise<void> {
+  const res = await apiFetch(`/journeys/${journeyId}/checkpoints`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ checkpoint_ids: checkpointIds, replace: true }),
+  });
+  if (!isSuccessful(res)) throw new Error("replace journey checkpoints failed");
 }
 
 // ---- Google Drive integration ----

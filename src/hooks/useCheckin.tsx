@@ -1,8 +1,9 @@
 import { useCallback, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { CreateCheckpointSheet } from "../components/CreateCheckpointSheet";
 import { LocationPermissionSheet } from "../components/LocationPermissionSheet";
 import { Toast } from "../components/ui/Toast";
-import { canLocateSilently, getCurrentCoords } from "../lib/geo";
+import { getCurrentCoords } from "../lib/geo";
 import { trackError, trackEvent } from "../lib/observability";
 
 /**
@@ -11,6 +12,7 @@ import { trackError, trackEvent } from "../lib/observability";
  * Returns `start()` to kick it off and `sheets` to render the overlays.
  */
 export function useCheckin() {
+  const { t } = useTranslation();
   const [creatingAt, setCreatingAt] = useState<{ lat: number; lng: number } | null>(null);
   const [askLocation, setAskLocation] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -19,24 +21,21 @@ export function useCheckin() {
     trackEvent("checkin_flow_start", { source: "gps" });
     if (!navigator.geolocation) {
       trackEvent("location_unsupported", { source: "checkin" });
-      setToast("Trình duyệt không hỗ trợ định vị");
+      setToast(t('trinh_duyet_khong_ho_tro'));
       return;
     }
-    // Already granted (or granted before — Permissions API is unreliable on iOS
-    // PWAs)? Try to locate silently; getCurrentPosition won't prompt if the
-    // permission is still live. Only fall back to the explainer/re-enable sheet
-    // when there's no signal yet, or the silent attempt fails (denied/revoked).
-    if (await canLocateSilently()) {
-      try {
-        setCreatingAt(await getCurrentCoords());
-        trackEvent("location_granted", { source: "checkin_silent" });
-        return;
-      } catch (error) {
-        trackError(error, { feature: "checkin", action: "silent_location" }, "warn");
-        // revoked or transient failure — let the sheet guide re-enabling.
-      }
+    // Always attempt directly — do NOT gate on canLocateSilently(). The
+    // Permissions API in Safari and Brave often returns "prompt" even after
+    // the user has already granted access, causing the sheet to show on every
+    // check-in. getCurrentPosition() resolves without a dialog when permission
+    // is held; it only fails when genuinely denied or unavailable.
+    try {
+      setCreatingAt(await getCurrentCoords());
+      trackEvent("location_granted", { source: "checkin_silent" });
+    } catch (error) {
+      trackError(error, { feature: "checkin", action: "silent_location" }, "warn");
+      setAskLocation(true);
     }
-    setAskLocation(true);
   }, []);
 
   const sheets: ReactNode = (

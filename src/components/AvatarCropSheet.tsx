@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useState } from "react";
 import Cropper, { type Area, type Point } from "react-easy-crop";
 import { Icon } from "./ui/Icon";
@@ -8,7 +9,11 @@ import { composeAvatar } from "../lib/avatarComposite";
 import { frameById } from "../lib/avatarFrames";
 
 const CROP_SIZE = 512; // Output square edge in px
+const CROP_AREA_SIZE = 300;
 const JPEG_QUALITY = 0.9;
+// Frame overlay now fills the container 1:1 (no CSS transform), so the cropper
+// zoom stays 1:1 — composeAvatar handles the hole sizing internally.
+const FRAMED_AVATAR_ZOOM = 0.8;
 
 function getRadianAngle(degree: number): number {
   return (degree * Math.PI) / 180;
@@ -46,6 +51,7 @@ async function getCroppedBlob(
     image.height,
     rotation,
   );
+  console.log("bBoxWidth, bBoxHeight", bBoxWidth, bBoxHeight);
 
   canvas.width = bBoxWidth;
   canvas.height = bBoxHeight;
@@ -111,16 +117,6 @@ interface AvatarCropSheetProps {
   initialFrameId?: string | null;
 }
 
-// Live preview transform: the frame fills the box (viewBox→box), then is scaled
-// about its hole (50%, 47.27% of viewBox) so the hole matches the round crop
-// circle, and nudged down so the hole centres in the box. The decorations spill
-// past the box and are clipped by the cropper's overflow — same framing the
-// baked PNG produces. (HOLE_R 66 / 220 = 30% → scale 0.5/0.30 = 1.667.)
-const FRAME_OVERLAY_STYLE: React.CSSProperties = {
-  transformOrigin: "31% 47.27%",
-  transform: "translateY(2.73%) scale(1.7)",
-};
-
 /** Full-screen crop sheet for avatar images. 1:1 crop with circular mask,
  *  zoom slider, optional avatar-frame picker, and drag-to-reposition. "Xong"
  *  crops → downscales to 512px → bakes the chosen frame → returns a Blob. */
@@ -131,13 +127,15 @@ export function AvatarCropSheet({
   frameOptions,
   initialFrameId = null,
 }: AvatarCropSheetProps) {
+  const { t } = useTranslation();
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [frameId, setFrameId] = useState<string | null>(initialFrameId);
+  const [frameId, setFrameId] = useState<string | null>(() => frameById(initialFrameId)?.id ?? null);
 
   const selectedFrame = frameById(frameId);
+  const effectiveZoom = selectedFrame ? zoom * FRAMED_AVATAR_ZOOM : zoom;
 
   // Reset zoom when image changes
   useEffect(() => {
@@ -173,15 +171,17 @@ export function AvatarCropSheet({
   };
 
   return (
-    <Sheet title="Cắt ảnh đại diện" onClose={onClose}>
+    <Sheet title={t('cat_anh_dai_dien')} onClose={onClose}>
       <div className="flex flex-col gap-4">
         {/* Cropper */}
         <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-lg bg-black">
           <Cropper
             image={imageSrc}
             crop={crop}
-            zoom={zoom}
+            zoom={effectiveZoom}
+            maxZoom={3.6}
             aspect={1}
+            cropSize={{ width: CROP_AREA_SIZE, height: CROP_AREA_SIZE }}
             cropShape="round"
             showGrid={false}
             objectFit="cover"
@@ -196,8 +196,7 @@ export function AvatarCropSheet({
               alt=""
               aria-hidden="true"
               draggable={false}
-              className="pointer-events-none absolute inset-0 h-full w-4/5"
-              style={FRAME_OVERLAY_STYLE}
+              className="pointer-events-none absolute inset-0 w-full"
             />
           )}
         </div>
@@ -221,7 +220,7 @@ export function AvatarCropSheet({
         {/* Frame picker */}
         {frameOptions && frameOptions.length > 0 && (
           <div>
-            <p className="mb-1.5 text-sm font-semibold text-foreground">Khung avatar</p>
+            <p className="mb-1.5 text-sm font-semibold text-foreground">{t('khung_avatar')}</p>
             <AvatarFramePicker
               options={frameOptions}
               selectedId={frameId}
@@ -238,7 +237,7 @@ export function AvatarCropSheet({
           icon={processing ? undefined : <Icon name="check" size={18} />}
           className="w-full"
         >
-          {processing ? "Đang xử lý..." : "Xong"}
+          {processing ? t('dang_xu_ly') : "Xong"}
         </Button>
       </div>
     </Sheet>

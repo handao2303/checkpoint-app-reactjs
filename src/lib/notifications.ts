@@ -7,17 +7,21 @@
 import {
   addDoc,
   collection,
+  doc,
   limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { trackError, trackEvent } from "./observability";
 
-export type NotifType = "comment" | "follow" | "unfollow" | "reaction" | "checkpoint";
+// "comment" is legacy (no longer generated) but kept so older stored
+// notifications still render. New comment activity uses "mention".
+export type NotifType = "comment" | "mention" | "follow" | "unfollow" | "reaction" | "checkpoint" | "chat_message";
 
 export interface NotifActor {
   id: string;
@@ -33,10 +37,23 @@ export interface AppNotification {
   checkpoint_id?: string;
   checkpoint_name?: string;
   reaction?: string;
+  /** Snippet of the comment text, shown on "mention" notifications. */
+  comment_excerpt?: string;
+  /** Chat room id (for chat_message notifications). */
+  room_id?: string;
   created_at: Date;
 }
 
+const EXCERPT_MAX = 120;
+
+/** Trim a comment down to a short, single-line excerpt for a notification. */
+function toExcerpt(text: string): string {
+  const clean = text.trim().replace(/\s+/g, " ");
+  return clean.length > EXCERPT_MAX ? `${clean.slice(0, EXCERPT_MAX - 1)}…` : clean;
+}
+
 const notifCol = (userId: string) => collection(db, "users", userId, "notifications");
+const BATCH_WRITE_LIMIT = 450;
 
 function reportNotificationError(action: string, error: unknown): void {
   console.warn(`notification ${action} failed:`, error);
@@ -60,6 +77,21 @@ function reportNotificationInserted(
   trackEvent("notification_insert_success", { type, checkpoint_id: checkpointId });
 }
 
+function reportNotificationBatchInserted(
+  type: NotifType,
+  recipientCount: number,
+  actorId: string,
+  checkpointId?: string,
+): void {
+  console.info("notifications inserted:", {
+    type,
+    recipientCount,
+    actorId,
+    ...(checkpointId ? { checkpointId } : {}),
+  });
+  trackEvent("notification_insert_success", { type, checkpoint_id: checkpointId, count: recipientCount });
+}
+
 function actorFields(actor: NotifActor) {
   return {
     actor_id: actor.id,
@@ -74,7 +106,7 @@ export function subscribeNotifications(
   userId: string,
   cb: (notifs: AppNotification[]) => void,
 ): Unsubscribe {
-  const q = query(notifCol(userId), orderBy("created_at", "desc"), limit(50));
+  const q = query(notifCol(userId), orderBy("created_at", "desc"), limit(30));
   return onSnapshot(
     q,
     (snap) => {
@@ -93,6 +125,8 @@ export function subscribeNotifications(
             checkpoint_id: v.checkpoint_id ?? undefined,
             checkpoint_name: v.checkpoint_name ?? undefined,
             reaction: v.reaction ?? undefined,
+            comment_excerpt: v.comment_excerpt ?? undefined,
+            room_id: v.room_id ?? undefined,
             created_at: v.created_at?.toDate() ?? new Date(),
           };
         }),
@@ -106,25 +140,66 @@ export function subscribeNotifications(
   );
 }
 
-/** Notify a checkpoint owner that `actor` commented. No-op if actor is the owner. */
-export async function addCommentNotification(
-  ownerId: string,
+/** Notify comment recipients (checkpoint owner + prior commenters) of a new
+ *  comment. No-op for self and duplicate recipients. */
+export async function addCommentNotifications(
+  recipientIds: string[],
   actor: NotifActor,
   checkpointId: string,
   checkpointName: string,
 ): Promise<void> {
-  if (!ownerId || ownerId === actor.id) return;
+  const recipients = Array.from(new Set(recipientIds.filter((id) => id && id !== actor.id)));
+  if (recipients.length === 0) return;
   try {
-    const docRef = await addDoc(notifCol(ownerId), {
-      type: "comment",
-      ...actorFields(actor),
-      checkpoint_id: checkpointId,
-      checkpoint_name: checkpointName,
-      created_at: serverTimestamp(),
-    });
-    reportNotificationInserted("comment", ownerId, actor.id, docRef.id, checkpointId);
+    for (let i = 0; i < recipients.length; i += BATCH_WRITE_LIMIT) {
+      const batch = writeBatch(db);
+      for (const recipientId of recipients.slice(i, i + BATCH_WRITE_LIMIT)) {
+        batch.set(doc(notifCol(recipientId)), {
+          type: "comment",
+          ...actorFields(actor),
+          checkpoint_id: checkpointId,
+          checkpoint_name: checkpointName,
+          created_at: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    }
+    reportNotificationBatchInserted("comment", recipients.length, actor.id, checkpointId);
   } catch (error) {
-    reportNotificationError("comment write", error);
+    reportNotificationError("comment batch write", error);
+  }
+}
+
+/** Notify each @-mentioned user that `actor` tagged them in a comment. The comment
+ *  text is stored as a short excerpt for context. No-op for self and duplicates. */
+export async function addMentionNotifications(
+  recipientIds: string[],
+  actor: NotifActor,
+  checkpointId: string,
+  checkpointName: string,
+  commentText: string,
+): Promise<void> {
+  const recipients = Array.from(new Set(recipientIds.filter((id) => id && id !== actor.id)));
+  if (recipients.length === 0) return;
+  const excerpt = toExcerpt(commentText);
+  try {
+    for (let i = 0; i < recipients.length; i += BATCH_WRITE_LIMIT) {
+      const batch = writeBatch(db);
+      for (const recipientId of recipients.slice(i, i + BATCH_WRITE_LIMIT)) {
+        batch.set(doc(notifCol(recipientId)), {
+          type: "mention",
+          ...actorFields(actor),
+          checkpoint_id: checkpointId,
+          checkpoint_name: checkpointName,
+          comment_excerpt: excerpt,
+          created_at: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    }
+    reportNotificationBatchInserted("mention", recipients.length, actor.id, checkpointId);
+  } catch (error) {
+    reportNotificationError("mention batch write", error);
   }
 }
 

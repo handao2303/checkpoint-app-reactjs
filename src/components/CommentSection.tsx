@@ -1,17 +1,26 @@
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Fragment, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import type { QueryDocumentSnapshot } from "firebase/firestore";
 import { Icon } from "./ui/Icon";
-import { useCallback, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
-  addComment,
+  commentDisplayText,
   deleteComment,
   fetchComments,
-  getCommentCount,
+  parseCommentText,
+  subscribeComments,
+  submitComment,
   type Comment,
+  type CommentMention,
 } from "../lib/comments";
-import { addCommentNotification } from "../lib/notifications";
+import { CommentComposer } from "./CommentComposer";
+import { Sheet } from "./ui/Sheet";
+import { Button } from "./ui/Button";
 import { Skeleton } from "./ui/Skeleton";
 import { UserAvatar } from "./ui/UserAvatar";
+
+const PAGE = 20;
 
 export function CommentSection({
   checkpointId,
@@ -22,36 +31,63 @@ export function CommentSection({
   checkpointId: string;
   ownerUserId: string;
   checkpointName: string;
-  onOpenProfile?: (username: string) => void;
+  onOpenProfile?: (userId: string) => void;
 }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
-  const qc = useQueryClient();
-  const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [liveComments, setLiveComments] = useState<Comment[]>([]);
+  const [olderComments, setOlderComments] = useState<Comment[]>([]);
+  const [nextCursor, setNextCursor] = useState<QueryDocumentSnapshot>();
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pendingDelete, setPendingDelete] = useState<Comment | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const olderLoadedRef = useRef(false);
 
-  const { data: count = 0 } = useQuery({
-    queryKey: ["comment-count", checkpointId],
-    queryFn: () => getCommentCount(checkpointId),
-  });
+  // Keep only the newest page live. Older pages use one-shot reads so scrolling
+  // down does not widen the realtime listener and reread the entire window.
+  useEffect(() => {
+    setIsLoading(true);
+    setOlderComments([]);
+    setNextCursor(undefined);
+    olderLoadedRef.current = false;
+    const unsubscribe = subscribeComments(checkpointId, PAGE, ({ items, cursor }) => {
+      setLiveComments(items);
+      if (!olderLoadedRef.current) setNextCursor(cursor);
+      setIsLoading(false);
+    });
+    return unsubscribe;
+  }, [checkpointId]);
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
-    queryKey: ["comments", checkpointId],
-    queryFn: ({ pageParam }) => fetchComments(checkpointId, pageParam),
-    initialPageParam: undefined as Awaited<ReturnType<typeof fetchComments>>["cursor"],
-    getNextPageParam: (last) => last.cursor,
-    staleTime: 30000, // cache comments for 30s to prevent redundant refetches on reopen
-  });
-  const comments = data?.pages.flatMap((p) => p.items) ?? [];
+  const comments = [
+    ...liveComments,
+    ...olderComments.filter((older) => !liveComments.some((live) => live.id === older.id)),
+  ];
+  const hasMore = !!nextCursor;
 
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["comments", checkpointId] });
-    qc.invalidateQueries({ queryKey: ["comment-count", checkpointId] });
-  };
+  const countLabel = hasMore
+    ? t('binh_luan_count_plus', { count: comments.length })
+    : t('binh_luan_count', { count: comments.length });
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    const value = text.trim();
-    if (!value || !user || sending) return;
+  async function loadMoreComments() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      olderLoadedRef.current = true;
+      const page = await fetchComments(checkpointId, nextCursor);
+      setOlderComments((current) => {
+        const seen = new Set([...liveComments, ...current].map((comment) => comment.id));
+        return [...current, ...page.items.filter((comment) => !seen.has(comment.id))];
+      });
+      setNextCursor(page.cursor);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  async function handleSubmit(value: string, mentions: CommentMention[]) {
+    if (!user || sending) return;
     setSending(true);
     try {
       const actor = {
@@ -60,23 +96,26 @@ export function CommentSection({
         display_name: user.display_name,
         avatar_url: user.avatar_url,
       };
-      await addComment(checkpointId, value, actor);
-      void addCommentNotification(ownerUserId, actor, checkpointId, checkpointName);
-      setText("");
-      refresh();
-    } catch {
-      // best-effort; leave the text so the user can retry
-    } finally {
+      await submitComment({ checkpointId, text: value, author: actor, ownerUserId, checkpointName, mentions });
+      // The subscription will push the new comment; no manual refresh needed.
+    } catch (error) {
       setSending(false);
+      throw error; // let the composer keep the text for a retry
     }
+    setSending(false);
   }
 
-  async function remove(id: string) {
+  async function confirmDelete() {
+    if (!pendingDelete || deleting) return;
+    setDeleting(true);
     try {
-      await deleteComment(checkpointId, id);
-      refresh();
+      await deleteComment(checkpointId, pendingDelete.id);
+      // The subscription will drop the comment; no manual refresh needed.
+      setPendingDelete(null);
     } catch {
-      // ignore
+      // ignore — leave the modal open so the user can retry
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -88,40 +127,21 @@ export function CommentSection({
       if (!node) return;
       observer.current = new IntersectionObserver(
         (entries) => {
-          if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
+          if (entries[0].isIntersecting && hasMore) void loadMoreComments();
         },
         { rootMargin: "200px" },
       );
       observer.current.observe(node);
     },
-    [hasNextPage, isFetchingNextPage, fetchNextPage],
+    [hasMore, loadingMore, nextCursor, checkpointId, liveComments],
   );
 
   return (
     <div className="flex flex-col gap-3 border-t border-border pt-3">
-      <h3 className="font-display text-base font-bold">Bình luận ({count})</h3>
+      <h3 className="font-display text-base font-bold">{countLabel}</h3>
+      {user && <CommentComposer sending={sending} onSubmit={handleSubmit} />}
 
-      {user && (
-        <form onSubmit={submit} className="flex items-center gap-2">
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            maxLength={500}
-            placeholder="Viết bình luận..."
-            className="flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-          <button
-            type="submit"
-            disabled={!text.trim() || sending}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
-            aria-label="Gửi"
-          >
-            <Icon name="send" size={16} />
-          </button>
-        </form>
-      )}
-
-      {isLoading ? (
+      {(isLoading && !comments?.length) ? (
         <div className="flex flex-col gap-3">
           {Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="flex gap-2">
@@ -131,7 +151,7 @@ export function CommentSection({
           ))}
         </div>
       ) : comments?.length === 0 ? (
-        <p className="py-2 text-sm text-muted-foreground">Chưa có bình luận nào.</p>
+        <p className="py-2 text-sm text-muted-foreground">{t('chua_co_binh_luan_nao')}</p>
       ) : (
         <div className="flex flex-col gap-3">
           {comments.map((c) => (
@@ -139,18 +159,64 @@ export function CommentSection({
               key={c.id}
               comment={c}
               mine={c.user_id === user?.id}
-              onDelete={() => remove(c.id)}
+              onDelete={() => setPendingDelete(c)}
               onOpenProfile={onOpenProfile}
             />
           ))}
           <div ref={sentinelRef} className="h-1" />
-          {isFetchingNextPage && (
-            <p className="py-1 text-center text-xs text-muted-foreground">Đang tải...</p>
+          {(hasMore || loadingMore) && (
+            <p className="py-1 text-center text-xs text-muted-foreground">{t('dang_tai')}</p>
           )}
         </div>
       )}
+
+      {pendingDelete && (
+        <Sheet title={t('xoa_binh_luan_hoi')} onClose={() => !deleting && setPendingDelete(null)}>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">{t('xoa_binh_luan_xac_nhan')}</p>
+            <p className="break-words rounded-xl bg-surface-muted p-3 text-sm text-foreground">
+              {commentDisplayText(pendingDelete.text, pendingDelete.mentions)}
+            </p>
+            <Button
+              variant="accent"
+              disabled={deleting}
+              icon={<Icon name="trash" size={18} />}
+              onClick={confirmDelete}
+            >
+              {deleting ? t('dang_xoa') : t('xoa')}
+            </Button>
+            <Button variant="outline" disabled={deleting} onClick={() => setPendingDelete(null)}>
+              {t('huy')}
+            </Button>
+          </div>
+        </Sheet>
+      )}
     </div>
   );
+}
+
+/** Render comment text with @-mentions (stored as id tokens) shown as the tagged
+ *  user's display name and linked to their profile. */
+function renderCommentText(
+  text: string,
+  mentions: CommentMention[],
+  onOpenProfile?: (userId: string) => void,
+): ReactNode {
+  if (mentions.length === 0) return text;
+  return parseCommentText(text, mentions).map((seg, i) => {
+    if (seg.type === "text" || !seg.mention) return <Fragment key={i}>{seg.value}</Fragment>;
+    const mention = seg.mention;
+    return (
+      <button
+        key={i}
+        type="button"
+        onClick={() => onOpenProfile?.(mention.id)}
+        className="font-semibold text-primary hover:underline"
+      >
+        {seg.value}
+      </button>
+    );
+  });
 }
 
 function CommentRow({
@@ -162,15 +228,16 @@ function CommentRow({
   comment: Comment;
   mine: boolean;
   onDelete: () => void;
-  onOpenProfile?: (username: string) => void;
+  onOpenProfile?: (userId: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-start gap-2">
       <button
-        onClick={() => onOpenProfile?.(comment.username)}
+        onClick={() => onOpenProfile?.(comment.user_id)}
         className="shrink-0 transition hover:opacity-80"
         type="button"
-        aria-label={`Mở hồ sơ ${comment.display_name || comment.username}`}
+        aria-label={t('mo_ho_so_name', { name: comment.display_name || comment.username })}
       >
         <UserAvatar
           src={comment.avatar_url}
@@ -184,13 +251,15 @@ function CommentRow({
       <div className="min-w-0 flex-1">
         <p className="text-sm">
           <button
-            onClick={() => onOpenProfile?.(comment.username)}
+            onClick={() => onOpenProfile?.(comment.user_id)}
             className="font-semibold text-foreground hover:underline mr-1 text-left inline-block"
             type="button"
           >
             {comment.display_name || comment.username}
           </button>
-          <span className="break-words text-foreground">{comment.text}</span>
+          <span className="break-words text-foreground">
+            {renderCommentText(comment.text, comment.mentions, onOpenProfile)}
+          </span>
         </p>
         <p className="text-xs text-subtle-foreground">
           {comment.created_at.toLocaleString("vi-VN")}
@@ -200,7 +269,7 @@ function CommentRow({
         <button
           onClick={onDelete}
           className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-surface-muted hover:text-accent-600"
-          aria-label="Xoá bình luận"
+          aria-label={t('xoa_binh_luan')}
         >
           <Icon name="trash" size={14} />
         </button>

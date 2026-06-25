@@ -2,25 +2,26 @@ import { createContext, useContext, useState, ReactNode } from "react";
 import { UserProfileSheet } from "../components/UserProfileSheet";
 
 interface UserProfileContextType {
-  showProfile: (username: string) => void;
+  /** Open a user's public profile by id (preferred) or username (legacy). */
+  showProfile: (userRef: string) => void;
 }
 
 const UserProfileContext = createContext<UserProfileContextType | null>(null);
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
-  const [profileUsername, setProfileUsername] = useState<string | null>(null);
+  const [profileUserRef, setProfileUserRef] = useState<string | null>(null);
 
-  const showProfile = (username: string) => {
-    setProfileUsername(username);
+  const showProfile = (userRef: string) => {
+    setProfileUserRef(userRef);
   };
 
   return (
     <UserProfileContext.Provider value={{ showProfile }}>
       {children}
-      {profileUsername && (
+      {profileUserRef && (
         <UserProfileSheet
-          username={profileUsername}
-          onClose={() => setProfileUsername(null)}
+          userRef={profileUserRef}
+          onClose={() => setProfileUserRef(null)}
         />
       )}
     </UserProfileContext.Provider>

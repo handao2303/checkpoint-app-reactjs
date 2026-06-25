@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Icon, type IconName } from "./ui/Icon";
 import type { Badge } from "../lib/api";
@@ -19,11 +20,18 @@ const PALETTES: Record<string, { bg: string; ring: string }> = {
 // When present and awarded, the medallion shows the artwork instead of the
 // generic hexagon + glyph.
 const BADGE_ART: Record<string, string> = {
-  first_checkin: checkpointImageUrl("badges/badge-first-step.svg"),
-  explorer_10: checkpointImageUrl("badges/badge-explorer.svg"),
-  provinces_5: checkpointImageUrl("badges/badge-country.svg"),
-  night_owl: checkpointImageUrl("badges/badge-night-owl.svg"),
-  journey_starter: checkpointImageUrl("badges/badge-traveler.svg"),
+  first_checkin: checkpointImageUrl("badges/badge_01.webp"),
+  explorer_10: checkpointImageUrl("badges/badge_02.webp"),
+  provinces_5: checkpointImageUrl("badges/badge_03.webp"),
+  night_owl: checkpointImageUrl("badges/badge_04.webp"),
+  journey_starter: checkpointImageUrl("badges/badge_05.webp"),
+  coffee_hunter: checkpointImageUrl("badges/badge_06.webp"),
+  social_scout: checkpointImageUrl("badges/badge_07.webp"),
+  city_collector: checkpointImageUrl("badges/badge_08.webp"),
+  weekend_wanderer: checkpointImageUrl("badges/badge_09.webp"),
+  photo_storyteller: checkpointImageUrl("badges/badge_10.webp"),
+  hidden_gem_finder: checkpointImageUrl("badges/badge_11.webp"),
+  passport_pro: checkpointImageUrl("badges/badge_12.webp"),
 };
 
 const SIZES = {
@@ -53,6 +61,7 @@ export function BadgeMedal({
   showLevel?: number;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const palette = PALETTES[badge.color] ?? PALETTES.gold;
   const { box, icon } = SIZES[size];
   const art = awarded ? BADGE_ART[badge.key] : undefined;
@@ -93,7 +102,7 @@ export function BadgeMedal({
       )}
       {showLevel != null && (
         <span className="rounded-full bg-surface-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-          Cấp {showLevel}
+          {t('cap_badge_level', { showLevel })}
         </span>
       )}
     </span>

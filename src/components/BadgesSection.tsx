@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "./ui/Card";
 import { Icon } from "./ui/Icon";
 import { BadgeMedal } from "./BadgeMedal";
 import { getBadges } from "../lib/api";
+import { badgeDescription, badgeName } from "../lib/badgeText";
 import { Skeleton } from "./ui/Skeleton";
 
 interface BadgesSectionProps {
@@ -13,6 +15,7 @@ interface BadgesSectionProps {
 
 /** Achievement badges: the full catalog with the user's unlock state. */
 export function BadgesSection({ maxPreview, onViewAll }: BadgesSectionProps) {
+  const { t } = useTranslation();
   const { data: badges = [], isLoading } = useQuery({ queryKey: ["badges"], queryFn: getBadges });
   const unlocked = badges.filter((b) => b.awarded).length;
 
@@ -24,7 +27,7 @@ export function BadgesSection({ maxPreview, onViewAll }: BadgesSectionProps) {
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h3 className="flex items-center gap-2 font-display text-lg font-bold">
-          <Icon name="award" size={20} className="text-gold" /> Huy hiệu
+          <Icon name="award" size={20} className="text-gold" /> {t('huy_hieu')}
         </h3>
         <div className="flex items-center gap-2">
           {badges?.length > 0 && (
@@ -38,7 +41,7 @@ export function BadgesSection({ maxPreview, onViewAll }: BadgesSectionProps) {
               onClick={onViewAll}
               className="text-sm font-medium text-primary hover:underline"
             >
-              Xem tất cả
+              {t('xem_tat_ca')}
             </button>
           )}
         </div>
@@ -69,8 +72,8 @@ export function BadgesSection({ maxPreview, onViewAll }: BadgesSectionProps) {
               }`}
             >
               <BadgeMedal badge={b} awarded={b.awarded} />
-              <p className="text-sm font-medium">{b.name}</p>
-              <p className="text-xs text-muted-foreground">{b.description}</p>
+              <p className="text-sm font-medium">{badgeName(t, b)}</p>
+              <p className="text-xs text-muted-foreground">{badgeDescription(t, b)}</p>
             </Card>
           ))}
         </div>

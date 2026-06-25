@@ -1,6 +1,7 @@
 // Processes POST /checkpoints in the background after R2 uploads complete.
 // Lives at app root so it survives form unmounts. Jobs are persisted to
 // localStorage so they survive app kills — recovered and retried on next open.
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
@@ -10,10 +11,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { createCheckpoint, ApiError, type Badge, type CheckinInput, type User } from "../lib/api";
-import { Toast, XPToast } from "../components/ui/Toast";
+import { useTranslation } from "react-i18next";
 import { BadgeUnlockModal } from "../components/BadgeUnlockModal";
+import { Toast, XPToast } from "../components/ui/Toast";
+import { ApiError, createCheckpoint, type Badge, type CheckinInput, type User } from "../lib/api";
 import { trackError, trackEvent } from "../lib/observability";
 
 // ---- persistence ----------------------------------------------------------
@@ -96,11 +97,13 @@ interface XPReward {
 }
 
 export function CheckinQueueProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [queue, setQueue] = useState<PendingJob[]>(() => loadJobs());
   const [errorToast, setErrorToast] = useState<string | null>(null);
   const [xpReward, setXpReward] = useState<XPReward | null>(null);
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [pendingBadges, setPendingBadges] = useState<Badge[]>([]);
   const processing = useRef(false);
 
   const enqueue = useCallback((input: CheckinInput) => {
@@ -153,18 +156,21 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
           ]);
 
           const didLevelUp = res.level > (prevUser?.level ?? res.level);
-          setXpReward({ xp: res.xp_awarded, level: res.level, didLevelUp });
           trackEvent("checkin_create_success", {
             checkpoint_id: res.checkpoint.id,
             category: res.checkpoint.category,
             xp: res.xp_awarded,
             did_level_up: didLevelUp,
             badge_count: res.new_badges?.length ?? 0,
+            duplicate: !!res.duplicate,
           });
+          if (res.duplicate) break;
+
+          setXpReward({ xp: res.xp_awarded, level: res.level, didLevelUp });
           if (didLevelUp) trackEvent("checkin_level_up", { level: res.level });
           if (res.new_badges?.length) {
             trackEvent("checkin_badge_unlocked", { badge_count: res.new_badges.length });
-            setBadges(res.new_badges);
+            setPendingBadges(res.new_badges);
           }
           break;
         } catch (err) {
@@ -173,7 +179,7 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
             removeJob(job.id);
             trackError(err, { feature: "checkin", action: "checkin_create", attempt: attempt + 1 });
             trackEvent("checkin_create_failed", { attempt: attempt + 1 });
-            setErrorToast("Lưu check-in thất bại. Vui lòng thử lại.");
+            setErrorToast(t('luu_checkin_that_bai_vui'));
             break;
           }
         }
@@ -194,7 +200,13 @@ export function CheckinQueueProvider({ children }: { children: ReactNode }) {
           xp={xpReward.xp}
           level={xpReward.level}
           didLevelUp={xpReward.didLevelUp}
-          onDone={() => setXpReward(null)}
+          onDone={() => {
+            setXpReward(null);
+            if (pendingBadges.length > 0) {
+              setBadges(pendingBadges);
+              setPendingBadges([]);
+            }
+          }}
         />
       )}
       {errorToast && <Toast message={errorToast} onDone={() => setErrorToast(null)} />}

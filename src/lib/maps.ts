@@ -6,18 +6,18 @@ export const DEFAULT_VIEW = { longitude: 106.7, latitude: 10.776, zoom: 12 };
 
 import type { IconName } from "../components/ui/Icon";
 
-// `icon` is a key into the self-hosted SVG registry (for on-screen <Icon>);
-// `emoji` is kept only for canvas rendering in shareCard.ts, where a React
-// component can't be used.
+// `icon` is a key into the self-hosted SVG registry (for on-screen <Icon>).
+// `labelKey` is the i18n key — resolve it with `t()` at render time so the
+// label re-renders on language change.
 export const CATEGORIES = [
-  { key: "cafe", label: "Cà phê", icon: "coffee", emoji: "☕" },
-  { key: "food", label: "Ăn uống", icon: "food", emoji: "🍜" },
-  { key: "view", label: "Ngắm cảnh", icon: "mountain", emoji: "🌄" },
-  { key: "nature", label: "Thiên nhiên", icon: "tree", emoji: "🌲" },
-  { key: "other", label: "Khác", icon: "pin", emoji: "📍" },
+  { key: "cafe", labelKey: "ca_phe", icon: "coffee", emoji: "☕" },
+  { key: "food", labelKey: "an_uong", icon: "food", emoji: "🍜" },
+  { key: "view", labelKey: "ngam_canh", icon: "mountain", emoji: "🌄" },
+  { key: "nature", labelKey: "thien_nhien", icon: "tree", emoji: "🌲" },
+  { key: "other", labelKey: "khac", icon: "pin", emoji: "📍" },
 ] as const satisfies ReadonlyArray<{
   key: string;
-  label: string;
+  labelKey: string;
   icon: IconName;
   emoji: string;
 }>;
@@ -25,9 +25,4 @@ export const CATEGORIES = [
 /** The SVG icon name for a category (for <Icon name=...>). */
 export function categoryIcon(category: string): IconName {
   return CATEGORIES.find((c) => c.key === category)?.icon ?? "pin";
-}
-
-/** The emoji for a category — only for canvas drawing (shareCard.ts). */
-export function categoryEmoji(category: string): string {
-  return CATEGORIES.find((c) => c.key === category)?.emoji ?? "📍";
 }

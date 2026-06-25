@@ -1,3 +1,5 @@
+import i18n from "../lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import Map, { Source, Layer, Marker } from "react-map-gl/maplibre";
@@ -10,8 +12,8 @@ import { MediaPreview } from "./MediaPreview";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
 import { ShareButton } from "./share/ShareButton";
-import { renderJourneyCard } from "../lib/shareCard";
 import { trackEvent } from "../lib/observability";
+import { useAuth } from "../auth/AuthContext";
 
 export function JourneyDetailSheet({
   id,
@@ -22,7 +24,12 @@ export function JourneyDetailSheet({
   onOpenCheckpoint?: (checkpointId: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
   const { data, isLoading } = useQuery({ queryKey: ["journey", id], queryFn: () => getJourney(id) });
+  // Journeys are viewable by anyone (deep link / other profiles), so only claim
+  // ownership ("của mình") when the journey actually belongs to the viewer.
+  const isMine = user != null && data != null && data.journey.user_id === user.id;
   const stops = data?.checkpoints ?? [];
   const mapRef = useRef<MapLibreMap | null>(null);
   const [focusedStopId, setFocusedStopId] = useState<string | null>(null);
@@ -127,7 +134,7 @@ export function JourneyDetailSheet({
 
           <div className="max-h-50 shrink-0 overflow-y-auto rounded-xl border border-border bg-surface">
             {stops.length === 0 ? (
-              <p className="p-3 text-sm text-muted-foreground">Chưa có check-in nào trong hành trình.</p>
+              <p className="p-3 text-sm text-muted-foreground">{t('chua_co_checkin_nao_trong')}</p>
             ) : (
               <div className="py-1">
                 {stops.map((s, i) => (
@@ -150,24 +157,10 @@ export function JourneyDetailSheet({
 
           <div className="shrink-0 text-end">
             <ShareButton
-              filename={`journey-${data.journey.id}.png`}
               title={data.journey.title}
-              text={`Hành trình "${data.journey.title}" của mình trên Checkpoint!`}
-              label="Chia sẻ hành trình"
+              text={`${t('hanh_trinh')} "${data.journey.title}" ${isMine ? t('cua_minh_tren_checkpoint') : t('tren_checkpoint')}`}
+              label={t('chia_se_hanh_trinh')}
               url={`${API_URL}/share/journey/${data.journey.id}`}
-              render={() =>
-                renderJourneyCard({
-                  title: data.journey.title,
-                  count: data.stats.checkpoint_count,
-                  xp: data.stats.total_xp,
-                  distanceKm: data.stats.distance_km,
-                  date: new Date(
-                    data.journey.started_at ?? data.journey.created_at,
-                  ).toLocaleDateString("vi-VN"),
-                  imageUrls: stops.map((s) => s.thumbnail_url ?? s.image_url).filter(Boolean) as string[],
-                  url: `${API_URL}/share/journey/${data.journey.id}`,
-                })
-              }
             />
           </div>
         </div>
@@ -196,7 +189,7 @@ function getStopMarkerMeta(index: number, total: number): StopMarkerMeta {
       kind: "number",
       label: "1",
       tone: "bg-primary text-primary-foreground",
-      ariaLabel: "Điểm duy nhất",
+      ariaLabel: i18n.t('diem_duy_nhat'),
     };
   }
   if (index === 0) {
@@ -204,7 +197,7 @@ function getStopMarkerMeta(index: number, total: number): StopMarkerMeta {
       kind: "icon",
       iconName: "play",
       tone: "bg-emerald-600 text-white",
-      ariaLabel: "Điểm bắt đầu",
+      ariaLabel: i18n.t('diem_bat_dau'),
     };
   }
   if (index === total - 1) {
@@ -212,14 +205,14 @@ function getStopMarkerMeta(index: number, total: number): StopMarkerMeta {
       kind: "icon",
       iconName: "flag",
       tone: "bg-accent-600 text-white",
-      ariaLabel: "Điểm kết thúc",
+      ariaLabel: i18n.t('diem_ket_thuc'),
     };
   }
   return {
     kind: "number",
     label: String(index + 1),
     tone: "bg-primary text-primary-foreground",
-    ariaLabel: `Điểm số ${index + 1}`,
+    ariaLabel: i18n.t('diem_so_index_1', { number: index + 1 }),
   };
 }
 
@@ -345,6 +338,7 @@ function StopListItem({
   onFocus: () => void;
   onOpen?: () => void;
 }) {
+  const { t } = useTranslation();
   const meta = getStopMarkerMeta(index, total);
   const isFirst = index === 0;
   const isLast = index === total - 1;
@@ -384,7 +378,7 @@ function StopListItem({
           type="button"
           onClick={onOpen}
           className="my-2.5 mr-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted-foreground transition hover:bg-primary hover:text-primary-foreground"
-          aria-label={`Mở ${stop.name}`}
+          aria-label={t('mo_stopname', { name: stop.name })}
         >
           <Icon name="eye" size={14} />
         </button>

@@ -1,4 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import i18n from "../lib/i18n";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
@@ -9,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Icon, type IconName } from "../components/ui/Icon";
 import { useNavigate } from "react-router-dom";
 import { Toast } from "../components/ui/Toast";
 import { useAuth } from "../auth/AuthContext";
@@ -32,6 +34,16 @@ interface NotificationState {
 }
 
 const NotificationContext = createContext<NotificationState | null>(null);
+
+function commentCheckpointIds(notifs: AppNotification[]): string[] {
+  return Array.from(
+    new Set(
+      notifs
+        .filter((n) => n.type === "comment" && n.checkpoint_id)
+        .map((n) => n.checkpoint_id as string),
+    ),
+  );
+}
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -62,19 +74,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       trackEvent("notification_subscribe_success", { count: notifs.length });
       if (storedInitialized.current) {
         const newNotifs = notifs.filter((n) => !knownStoredIds.current.has(n.id));
-        for (const n of newNotifs) {
-          if (n.type !== "comment" || !n.checkpoint_id) continue;
-          queryClient.removeQueries({ queryKey: ["comments", n.checkpoint_id] });
-          queryClient.removeQueries({ queryKey: ["comment-count", n.checkpoint_id] });
-          queryClient.invalidateQueries({ queryKey: ["comments", n.checkpoint_id] });
-          queryClient.invalidateQueries({ queryKey: ["comment-count", n.checkpoint_id] });
-        }
+        revalidateCommentCaches(queryClient, commentCheckpointIds(newNotifs));
         const newest = newNotifs[0];
         if (newest) {
           trackEvent("notification_toast_shown", { type: newest.type });
           setToast(newest);
         }
       } else {
+        const unseenNotifs = notifs.filter((n) => n.created_at.getTime() > getLastSeen(user.id));
+        revalidateCommentCaches(queryClient, commentCheckpointIds(unseenNotifs));
         storedInitialized.current = true;
       }
       knownStoredIds.current = new Set(notifs.map((n) => n.id));
@@ -92,9 +100,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     staleTime: 60_000,
   });
 
+  const storedCheckpointIds = useMemo(
+    () => new Set(stored.filter((n) => n.type === "checkpoint" && n.checkpoint_id).map((n) => n.checkpoint_id as string)),
+    [stored],
+  );
+
   const derived = useMemo<AppNotification[]>(() => {
     if (!followingFeed?.items || !user) return [];
     return followingFeed?.items?.filter((it) => it.user_id !== user.id)
+      .filter((it) => !storedCheckpointIds.has(it.id))
       .map((it) => ({
         id: `cp-${it.id}`,
         type: "checkpoint" as const,
@@ -108,7 +122,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         checkpoint_name: it.name,
         created_at: new Date(it.created_at),
       }));
-  }, [followingFeed, user]);
+  }, [followingFeed, storedCheckpointIds, user]);
 
   const items = useMemo(
     () =>
@@ -142,16 +156,22 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       {children}
       {toast && (
         <Toast
+          isNotification
           message={notificationToastMessage(toast)}
+          variant={notificationToastVariant(toast)}
           onDone={() => setToast(null)}
           onClick={() => {
             trackEvent("notification_toast_click", { type: toast.type });
             const target =
-              toast.type === "follow" || toast.type === "unfollow"
-                ? `/u/${encodeURIComponent(toast.actor.username)}`
-                : toast.checkpoint_id
-                  ? `/c/${encodeURIComponent(toast.checkpoint_id)}`
-                  : null;
+              toast.type === "chat_message"
+                ? toast.room_id
+                  ? `/chat/${encodeURIComponent(toast.room_id)}`
+                  : "/chat"
+                : toast.type === "follow" || toast.type === "unfollow"
+                  ? `/u/${encodeURIComponent(toast.actor.id)}`
+                  : toast.checkpoint_id
+                    ? `/c/${encodeURIComponent(toast.checkpoint_id)}`
+                    : null;
             setToast(null);
             if (target) navigate(target);
           }}
@@ -161,24 +181,126 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   );
 }
 
+function revalidateCommentCaches(
+  queryClient: QueryClient,
+  checkpointIds: string[],
+): void {
+  for (const checkpointId of checkpointIds) {
+    queryClient.removeQueries({ queryKey: ["comments", checkpointId] });
+    void queryClient.invalidateQueries({ queryKey: ["comments", checkpointId] });
+    void queryClient.refetchQueries({ queryKey: ["comments", checkpointId], type: "active" });
+  }
+}
+
 export function useNotifications(): NotificationState {
   const ctx = useContext(NotificationContext);
   if (!ctx) throw new Error("useNotifications must be used within <NotificationProvider>");
   return ctx;
 }
 
-function notificationToastMessage(notification: AppNotification): string {
-  const actor = notification.actor.display_name || notification.actor.username;
+const REACTION_STYLES: Record<
+  string,
+  { icon: IconName; className: string; fill: boolean }
+> = {
+  like: { icon: "like", className: "text-primary", fill: true },
+  love: { icon: "love", className: "text-rose-500", fill: true },
+  fire: { icon: "fire", className: "text-orange-500", fill: true },
+  haha: { icon: "haha", className: "text-gold", fill: false },
+  sad: { icon: "sad", className: "text-sky-500", fill: false },
+};
+
+function notificationToastVariant(
+  notification: AppNotification,
+): "success" | "error" | "info" | "warning" {
   switch (notification.type) {
-    case "comment":
-      return `${actor} đã bình luận về ${notification.checkpoint_name ?? "check-in của bạn"}`;
-    case "reaction":
-      return `${actor} đã bày tỏ cảm xúc về ${notification.checkpoint_name ?? "check-in của bạn"}`;
-    case "follow":
-      return `${actor} đã theo dõi bạn`;
     case "unfollow":
-      return `${actor} đã bỏ theo dõi bạn`;
-    case "checkpoint":
-      return `${actor} vừa đăng check-in mới`;
+      return "warning";
+    default:
+      return "success";
   }
+}
+
+function notificationToastMessage(notification: AppNotification): ReactNode {
+  const actor = notification.actor.display_name || notification.actor.username;
+  const name = notification.checkpoint_name ?? i18n.t("checkin_cua_ban");
+
+  const line = (() => {
+    switch (notification.type) {
+      case "mention":
+        return i18n.t("actor_da_nhac_den_ban", { actor: "", name });
+      case "comment":
+        return i18n.t("actor_da_binh_luan_ve", { actor: "", name });
+      case "reaction":
+        return i18n.t("actor_da_bay_to_cam", { actor: "", name });
+      case "follow":
+        return i18n.t("actor_da_theo_doi_ban", { actor: "" });
+      case "unfollow":
+        return i18n.t("actor_da_bo_theo_doi", { actor: "" });
+      case "checkpoint":
+        return i18n.t("actor_vua_dang_checkin_moi", { actor: "", name });
+      case "chat_message":
+        return i18n.t("actor_da_gui_tin_nhan", { actor: "", room: name });
+    }
+  })();
+
+  // ── Reaction: show inline reaction icon ──
+  if (notification.type === "reaction") {
+    const style = notification.reaction && REACTION_STYLES[notification.reaction];
+    return (
+      <span>
+        <strong>{actor}</strong>
+        {line}{" "}
+        {style && (
+          <Icon
+            name={style.icon}
+            size={14}
+            className={`inline shrink-0 ${style.className} bg-surface-muted ${style.fill ? "fill-current" : ""}`}
+          />
+        )}
+      </span>
+    );
+  }
+
+  // ── Comment / mention: show excerpt below ──
+  if (
+    (notification.type === "comment" || notification.type === "mention") &&
+    notification.comment_excerpt
+  ) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span>
+          <strong>{actor}</strong>
+          {line}
+        </span>
+        <span className="truncate text-xs text-muted-foreground">
+          “{notification.comment_excerpt}”
+        </span>
+      </div>
+    );
+  }
+
+  // ── Chat message: show preview below ──
+  if (notification.type === "chat_message") {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span>
+          <strong>{actor}</strong>
+          {line}
+        </span>
+        {notification.comment_excerpt && (
+          <span className="truncate text-xs text-muted-foreground">
+            {notification.comment_excerpt}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // ── Follow / unfollow / checkpoint ──
+  return (
+    <span>
+      <strong>{actor}</strong>
+      {line}
+    </span>
+  );
 }

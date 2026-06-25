@@ -10,6 +10,7 @@ import { JourneysSection } from "../components/JourneysSection";
 import { MediaPreview } from "../components/MediaPreview";
 import { MyCheckpointsSheet } from "../components/MyCheckpointsSheet";
 import { PassportSection } from "../components/PassportSection";
+import { ProfileHeroCard } from "../components/ProfileHeroCard";
 import { ShareButton } from "../components/share/ShareButton";
 import { Button } from "../components/ui/Button";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
@@ -30,7 +31,6 @@ import {
 } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { trackEvent } from "../lib/observability";
-import { renderProfileCard } from "../lib/shareCard";
 
 
 function MomentCaption({ cp }: { cp?: Checkpoint }) {
@@ -49,41 +49,34 @@ function MomentCaption({ cp }: { cp?: Checkpoint }) {
   );
 }
 
-function avatarRingClass(level: number) {
-  if (level >= 16) return "border-4 border-yellow-400";
-  if (level >= 6) return "border-4 border-orange-300";
-  return "border-4 border-white/30";
-}
-
-function formatMemberSince(dateStr: string): string {
-  const d = new Date(dateStr);
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  return `${month}/${d.getFullYear()}`;
-}
-
 function PodiumMini({ entry, rank }: { entry: LeaderboardEntry; rank: 1 | 2 | 3 }) {
   const { showProfile } = useUserProfile();
   const ringClass = { 1: "ring-yellow-400", 2: "ring-slate-400", 3: "ring-amber-600" }[rank];
   const name = entry.display_name || entry.username;
+  const hasAvatar = Boolean(entry.avatar_url);
   return (
     <button
       type="button"
-      onClick={() => showProfile(entry.username)}
-      className="flex flex-1 flex-col items-center gap-1 px-1 transition hover:opacity-80 text-center cursor-pointer outline-none"
+      onClick={() => showProfile(entry.user_id)}
+      className="flex min-w-0 flex-col items-center text-center outline-none transition hover:opacity-80 cursor-pointer"
     >
-      <div className="relative">
-        <UserAvatar
-          src={entry.avatar_url}
-          name={name}
-          username={entry.username}
-          className="h-11 w-11"
-          fallbackClassName={`h-10 w-10 ring-2 ${ringClass}`}
-        />
-        <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-surface px-1 text-[10px] font-bold text-muted-foreground shadow-sm">
-          #{rank}
-        </span>
+      <div className="flex h-20 w-full items-center justify-center">
+        <div className="relative">
+          <UserAvatar
+            src={entry.avatar_url}
+            name={name}
+            username={entry.username}
+            className={hasAvatar ? "h-16 w-16" : "h-12 w-12"}
+            imageClassName={`ring-2 ${ringClass}`}
+            fallbackClassName={`bg-primary-50 text-primary ring-2 ${ringClass} text-ellipsis`}
+            fit="cover"
+          />
+          <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-surface px-1.5 text-[10px] font-bold text-muted-foreground shadow-sm">
+            #{rank}
+          </span>
+        </div>
       </div>
-      <p className="mt-2 w-full truncate text-xs font-semibold text-foreground">{name}</p>
+      <p className="mt-1 w-full truncate text-xs font-semibold text-foreground">{name}</p>
       <p className="text-[10px] text-muted-foreground">{entry.total_xp.toLocaleString()} XP</p>
     </button>
   );
@@ -125,21 +118,21 @@ export function ProfilePage() {
     const photos = searchParams.get("photos");
     if (drive === "connected") {
       trackEvent("integration_connect_return_success", { provider: "drive" });
-      setDriveToast("Đã kết nối Google Drive ✓");
+      setDriveToast(t('da_ket_noi_google_drive'));
       void queryClient.invalidateQueries({ queryKey: ["drive-status"] });
       setSearchParams({}, { replace: true });
     } else if (drive === "error") {
       trackEvent("integration_connect_return_failed", { provider: "drive" });
-      setDriveToast("Kết nối Google Drive thất bại");
+      setDriveToast(t('ket_noi_google_drive_that'));
       setSearchParams({}, { replace: true });
     } else if (photos === "connected") {
       trackEvent("integration_connect_return_success", { provider: "photos" });
-      setDriveToast("Đã kết nối Google Photos ✓");
+      setDriveToast(t('da_ket_noi_google_photos'));
       void queryClient.invalidateQueries({ queryKey: ["photos-status"] });
       setSearchParams({}, { replace: true });
     } else if (photos === "error") {
       trackEvent("integration_connect_return_failed", { provider: "photos" });
-      setDriveToast("Kết nối Google Photos thất bại");
+      setDriveToast(t('ket_noi_google_photos_that'));
       setSearchParams({}, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,96 +148,42 @@ export function ProfilePage() {
     <div className="flex flex-col gap-5 pb-4">
       {user.is_anonymous && <UpgradeBanner />}
 
-      {/* Hero card */}
-      <div className="relative rounded-2xl border border-border bg-surface p-5 text-foreground shadow-card">
-        <button
-          onClick={() => {
-            trackEvent("profile_edit_open");
-            setEditing(true);
-          }}
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary cursor-pointer"
-          aria-label={t("profile.editProfile")}
-        >
-          <Icon name="pencil" size={16} />
-        </button>
+      <ProfileHeroCard
+        user={user}
+        province={firstProvince}
+        onOpenProfile={showProfile}
+        stats={[
+          { label: t("profile.badgesLabel", t('huy_hieu')), value: unlockedBadges.length.toString() },
+          { label: t("profile.checkpointCountLabel", t('co')), value: user.checkpoint_count.toString() },
+          { label: t("profile.journeyCountLabel", t('hanh_trinh')), value: user.journey_count.toString() },
+          { label: t("profile.levelLabel", t('cap')), value: user.level.toString() },
+        ]}
+        actions={
+          <>
+            <button
+              onClick={() => {
+                trackEvent("profile_edit_open");
+                setEditing(true);
+              }}
+              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary cursor-pointer"
+              aria-label={t("profile.editProfile")}
+            >
+              <Icon name="pencil" size={16} />
+            </button>
 
-        <button
-          onClick={() => {
-            trackEvent("profile_settings_open");
-            setSettingsSheetOpen(true);
-          }}
-          className="absolute right-3 top-14 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary cursor-pointer"
-          aria-label="Cài đặt"
-        >
-          <Icon name="settings" size={16} />
-        </button>
-
-        {/* Avatar + info */}
-        <div className="flex items-start gap-1">
-          <button
-            type="button"
-            onClick={() => showProfile(user.username)}
-            className="relative shrink-0 text-left transition hover:opacity-80 cursor-pointer outline-none"
-            aria-label="Xem hồ sơ công khai"
-          >
-            <UserAvatar
-              src={user.avatar_url}
-              name={user.display_name}
-              username={user.username}
-              className="h-25 w-25"
-              loading="eager"
-              fallbackClassName={`h-24 w-24 bg-primary-50 text-primary ${avatarRingClass(user.level)}`}
-            />
-            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-xs font-extrabold text-primary shadow-sm">
-              Cấp {user.level}
-            </span>
-          </button>
-          <div className="min-w-0 flex-1 justify-between mt-3 gap-4">
-            <h2 className="font-display text-xl font-bold leading-tight">
-              {user.display_name || user.username}
-            </h2>
-            <p className="text-sm text-muted-foreground">@{user.username}</p>
-            {firstProvince && (
-              <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Icon name="pin" size={12} />
-                {firstProvince}
-              </span>
-            )}
-            {user.bio && (
-              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{user.bio}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Tags */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
-          {user.checkin_streak > 0 && (
-            <span className="flex items-center gap-1">
-              <Icon name="fire" size={12} className="text-primary" />
-              {user.checkin_streak} ngày liên tiếp
-            </span>
-          )}
-          <span className="flex items-center gap-1">
-            <Icon name="calendar" size={12} />
-            Thành viên từ {formatMemberSince(user.created_at)}
-          </span>
-        </div>
-
-        {/* Stats */}
-        <div className="mt-4 grid grid-cols-4 gap-2">
-          {[
-            { label: t("profile.badgesLabel", "Huy hiệu"), value: unlockedBadges.length.toString() },
-            { label: t("profile.checkpointCountLabel", "Cờ"), value: user.checkpoint_count.toString() },
-            { label: t("profile.journeyCountLabel", "Hành trình"), value: user.journey_count.toString() },
-            { label: t("profile.levelLabel", "Cấp"), value: user.level.toString() },
-          ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-border bg-surface-muted py-2 text-center">
-              <p className="text-[10px] font-semibold text-muted-foreground">{s.label}</p>
-              <p className="font-display text-base font-extrabold text-clay-800">{s.value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+            <button
+              onClick={() => {
+                trackEvent("profile_settings_open");
+                setSettingsSheetOpen(true);
+              }}
+              className="absolute right-3 top-14 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-muted text-clay-700 hover:bg-primary-50 hover:text-primary cursor-pointer"
+              aria-label={t('cai_dat')}
+            >
+              <Icon name="settings" size={16} />
+            </button>
+          </>
+        }
+      />
 
       {/* Level card */}
       <Card>
@@ -257,7 +196,7 @@ export function ProfilePage() {
                   size={20}
                   className="text-gold"
                 />
-                <p className="font-semibold text-foreground">{t("profile.currentLevel", "Cấp độ hiện tại")}</p>
+                <p className="font-semibold text-foreground">{t("profile.currentLevel", t('cap_do_hien_tai'))}</p>
               </div>
               <p className="text-sm text-muted-foreground">{user.total_xp.toLocaleString()} XP</p>
             </div>
@@ -282,7 +221,7 @@ export function ProfilePage() {
       <Card>
         <div className="mb-3 flex items-center justify-between">
           <h3 className="flex items-center gap-2 font-display text-lg font-bold">
-            <Icon name="badge" size={20} className="text-gold" /> Huy hiệu
+            <Icon name="badge" size={20} className="text-gold" /> {t('huy_hieu')}
           </h3>
           <button
             type="button"
@@ -292,7 +231,7 @@ export function ProfilePage() {
             }}
             className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           >
-            Xem tất cả <Icon name="chevron-right" size={14} />
+            {t('xem_tat_ca')} <Icon name="chevron-right" size={14} />
           </button>
         </div>
         {badgesLoading ? (
@@ -311,7 +250,7 @@ export function ProfilePage() {
           </div>
         ) : unlockedBadges.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Chưa có huy hiệu nào. Hãy check-in để mở khóa!
+            {t('chua_co_huy_hieu_nao')}
           </p>
         ) : (
           <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-none">
@@ -321,7 +260,7 @@ export function ProfilePage() {
                 className="flex w-14 shrink-0 flex-col items-center gap-0.5 text-center"
               >
                 <BadgeMedal badge={b} awarded size="sm" showLevel={b.level} />
-                <p className="w-full truncate text-[10px] font-medium leading-tight">{b.name}</p>
+                <p className="w-full truncate text-[10px] font-medium leading-tight">{t(b.name)}</p>
               </div>
             ))}
           </div>
@@ -337,7 +276,7 @@ export function ProfilePage() {
       <Card>
         <div className="mb-3 flex items-center justify-between">
           <h3 className="flex items-center gap-2 font-display text-lg font-bold">
-            <Icon name="trophy" size={20} className="text-gold" /> Bảng xếp hạng
+            <Icon name="trophy" size={20} className="text-gold" /> {t('bang_xep_hang')}
           </h3>
           <button
             type="button"
@@ -347,13 +286,13 @@ export function ProfilePage() {
             }}
             className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           >
-            Xem tất cả <Icon name="chevron-right" size={14} />
+            {t('xem_tat_ca')} <Icon name="chevron-right" size={14} />
           </button>
         </div>
         {top3.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Chưa có dữ liệu bảng xếp hạng.</p>
+          <p className="text-sm text-muted-foreground">{t('chua_co_du_lieu_bang')}</p>
         ) : (
-          <div className="flex justify-around py-1">
+          <div className="grid grid-cols-3 items-start gap-2 py-1">
             {top3.map((e, i) => (
               <PodiumMini key={e.user_id} entry={e} rank={(i + 1) as 1 | 2 | 3} />
             ))}
@@ -369,14 +308,14 @@ export function ProfilePage() {
       {/* Moments */}
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="font-display text-lg font-bold">Khoảnh khắc hành trình</h3>
+          <h3 className="font-display text-lg font-bold">{t('khoanh_khac_hanh_trinh')}</h3>
           <button
             type="button"
             onClick={() => {
               trackEvent("my_checkpoints_open", { source: "profile_moments" });
               setCheckpointsSheetOpen(true);
             }}
-            aria-label="Xem tất cả check-in"
+            aria-label={t('xem_tat_ca_checkin')}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition hover:brightness-105 active:scale-95"
           >
             <Icon name="list" size={18} />
@@ -390,7 +329,7 @@ export function ProfilePage() {
           </div>
         ) : myCheckpoints.length === 0 ? (
           <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-            Chưa có check-in nào. Mở tab Map và cắm cờ địa điểm đầu tiên!
+            {t('chua_co_checkin_nao_mo')}
           </p>
         ) : (
           <div className="flex gap-3 overflow-x-auto px-4 -mx-4 pb-2 scrollbar-none ">
@@ -430,22 +369,10 @@ export function ProfilePage() {
       </div>
 
       <ShareButton
-        filename={`checkpoint-${user.username}.png`}
-        title={`Hộ chiếu Checkpoint của ${user.display_name || user.username}`}
-        text={`Mình đã cắm ${user.checkpoint_count} cờ trên Checkpoint!`}
-        url={`${API_URL}/share/user/${user.username}`}
-        label="Chia sẻ Hộ chiếu Điện tử"
-        render={() =>
-          renderProfileCard({
-            name: user.display_name || user.username,
-            username: user.username,
-            level: user.level,
-            totalXp: user.total_xp,
-            checkpointCount: user.checkpoint_count,
-            journeyCount: user.journey_count,
-            url: `${API_URL}/share/user/${user.username}`,
-          })
-        }
+        title={t('ho_chieu_checkpoint_cua_userdisplay', { name: user.display_name || user.username })}
+        text={t('minh_da_cam_usercheckpoint_count', { checkpoint_count: user.checkpoint_count })}
+        url={`${API_URL}/share/user/${user.id}`}
+        label={t('chia_se_ho_chieu_dien')}
       />
       <Button size="lg" variant="outline" icon={<Icon name="log-out" size={20} />} onClick={signOut}>
         {t("profile.logout")}

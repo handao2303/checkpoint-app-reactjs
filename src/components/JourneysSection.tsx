@@ -1,21 +1,27 @@
-import { lazy, Suspense, useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Icon } from "./ui/Icon";
 import {
   assignCheckpointsToJourney,
   createJourney,
   deleteJourney,
+  getJourney,
   getMe,
   getMyJourneys,
   getMyUnassignedCheckpoints,
+  replaceJourneyCheckpoints,
   updateJourney,
   type Checkpoint,
   type Journey,
+  type JourneyStop,
+  type JourneyVisibility,
 } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Sheet } from "./ui/Sheet";
+import { JourneyVisibilitySelect, VisibilityBadge } from "./JourneyVisibilitySelect";
 import { categoryIcon } from "../lib/maps";
 import { trackEvent } from "../lib/observability";
 import { useDismissableLayer } from "../hooks/useDismissableLayer";
@@ -30,6 +36,7 @@ type CheckpointJourneyDraft = {
   createOpen: boolean;
   title: string;
   description: string;
+  visibility: JourneyVisibility;
   selected: Checkpoint[];
   draggingId: string | null;
   busy: boolean;
@@ -41,6 +48,11 @@ type JourneyActionState = {
   deleting: Journey | null;
   title: string;
   description: string;
+  visibility: JourneyVisibility;
+  // Checkpoint membership being edited (mirrors the create-from-checkin picker).
+  checkpoints: Checkpoint[];
+  loadingCheckpoints: boolean;
+  pickerOpen: boolean;
   busy: boolean;
   error: string | null;
 };
@@ -50,6 +62,7 @@ const emptyDraft: CheckpointJourneyDraft = {
   createOpen: false,
   title: "",
   description: "",
+  visibility: "only_me",
   selected: [],
   draggingId: null,
   busy: false,
@@ -61,12 +74,38 @@ const emptyActions: JourneyActionState = {
   deleting: null,
   title: "",
   description: "",
+  visibility: "only_me",
+  checkpoints: [],
+  loadingCheckpoints: false,
+  pickerOpen: false,
   busy: false,
   error: null,
 };
 
 function formatDate(date: string): string {
   return new Date(date).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+}
+
+// A journey's stops come back as JourneyStop; adapt them to the Checkpoint shape
+// the picker rows render (extra fields are cosmetic and unused by the rows).
+function stopToCheckpoint(s: JourneyStop): Checkpoint {
+  return {
+    id: s.id,
+    user_id: "",
+    name: s.name,
+    category: s.category,
+    note: s.note,
+    address: s.address,
+    lat: s.lat,
+    lng: s.lng,
+    image_url: s.image_url,
+    thumbnail_url: s.thumbnail_url,
+    media_type: s.media_type,
+    xp_awarded: 0,
+    view_count: 0,
+    created_at: s.created_at,
+    updated_at: s.created_at,
+  };
 }
 
 function formatDateSpan(checkpoints: Checkpoint[]): string | null {
@@ -79,6 +118,7 @@ function formatDateSpan(checkpoints: Checkpoint[]): string | null {
 }
 
 export function JourneysSection() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { applyUser } = useAuth();
   const { data: journeys = [] } = useQuery({ queryKey: ["journeys", "me"], queryFn: getMyJourneys });
@@ -87,6 +127,7 @@ export function JourneysSection() {
   const [starting, setStarting] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [startVisibility, setStartVisibility] = useState<JourneyVisibility>("only_me");
   const [draft, setDraft] = useState<CheckpointJourneyDraft>(emptyDraft);
   const [actions, setActions] = useState<JourneyActionState>(emptyActions);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
@@ -101,12 +142,22 @@ export function JourneysSection() {
     queryFn: ({ pageParam }) => getMyUnassignedCheckpoints({ limit: 20, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor,
-    enabled: draft.pickerOpen,
+    enabled: draft.pickerOpen || actions.pickerOpen,
   });
   const pickerCheckpoints = picker.data?.pages.flatMap((page) => page.checkpoints) ?? [];
 
+  // Edit picker pool: the journey's current checkpoints (selected, shown first) plus
+  // the user's unassigned ones. Other journeys' checkpoints are intentionally absent.
+  const editPickerPool = useMemo(() => {
+    const byId = new Map<string, Checkpoint>();
+    for (const cp of actions.checkpoints) byId.set(cp.id, cp);
+    for (const cp of pickerCheckpoints) if (!byId.has(cp.id)) byId.set(cp.id, cp);
+    return Array.from(byId.values());
+  }, [actions.checkpoints, pickerCheckpoints]);
+  const editSelectedIds = new Set(actions.checkpoints.map((cp) => cp.id));
+
   useEffect(() => {
-    if (!draft.pickerOpen || !picker.hasNextPage || picker.isFetchingNextPage) return;
+    if ((!draft.pickerOpen && !actions.pickerOpen) || !picker.hasNextPage || picker.isFetchingNextPage) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
     const observer = new IntersectionObserver((entries) => {
@@ -114,7 +165,7 @@ export function JourneysSection() {
     });
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [draft.pickerOpen, picker]);
+  }, [draft.pickerOpen, actions.pickerOpen, picker]);
 
   useDismissableLayer({
     ref: createMenuRef,
@@ -209,7 +260,7 @@ export function JourneysSection() {
     if (!name) return;
     setBusy(true);
     try {
-      const j = await createJourney(name, description.trim() || undefined);
+      const j = await createJourney(name, description.trim() || undefined, startVisibility);
       await updateJourney(j.id, { is_active: true });
       trackEvent("journey_create_success", { journey_id: j.id });
       trackEvent("journey_start_success", { journey_id: j.id });
@@ -217,6 +268,7 @@ export function JourneysSection() {
       setStarting(false);
       setTitle("");
       setDescription("");
+      setStartVisibility("only_me");
     } catch {
       trackEvent("journey_create_failed");
     } finally {
@@ -230,7 +282,7 @@ export function JourneysSection() {
     if (!name || draft.selected.length === 0) return;
     setDraft((current) => ({ ...current, busy: true }));
     try {
-      const j = await createJourney(name, draft.description.trim() || undefined);
+      const j = await createJourney(name, draft.description.trim() || undefined, draft.visibility);
       await assignCheckpointsToJourney(j.id, draft.selected.map((cp) => cp.id));
       trackEvent("journey_create_from_checkpoints_success", {
         journey_id: j.id,
@@ -267,6 +319,43 @@ export function JourneysSection() {
       editing: j,
       title: j.title,
       description: j.description ?? "",
+      visibility: j.visibility,
+      loadingCheckpoints: true,
+    });
+    // Load the journey's current checkpoints so they can be deselected in the picker.
+    getJourney(j.id)
+      .then((detail) => {
+        const current = detail.checkpoints.map(stopToCheckpoint);
+        setActions((s) =>
+          s.editing?.id === j.id ? { ...s, checkpoints: current, loadingCheckpoints: false } : s,
+        );
+      })
+      .catch(() => {
+        setActions((s) => (s.editing?.id === j.id ? { ...s, loadingCheckpoints: false } : s));
+      });
+  }
+
+  function toggleEditCheckpoint(cp: Checkpoint) {
+    setActions((s) => {
+      const exists = s.checkpoints.some((item) => item.id === cp.id);
+      return {
+        ...s,
+        checkpoints: exists
+          ? s.checkpoints.filter((item) => item.id !== cp.id)
+          : [...s.checkpoints, cp],
+      };
+    });
+  }
+
+  function toggleAllEditCheckpoints(list: Checkpoint[]) {
+    setActions((s) => {
+      const allSelected = list.every((cp) => s.checkpoints.some((item) => item.id === cp.id));
+      return {
+        ...s,
+        checkpoints: allSelected
+          ? s.checkpoints.filter((item) => !list.some((cp) => cp.id === item.id))
+          : [...s.checkpoints, ...list.filter((cp) => !s.checkpoints.some((item) => item.id === cp.id))],
+      };
     });
   }
 
@@ -287,11 +376,15 @@ export function JourneysSection() {
       await updateJourney(actions.editing.id, {
         title: name,
         description: actions.description.trim() || undefined,
+        visibility: actions.visibility,
       });
+      // Batch-replace the journey's checkpoint membership to the picked set.
+      await replaceJourneyCheckpoints(actions.editing.id, actions.checkpoints.map((cp) => cp.id));
       trackEvent("journey_edit_success", { journey_id: actions.editing.id });
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["journeys"] }),
         qc.invalidateQueries({ queryKey: ["journey"] }),
+        qc.invalidateQueries({ queryKey: ["checkpoints"] }),
       ]);
       setActions(emptyActions);
     } catch {
@@ -299,7 +392,7 @@ export function JourneysSection() {
       setActions((current) => ({
         ...current,
         busy: false,
-        error: "Không lưu được hành trình. Vui lòng thử lại.",
+        error: t('khong_luu_duoc_hanh_trinh'),
       }));
     }
   }
@@ -332,7 +425,7 @@ export function JourneysSection() {
       setActions((current) => ({
         ...current,
         busy: false,
-        error: "Không xóa được hành trình. Vui lòng thử lại.",
+        error: t('khong_xoa_duoc_hanh_trinh'),
       }));
     }
   }
@@ -340,7 +433,7 @@ export function JourneysSection() {
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-3">
-        <h3 className="font-display text-lg font-bold">Hành trình</h3>
+        <h3 className="font-display text-lg font-bold">{t('hanh_trinh')}</h3>
         <div ref={createMenuRef} className="relative">
           <button
             type="button"
@@ -349,7 +442,7 @@ export function JourneysSection() {
               setCreateMenuOpen((open) => !open);
             }}
             className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-muted"
-            aria-label="Tạo hành trình"
+            aria-label={t('tao_hanh_trinh')}
             aria-expanded={createMenuOpen}
           >
             <Icon name="more-vertical" size={18} />
@@ -361,14 +454,14 @@ export function JourneysSection() {
                 onClick={openCheckpointPicker}
                 className="flex w-full items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-surface-muted"
               >
-                <Icon name="plus-circle" size={16} className="text-primary" /> Từ check-in
+                <Icon name="plus-circle" size={16} className="text-primary" /> {t('tu_checkin')}
               </button>
               <button
                 type="button"
                 onClick={openStartJourney}
                 className="flex w-full items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-surface-muted"
               >
-                <Icon name="flag" size={16} className="text-primary" /> Bắt đầu
+                <Icon name="flag" size={16} className="text-primary" /> {t('bat_dau')}
               </button>
             </div>
           )}
@@ -383,11 +476,11 @@ export function JourneysSection() {
                 <Icon name="route" size={18} className="text-white" />
               </span>
               <div className="flex-1">
-                <p className="text-xs text-green-700">Đang đi</p>
+                <p className="text-xs text-green-700">{t('dang_di')}</p>
                 <p className="font-semibold text-foreground">{active.title}</p>
               </div>
               <Button size="sm" variant="outline" icon={<Icon name="square" size={14} />} disabled={busy} onClick={() => end(active)}>
-                Kết thúc
+                {t('ket_thuc')}
               </Button>
             </div>
           ))}
@@ -397,7 +490,7 @@ export function JourneysSection() {
       {journeys.length === 0 ? (
         <Card className="flex flex-col items-center gap-2 py-6 text-center text-sm text-muted-foreground">
           <Icon name="plus" size={24} />
-          Chưa có hành trình. Bấm "Bắt đầu" rồi check-in để gom thành chuyến đi.
+          {t('chua_co_hanh_trinh_empty')}
         </Card>
       ) : (
         <div className="flex flex-col gap-2">
@@ -419,9 +512,13 @@ export function JourneysSection() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-foreground">{j.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(j.created_at).toLocaleDateString("vi-VN")}
-                    {j.is_active && " · đang đi"}
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span>
+                      {new Date(j.created_at).toLocaleDateString("vi-VN")}
+                      {j.is_active && ` ${t('dang_di')}`}
+                    </span>
+                    <span aria-hidden>·</span>
+                    <VisibilityBadge value={j.visibility} />
                   </p>
                 </div>
               </button>
@@ -436,7 +533,7 @@ export function JourneysSection() {
                     }));
                   }}
                   className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-muted"
-                  aria-label="Tùy chọn hành trình"
+                  aria-label={t('tuy_chon_hanh_trinh')}
                   aria-expanded={actions.menuOpenId === j.id}
                 >
                   <Icon name="more-vertical" size={18} />
@@ -448,14 +545,14 @@ export function JourneysSection() {
                       onClick={() => openEdit(j)}
                       className="flex w-full items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-surface-muted"
                     >
-                      <Icon name="pencil" size={16} /> Sửa
+                      <Icon name="pencil" size={16} /> {t('sua')}
                     </button>
                     <button
                       type="button"
                       onClick={() => openDelete(j)}
                       className="flex w-full items-center gap-2 px-4 py-3 text-sm text-accent-600 hover:bg-accent-50"
                     >
-                      <Icon name="trash" size={16} /> Xóa
+                      <Icon name="trash" size={16} /> {t('xoa')}
                     </button>
                   </div>
                 )}
@@ -481,38 +578,62 @@ export function JourneysSection() {
         />
       )}
 
+      {actions.pickerOpen && (
+        <CheckpointPickerModal
+          checkpoints={editPickerPool}
+          selectedIds={editSelectedIds}
+          selectedCount={actions.checkpoints.length}
+          isLoading={picker.isLoading && editPickerPool.length === 0}
+          isFetchingNextPage={picker.isFetchingNextPage}
+          hasNextPage={!!picker.hasNextPage}
+          sentinelRef={sentinelRef}
+          onToggle={toggleEditCheckpoint}
+          onToggleAll={toggleAllEditCheckpoints}
+          onClose={() => setActions((current) => ({ ...current, pickerOpen: false }))}
+          onContinue={() => setActions((current) => ({ ...current, pickerOpen: false }))}
+          confirmLabel={t('xong')}
+          allowEmpty
+        />
+      )}
+
       {draft.createOpen && (
-        <Sheet title="Tạo hành trình" onClose={() => setDraft(emptyDraft)}>
+        <Sheet title={t('tao_hanh_trinh')} onClose={() => setDraft(emptyDraft)}>
           <form onSubmit={submitCheckpointJourney} className="flex flex-col gap-3">
             <input
               required
               autoFocus
               value={draft.title}
               onChange={(e) => setDraft((current) => ({ ...current, title: e.target.value }))}
-              placeholder="Tên hành trình"
+              placeholder={t('ten_hanh_trinh')}
               className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
             <textarea
               rows={2}
               value={draft.description}
               onChange={(e) => setDraft((current) => ({ ...current, description: e.target.value }))}
-              placeholder="Mô tả (tùy chọn)"
+              placeholder={t('mo_ta_tuy_chon')}
               className="resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+
+            <JourneyVisibilitySelect
+              value={draft.visibility}
+              disabled={draft.busy}
+              onChange={(v) => setDraft((current) => ({ ...current, visibility: v }))}
             />
 
             {selectedDateSpan && (
               <div className="flex items-center gap-2 rounded-xl bg-surface-muted px-3 py-2 text-sm text-muted-foreground">
                 <Icon name="route" size={16} />
                 <span>
-                  Thời gian hành trình: <span className="font-semibold text-foreground">{selectedDateSpan}</span>
+                  {t('thoi_gian_hanh_trinh', { dateSpan: selectedDateSpan })}
                 </span>
               </div>
             )}
 
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-foreground">Check-in đã chọn</p>
+              <p className="text-sm font-semibold text-foreground">{t('checkin_da_chon')}</p>
               <button type="button" onClick={openCheckpointPicker} className="text-sm font-semibold text-primary">
-                + Chọn thêm
+                {t('chon_them')}
               </button>
             </div>
 
@@ -543,73 +664,124 @@ export function JourneysSection() {
               disabled={draft.busy || draft.selected.length === 0 || draft.title.trim() === ""}
               icon={<Icon name="route" size={20} />}
             >
-              {draft.busy ? "Đang tạo..." : "Tạo hành trình"}
+              {draft.busy ? t('dang_tao') : t('tao_hanh_trinh')}
             </Button>
           </form>
         </Sheet>
       )}
 
       {starting && (
-        <Sheet title="Bắt đầu hành trình" onClose={() => setStarting(false)}>
+        <Sheet title={t('bat_dau_hanh_trinh')} onClose={() => setStarting(false)}>
           <form onSubmit={submitStart} className="flex flex-col gap-3">
             <input
               required
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Tên hành trình (vd: Đà Lạt 3 ngày)"
+              placeholder={t('ten_hanh_trinh_vd_da')}
               className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
             <textarea
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Mô tả (tùy chọn)"
+              placeholder={t('mo_ta_tuy_chon')}
               className="resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
+            <JourneyVisibilitySelect value={startVisibility} disabled={busy} onChange={setStartVisibility} />
             <Button type="submit" disabled={busy} icon={<Icon name="flag" size={20} />}>
-              {busy ? "Đang tạo..." : "Bắt đầu"}
+              {busy ? t('dang_tao') : t('bat_dau')}
             </Button>
             <p className="text-center text-xs text-muted-foreground">
-              Check-in sau khi bắt đầu sẽ tự gắn vào hành trình này.
+              {t('checkin_sau_khi_bat_dau')}
             </p>
           </form>
         </Sheet>
       )}
 
       {actions.editing && (
-        <Sheet title="Sửa hành trình" onClose={() => setActions(emptyActions)}>
+        <Sheet title={t('sua_hanh_trinh')} onClose={() => setActions(emptyActions)}>
           <form onSubmit={submitEdit} className="flex flex-col gap-3">
             <input
               required
               autoFocus
               value={actions.title}
               onChange={(e) => setActions((current) => ({ ...current, title: e.target.value }))}
-              placeholder="Tên hành trình"
+              placeholder={t('ten_hanh_trinh')}
               className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
             <textarea
               rows={3}
               value={actions.description}
               onChange={(e) => setActions((current) => ({ ...current, description: e.target.value }))}
-              placeholder="Mô tả (tùy chọn)"
+              placeholder={t('mo_ta_tuy_chon')}
               className="resize-none rounded-xl border border-border bg-surface p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
+            <JourneyVisibilitySelect
+              value={actions.visibility}
+              disabled={actions.busy}
+              onChange={(v) => setActions((current) => ({ ...current, visibility: v }))}
+            />
+
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">{t('checkin_da_chon')}</p>
+              <button
+                type="button"
+                disabled={actions.loadingCheckpoints || actions.busy}
+                onClick={() => setActions((current) => ({ ...current, pickerOpen: true }))}
+                className="text-sm font-semibold text-primary disabled:opacity-50"
+              >
+                {t('chon_them')}
+              </button>
+            </div>
+
+            {actions.loadingCheckpoints ? (
+              <div className="flex flex-col gap-2">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="h-12 animate-pulse rounded-xl bg-surface-muted" />
+                ))}
+              </div>
+            ) : actions.checkpoints.length === 0 ? (
+              <p className="rounded-xl bg-surface-muted px-3 py-2 text-sm text-muted-foreground">
+                {t('chua_co_checkin_nao_trong')}
+              </p>
+            ) : (
+              <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
+                {actions.checkpoints.map((cp) => (
+                  <div key={cp.id} className="flex items-center gap-2 rounded-xl bg-surface-muted p-2">
+                    <CheckpointThumb checkpoint={cp} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-foreground">{cp.name}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(cp.created_at)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleEditCheckpoint(cp)}
+                      aria-label={t('bo_checkpoint_name', { name: cp.name })}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
+                    >
+                      <Icon name="x" size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {actions.error && <p className="text-sm font-medium text-accent-700">{actions.error}</p>}
             <Button type="submit" disabled={actions.busy || actions.title.trim() === ""} icon={<Icon name="pencil" size={18} />}>
-              {actions.busy ? "Đang lưu..." : "Lưu thay đổi"}
+              {actions.busy ? t('dang_luu') : t('luu_thay_doi')}
             </Button>
           </form>
         </Sheet>
       )}
 
       {actions.deleting && (
-        <Sheet title="Xóa hành trình" onClose={() => setActions(emptyActions)}>
+        <Sheet title={t('xoa_hanh_trinh')} onClose={() => setActions(emptyActions)}>
           <div className="flex flex-col gap-3">
             <div className="rounded-xl bg-accent-50 p-3 text-sm text-accent-700">
-              <p className="font-semibold">Xóa "{actions.deleting.title}"?</p>
+              <p className="font-semibold">{t('xoa_title_hoi', { title: actions.deleting.title })}</p>
               <p className="mt-1">
-                Bạn có thể chỉ xóa hành trình và giữ các check-in, hoặc xóa cả checkpoints trong hành trình này.
+                {t('ban_co_the_chi_xoa')}
               </p>
             </div>
             {actions.error && <p className="text-sm font-medium text-accent-700">{actions.error}</p>}
@@ -619,7 +791,7 @@ export function JourneysSection() {
               icon={<Icon name="route" size={18} />}
               onClick={() => confirmDelete(false)}
             >
-              {actions.busy ? "Đang xóa..." : "Chỉ xóa hành trình"}
+              {actions.busy ? t('dang_xoa') : t('chi_xoa_hanh_trinh')}
             </Button>
             <Button
               variant="accent"
@@ -627,13 +799,13 @@ export function JourneysSection() {
               icon={<Icon name="trash" size={18} />}
               onClick={() => confirmDelete(true)}
             >
-              Xóa cả checkpoints
+              {t('xoa_ca_checkpoints')}
             </Button>
             <p className="text-xs text-muted-foreground">
-              Xóa cả checkpoints sẽ xóa check-in, trừ lại XP/counters và đưa ảnh/video sang worker để dọn sau.
+              {t('xoa_ca_checkpoints_se_xoa')}
             </p>
             <Button variant="outline" disabled={actions.busy} onClick={() => setActions(emptyActions)}>
-              Hủy
+              {t('huy')}
             </Button>
           </div>
         </Sheet>
@@ -660,6 +832,8 @@ function CheckpointPickerModal({
   onToggleAll,
   onClose,
   onContinue,
+  confirmLabel,
+  allowEmpty = false,
 }: {
   checkpoints: Checkpoint[];
   selectedIds: Set<string>;
@@ -672,7 +846,12 @@ function CheckpointPickerModal({
   onToggleAll: (checkpoints: Checkpoint[]) => void;
   onClose: () => void;
   onContinue: () => void;
+  /** Label for the confirm button (defaults to "Tiếp tục"). */
+  confirmLabel?: string;
+  /** Allow confirming with zero selected (edit mode can clear a journey). */
+  allowEmpty?: boolean;
 }) {
+  const { t } = useTranslation();
   const allSelected = checkpoints.length > 0 && checkpoints.every((cp) => selectedIds.has(cp.id));
 
   return (
@@ -685,11 +864,11 @@ function CheckpointPickerModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-border p-4">
-          <h2 className="font-display text-lg font-bold">Chọn check-in</h2>
+          <h2 className="font-display text-lg font-bold">{t('chon_checkin')}</h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Đóng"
+            aria-label={t('dong')}
             className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-muted"
           >
             <Icon name="x" size={20} />
@@ -712,7 +891,7 @@ function CheckpointPickerModal({
               >
                 {allSelected && <Icon name="check" size={10} />}
               </span>
-              {allSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+              {allSelected ? t('bo_chon_tat_ca') : t('chon_tat_ca')}
             </button>
           </div>
         )}
@@ -726,7 +905,7 @@ function CheckpointPickerModal({
             </div>
           ) : checkpoints.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              Không có check-in nào chưa thuộc hành trình.
+              {t('khong_co_checkin_nao_chua')}
             </p>
           ) : (
             <div className="flex flex-col divide-y divide-border">
@@ -752,23 +931,23 @@ function CheckpointPickerModal({
               ))}
               <div ref={sentinelRef} className="h-8" />
               {isFetchingNextPage && (
-                <p className="py-2 text-center text-xs text-muted-foreground">Đang tải thêm...</p>
+                <p className="py-2 text-center text-xs text-muted-foreground">{t('dang_tai_them')}</p>
               )}
               {!hasNextPage && checkpoints.length > 0 && (
-                <p className="py-2 text-center text-xs text-muted-foreground">Đã hết danh sách.</p>
+                <p className="py-2 text-center text-xs text-muted-foreground">{t('da_het_danh_sach')}</p>
               )}
             </div>
           )}
         </div>
 
         <div className="flex shrink-0 items-center justify-between border-t border-border p-4">
-          <span className="text-sm font-semibold text-muted-foreground">Đã chọn {selectedCount}</span>
+          <span className="text-sm font-semibold text-muted-foreground">{t('da_chon_count', { count: selectedCount })}</span>
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClose}>
-              Huỷ
+              {t('huy')}
             </Button>
-            <Button type="button" size="sm" disabled={selectedCount === 0} onClick={onContinue}>
-              Tiếp tục
+            <Button type="button" size="sm" disabled={selectedCount === 0 && !allowEmpty} onClick={onContinue}>
+              {confirmLabel ?? t('tiep_tuc')}
             </Button>
           </div>
         </div>
@@ -792,6 +971,7 @@ function SelectedCheckpointRow({
   onDragOver: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       draggable
@@ -813,7 +993,7 @@ function SelectedCheckpointRow({
       <button
         type="button"
         onClick={onRemove}
-        aria-label={`Bỏ ${checkpoint.name}`}
+        aria-label={t('bo_checkpoint_name', { name: checkpoint.name })}
         className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
       >
         <Icon name="x" size={16} />

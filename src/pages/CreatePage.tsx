@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { CreateCheckpointForm } from "../components/CreateCheckpointForm";
 import { PhotoCheckinTab } from "../components/PhotoCheckinTab";
 import { LocationPermissionContent } from "../components/LocationPermissionContent";
-import { canLocateSilently, getCurrentCoords, type Coords } from "../lib/geo";
+import { getCurrentCoords, type Coords } from "../lib/geo";
 import { cn } from "../lib/cn";
 import { trackError, trackEvent } from "../lib/observability";
 
@@ -13,6 +14,7 @@ type Tab = "gps" | "photo";
 //   "Cắm cờ" — resolves GPS and shows the check-in form.
 //   "Từ ảnh"  — user picks a photo, EXIF GPS extracted, then same form.
 export function CreatePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("gps");
   const [coords, setCoords] = useState<Coords | null>(null);
@@ -25,18 +27,17 @@ export function CreatePage() {
       setLocating(false);
       return;
     }
-    // Granted (or granted before — iOS PWAs lose the Permissions API state on
-    // relaunch)? Locate silently; getCurrentPosition won't prompt if still live.
-    // Otherwise fall through to the inline LocationPermissionContent.
-    if (await canLocateSilently()) {
-      try {
-        setCoords(await getCurrentCoords());
-        trackEvent("location_granted", { source: "create_page_silent" });
-      } catch (error) {
-        trackError(error, { feature: "checkin", action: "create_page_location" }, "warn");
-        trackEvent("location_denied", { source: "create_page_silent" });
-        // revoked/failed → inline prompt lets the user retry or re-enable.
-      }
+    // Always attempt directly — Permissions API is unreliable (Safari/Brave
+    // report "prompt" even when the OS has already granted access). Calling
+    // getCurrentPosition() succeeds silently when permission is held and only
+    // fails when it is genuinely denied or unavailable. Either outcome is fine:
+    // success → proceed, failure → LocationPermissionContent shown below.
+    try {
+      setCoords(await getCurrentCoords());
+      trackEvent("location_granted", { source: "create_page_silent" });
+    } catch (error) {
+      trackError(error, { feature: "checkin", action: "create_page_location" }, "warn");
+      trackEvent("location_denied", { source: "create_page_silent" });
     }
     setLocating(false);
   }, []);
@@ -45,24 +46,26 @@ export function CreatePage() {
     locate();
   }, [locate]);
 
-  const tabBar = (
+  const isAndroid = /android/i.test(navigator.userAgent);
+
+  const tabBar =!isAndroid &&  (
     <div className="flex gap-0 rounded-full bg-surface-muted p-1">
-      {(["gps", "photo"] as Tab[]).map((t) => (
+      {(["gps", "photo"] as Tab[]).map((tabKey) => (
         <button
-          key={t}
+          key={tabKey}
           type="button"
           onClick={() => {
-            trackEvent("checkin_tab_change", { tab: t });
-            setTab(t);
+            trackEvent("checkin_tab_change", { tab: tabKey });
+            setTab(tabKey);
           }}
           className={cn(
             "flex-1 rounded-full px-4 py-2 text-sm font-semibold transition",
-            tab === t
+            tab === tabKey
               ? "bg-primary text-primary-foreground shadow"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          {t === "gps" ? "Cắm cờ" : "Từ ảnh"}
+          {tabKey === "gps" ? t('cam_co') : t('tu_anh')}
         </button>
       ))}
     </div>
@@ -83,7 +86,7 @@ export function CreatePage() {
       <div className="flex flex-col gap-4 pb-4">
         {tabBar}
         <div className="flex min-h-[40vh] items-center justify-center">
-          <img src="/pin.svg" alt="" className="h-10 w-10 animate-pulse" />
+          <img src="/logo.png" alt="" className="h-8 w-auto animate-pulse object-contain" />
         </div>
       </div>
     );
@@ -103,7 +106,7 @@ export function CreatePage() {
   return (
     <div className="flex flex-col gap-4 pb-4">
       {tabBar}
-      <h1 className="font-display text-2xl font-bold text-clay-600">Cắm cờ tại đây</h1>
+      <h1 className="font-display text-2xl font-bold text-clay-600">{t('cam_co_tai_day')}</h1>
       <CreateCheckpointForm at={coords} onUploaded={() => navigate("/discover")} />
     </div>
   );

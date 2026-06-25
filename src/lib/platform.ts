@@ -13,6 +13,18 @@ export function getPlatform(): Platform {
 
 export const isIOS = (): boolean => getPlatform() === "ios";
 
+/**
+ * Detect embedded in-app browsers (Messenger, Facebook, Instagram, Zalo, TikTok,
+ * Line, etc.). Google blocks OAuth sign-in in these webviews under its
+ * "Use secure browsers" policy, so we must steer users to a real browser.
+ */
+export function isInAppBrowser(): boolean {
+  const ua = navigator.userAgent || "";
+  return /FBAN|FBAV|FB_IAB|FBIOS|Messenger|Instagram|Line\/|Zalo|MicroMessenger|TikTok|Twitter|Snapchat|Pinterest|GSA\//i.test(
+    ua,
+  );
+}
+
 /** Running as an installed PWA (standalone) rather than a browser tab. */
 export function isStandalone(): boolean {
   return (

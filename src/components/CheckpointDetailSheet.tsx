@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Icon } from "./ui/Icon";
 import { getCheckpointDetail, viewCheckpoint, API_URL } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
@@ -14,15 +15,16 @@ import { DetailSheetSkeleton } from "./ui/Skeleton";
 import { UserAvatar } from "./ui/UserAvatar";
 import { ShareButton } from "./share/ShareButton";
 import { MediaPreview } from "./MediaPreview";
-import { renderCheckpointCard } from "../lib/shareCard";
 import { trackEvent } from "../lib/observability";
+import { openDirectionsInMaps } from "../lib/geo";
 
 export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: () => void; }) {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { requestDelete, confirming, confirmBox } = useDeleteCheckpoint(id, { onDeleted: onClose });
 
   const queryClient = useQueryClient();
-  const [profileUsername, setProfileUsername] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["checkpoint", id],
     queryFn: () => getCheckpointDetail(id),
@@ -59,7 +61,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                       className="flex h-44 w-60 shrink-0 flex-col items-center justify-center gap-2 rounded-lg bg-surface-muted text-muted-foreground"
                     >
                       <Icon name={im.type === "video" ? "video" : "image"} size={24} />
-                      <span className="text-xs">Đang xử lý...</span>
+                      <span className="text-xs">{t('dang_xu_ly')}</span>
                     </div>
                   ) : (
                     <MediaPreview
@@ -96,8 +98,9 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
             )}
             {data.checkpoint.note && <p className="text-sm text-foreground">{data.checkpoint.note}</p>}
             {data.checkpoint.address && (
-              <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Icon name="map-pin" size={14} /> {data.checkpoint.address}
+              <p className="text-sm text-muted-foreground">
+                <Icon name="map-pin" size={14} className="float-left mr-1 mt-0.5" />
+                {data.checkpoint.address}
               </p>
             )}
 
@@ -105,7 +108,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               <button
                 onClick={() => {
                   trackEvent("feed_profile_open", { source: "checkpoint_detail" });
-                  setProfileUsername(data.author.username);
+                  setProfileUserId(data.checkpoint.user_id);
                 }}
                 className="flex items-center gap-2 rounded-full transition hover:opacity-80"
               >
@@ -124,31 +127,34 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Icon name="eye" size={14} /> {data.checkpoint.view_count}
               </span>
+              <button
+                onClick={() => {
+                  trackEvent("checkpoint_open_directions", { checkpoint_id: data.checkpoint.id });
+                  openDirectionsInMaps(data.checkpoint.lat, data.checkpoint.lng, data.checkpoint.name)
+                }}
+                aria-label="Xem trên bản đồ"
+                className="ml-auto flex size-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+              >
+                <Icon name="compass" size={18} />
+              </button>
             </div>
             <div className="flex flex-col gap-0.5 text-xs text-subtle-foreground">
               {data.checkpoint.taken_at ? (
-                <p>Chụp lúc {new Date(data.checkpoint.taken_at).toLocaleString("vi-VN")}</p>
+                <p>{t('chup_luc')} {new Date(data.checkpoint.taken_at).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}</p>
               ) : <p>{new Date(data.checkpoint.created_at).toLocaleString("vi-VN")}</p>}
             </div>
 
             <ShareButton
-              filename={`checkpoint-${data.checkpoint.id}.png`}
               title={data.checkpoint.name}
-              text={`Mình vừa check-in tại ${data.checkpoint.name} trên Checkpoint!`}
-              url={`${API_URL}/share/checkpoint/${data.checkpoint.id}`}
-              render={() =>
-                renderCheckpointCard({
-                  name: data.checkpoint.name,
-                  category: data.checkpoint.category,
-                  note: data.checkpoint.note,
-                  address: data.checkpoint.address,
-                  xp: data.checkpoint.xp_awarded,
-                  author: data.author.display_name || data.author.username,
-                  date: new Date(data.checkpoint.taken_at ?? data.checkpoint.created_at).toLocaleDateString("vi-VN"),
-                  imageUrls: data.images?.map((im) => im.thumbnail_url ?? im.url) ?? [],
-                  url: `${API_URL}/share/checkpoint/${data.checkpoint.id}`,
-                })
+              text={
+                isMine
+                  ? t('minh_vua_checkin_tai', { name: data.checkpoint.name })
+                  : t('actor_da_checkin_tai', {
+                    actor: data.author.display_name || data.author.username,
+                    name: data.checkpoint.name,
+                  })
               }
+              url={`${API_URL}/share/checkpoint/${data.checkpoint.id}`}
             />
 
             <ReactionBar
@@ -161,7 +167,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
               checkpointId={id}
               ownerUserId={data.checkpoint.user_id}
               checkpointName={data.checkpoint.name}
-              onOpenProfile={setProfileUsername}
+              onOpenProfile={setProfileUserId}
             />
 
             {/* Delete — owner only. Hard delete: XP is taken back, photos removed. */}
@@ -176,7 +182,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                   }}
                   className="flex items-center justify-center gap-2 rounded-full py-2 text-sm font-semibold text-accent-600 hover:bg-accent-50"
                 >
-                  <Icon name="trash" size={16} /> Xoá check-in
+                  <Icon name="trash" size={16} /> {t('xoa_checkin')}
                 </button>
               ))}
           </div>
@@ -184,8 +190,8 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
       </Sheet>
 
       {/* Author profile — renders after the sheet so it stacks on top. */}
-      {profileUsername && (
-        <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
+      {profileUserId && (
+        <UserProfileSheet userRef={profileUserId} onClose={() => setProfileUserId(null)} />
       )}
     </>
   );

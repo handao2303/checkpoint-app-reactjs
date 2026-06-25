@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Icon } from "./ui/Icon";
 import { isIOS, isStandalone } from "../lib/platform";
 import { trackEvent } from "../lib/observability";
@@ -19,6 +20,7 @@ function wasDismissed(): boolean {
  * still in a browser tab (not already installed).
  */
 export function InstallHint() {
+  const { t } = useTranslation();
   const [show, setShow] = useState(() => {
     const initial = isIOS() && !isStandalone() && !wasDismissed();
     if (initial) trackEvent("ios_install_hint_shown");
@@ -41,12 +43,12 @@ export function InstallHint() {
     <div className="fixed inset-x-0 bottom-0 z-[110] mx-auto mb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex w-fit max-w-[92vw] items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 shadow-lg">
       <Icon name="plus-circle" size={20} className="shrink-0 text-primary" />
       <p className="text-sm text-foreground">
-        Cài Checkpoint: bấm <span className="font-semibold">Chia sẻ</span> rồi{" "}
-        <span className="font-semibold">Thêm vào MH chính</span>
+        {t('cai_checkpoint_bam')} <span className="font-semibold">{t('chia_se')}</span> {t('roi')},{" "}
+        <span className="font-semibold">{t('them_vao_mh_chinh')}</span>
       </p>
       <button
         onClick={dismiss}
-        aria-label="Đóng"
+        aria-label={t('dong')}
         className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-surface-muted"
       >
         <Icon name="x" size={16} />

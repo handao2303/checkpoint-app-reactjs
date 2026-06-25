@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Icon } from "./ui/Icon";
 import { UserAvatar } from "./ui/UserAvatar";
 import type { AvatarFrame } from "../lib/avatarFrames";
@@ -19,6 +20,8 @@ function FrameThumb({
   frame: AvatarFrame | null;
   avatarUrl?: string;
 }) {
+  const frameSrc = frame?.previewFile ?? frame?.file;
+
   return (
     <span className="relative block h-16 w-16">
       {/* sample disc behind the ring */}
@@ -33,8 +36,8 @@ function FrameThumb({
           fit="cover"
         />
       </span>
-      {frame && (
-        <img src={frame.file} alt="" className="absolute inset-0 h-full w-full" draggable={false} />
+      {frameSrc && (
+        <img src={frameSrc} alt="" className="absolute inset-0 h-full w-full" draggable={false} />
       )}
     </span>
   );
@@ -55,6 +58,7 @@ export function AvatarFramePicker({
   onSelect: (id: string | null) => void;
   avatarUrl?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex gap-3 overflow-x-auto pb-2">
       {/* None */}
@@ -79,7 +83,7 @@ export function AvatarFramePicker({
             />
           </span>
         </span>
-        <span className="w-16 truncate text-center text-[10px] text-muted-foreground">Không khung</span>
+        <span className="w-16 truncate text-center text-[10px] text-muted-foreground">{t('khong_khung')}</span>
       </button>
 
       {options.map(({ frame, unlocked }) => {
@@ -92,12 +96,11 @@ export function AvatarFramePicker({
             onClick={() => onSelect(frame.id)}
             className="flex shrink-0 flex-col items-center gap-1 disabled:cursor-not-allowed"
             aria-pressed={selected}
-            title={unlocked ? frame.label : `${frame.label} — chưa mở khóa`}
+            title={unlocked ? t(frame.labelKey, frame.labelParams) : t('framelabel_chua_mo_khoa', { label: t(frame.labelKey, frame.labelParams) })}
           >
             <span
               className={cn(
-                "relative rounded-full border-2 transition",
-                selected ? "border-primary" : "border-transparent",
+                "relative rounded-full border-2 transition border-transparent",
               )}
             >
               <span className={cn(!unlocked && "opacity-40 grayscale")}>
@@ -115,7 +118,7 @@ export function AvatarFramePicker({
                 selected ? "font-semibold text-primary" : "text-muted-foreground",
               )}
             >
-              {frame.label}
+              {t(frame.labelKey, frame.labelParams)}
             </span>
           </button>
         );

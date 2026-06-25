@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 /** Placeholder shown while the map chunk loads and maplibre paints its first
  *  frame. Lives in the main bundle (no maplibre import) so it can also be the
  *  Suspense fallback for the lazy map route — giving a seamless loader from
  *  navigation → chunk load → map ready. */
 export function MapSkeleton({ hidden = false }: { hidden?: boolean }) {
+  const { t } = useTranslation();
   return (
     <div
       className={`pointer-events-none absolute inset-0 z-10 overflow-hidden bg-surface-muted transition-opacity duration-500 ${
@@ -18,8 +20,8 @@ export function MapSkeleton({ hidden = false }: { hidden?: boolean }) {
         <div className="absolute left-2/3 top-0 h-full w-2 -rotate-2 bg-border/40" />
       </div>
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-        <img src="/pin.svg" alt="" className="h-10 w-10 animate-pulse" />
-        <span className="text-sm font-medium text-muted-foreground">Đang tải bản đồ…</span>
+        <img src="/logo.png" alt="" className="h-25 w-auto animate-pulse object-contain" />
+        <span className="text-sm font-medium text-muted-foreground">{t('dang_tai_ban_do')}</span>
       </div>
     </div>
   );

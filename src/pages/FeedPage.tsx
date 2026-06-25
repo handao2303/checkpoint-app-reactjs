@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { useScrollContainer } from "../components/AppLayout";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
@@ -16,20 +17,20 @@ import { useOptionalCheckinQueue } from "../context/CheckinQueue";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import {
+  API_URL,
   followUser,
   getFeed,
   getFeedFollowing,
   getFollowing,
   searchPlaces,
   unfollowUser,
-  API_URL,
   type FeedItem,
-  type LatLng,
+  type LatLng
 } from "../lib/api";
 import { DEFAULT_VIEW, categoryIcon } from "../lib/maps";
 import { addFollowNotification } from "../lib/notifications";
 import { trackError, trackEvent } from "../lib/observability";
-import { shareImageBlob } from "../lib/share";
+import { shareLink } from "../lib/share";
 import { useUserLocation } from "../location/LocationProvider";
 
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
@@ -40,10 +41,11 @@ function formatDistance(m: number | null | undefined): string | null {
 }
 
 export function FeedPage() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<"for-you" | "following">("for-you");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placeId, setPlaceId] = useState<string | null>(null);
-  const [profileUsername, setProfileUsername] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [query, _] = useState("");
   const [debounced, setDebounced] = useState("");
   const { user } = useAuth();
@@ -118,7 +120,7 @@ export function FeedPage() {
   const [scrollMargin, setScrollMargin] = useState(0);
   const { pullDistance, pullProgress, isPulling, isRefreshing, isReady } = usePullToRefresh({
     scrollElement: scrollEl,
-    disabled: selectedId != null || placeId != null || profileUsername != null || debounced !== "",
+    disabled: selectedId != null || placeId != null || profileUserId != null || debounced !== "",
     onRefresh: () => {
       trackEvent("pull_to_refresh", { tab });
       return queryClient.resetQueries({
@@ -191,28 +193,17 @@ export function FeedPage() {
             )}
             <span>
               {isRefreshing
-                ? "Đang làm mới..."
+                ? t('dang_lam_moi')
                 : isReady
-                  ? "Thả để làm mới"
-                  : "Kéo xuống để làm mới"}
+                  ? t('tha_de_lam_moi')
+                  : t('keo_xuong_de_lam_moi')}
             </span>
           </div>
         )}
-
-        {/* <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5">
-        <Search size={18} className="text-muted-foreground" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Tìm địa điểm..."
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-subtle-foreground"
-        />
-      </div> */}
-
         {debounced ? (
           results?.length === 0 ? (
             <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-              Không tìm thấy địa điểm “{debounced}”.
+              {t('khong_tim_thay_dia_diem', { query: debounced })}
             </p>
           ) : (
             <div className="flex flex-col gap-2">
@@ -239,87 +230,86 @@ export function FeedPage() {
           )
         ) : (
           <>
-          {/* "Following" tab only for signed-in users; anon sees just "for you". */}
-          <div className="flex items-center justify-around border-b border-border">
-            {(
-              [
-                ["for-you", "Dành cho bạn"],
-                ...(user ? [["following", "Đang theo dõi"] as const] : []),
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => {
-                  trackEvent("discover_tab_change", { tab: key });
-                  setTab(key);
-                }}
-                className={`relative pb-2 font-display text-lg font-bold transition ${
-                  tab === key ? "text-clay-600" : "text-subtle-foreground"
-                }`}
-              >
-                {label}
-                {tab === key && (
-                  <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-clay-600" />
-                )}
-              </button>
-            ))}
-          </div>
-
-          {tab === "for-you" && pendingCount > 0 && <PendingCheckinStatus count={pendingCount} />}
-
-          {isLoading ? (
-        <>
-          {Array.from({ length: 3 }).map((_, i) => (
-            <FeedCardSkeleton key={i} />
-          ))}
-        </>
-      ) : items?.length === 0 ? (
-        <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
-          {tab === "following"
-            ? "Chưa theo dõi ai. Bấm ⋮ trên bài check-in để theo dõi."
-            : "Chưa có check-in nào quanh đây. Hãy là người cắm cờ đầu tiên!"}
-        </p>
-      ) : (
-        <>
-          <div ref={listRef} style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
-            {virtualItems.map((vi) => {
-              const it = items[vi.index];
-              return (
-                <div
-                  key={vi.key}
-                  data-index={vi.index}
-                  ref={virtualizer.measureElement}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${vi.start - scrollMargin}px)`,
+            {/* "Following" tab only for signed-in users; anon sees just "for you". */}
+            {user && <div className="flex items-center justify-around border-b border-border">
+              {(
+                [
+                  ["for-you", t('danh_cho_ban')],
+                  ...(user ? [["following", t('dang_theo_doi')] as const] : []),
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    trackEvent("discover_tab_change", { tab: key });
+                    setTab(key);
                   }}
+                  className={`cursor-pointer relative pb-2 font-display text-lg font-bold transition ${tab === key ? "text-clay-600" : "text-subtle-foreground"
+                    }`}
                 >
-                  {/* pb-4 replaces the flex gap (rows are absolutely positioned). */}
-                  <div className="pb-4">
-                    <FeedCard
-                      item={it}
-                      mine={user != null && it.author.username === user.username}
-                      isFollowing={followingIds.includes(it.user_id)}
-                      onOpen={() => {
-                        trackEvent("feed_card_open", { checkpoint_id: it.id, category: it.category });
-                        setSelectedId(it.id);
-                      }}
-                      onOpenProfile={(username) => {
-                        trackEvent("feed_profile_open");
-                        setProfileUsername(username);
-                      }}
-                    />
-                  </div>
+                  {label}
+                  {tab === key && (
+                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-clay-600" />
+                  )}
+                </button>
+              ))}
+            </div>}
+
+            {tab === "for-you" && pendingCount > 0 && <PendingCheckinStatus count={pendingCount} />}
+
+            {isLoading ? (
+              <>
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <FeedCardSkeleton key={i} />
+                ))}
+              </>
+            ) : items?.length === 0 ? (
+              <p className="rounded-xl bg-surface-muted p-6 text-center text-sm text-muted-foreground">
+                {tab === "following"
+                  ? t('chua_theo_doi_ai_bam')
+                  : t('chua_co_checkin_nao_quanh')}
+              </p>
+            ) : (
+              <>
+                <div ref={listRef} style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+                  {virtualItems.map((vi) => {
+                    const it = items[vi.index];
+                    return (
+                      <div
+                        key={vi.key}
+                        data-index={vi.index}
+                        ref={virtualizer.measureElement}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          transform: `translateY(${vi.start - scrollMargin}px)`,
+                        }}
+                      >
+                        {/* pb-4 replaces the flex gap (rows are absolutely positioned). */}
+                        <div className="pb-4">
+                          <FeedCard
+                            item={it}
+                            mine={user != null && it.author.username === user.username}
+                            isFollowing={followingIds.includes(it.user_id)}
+                            onOpen={() => {
+                              trackEvent("feed_card_open", { checkpoint_id: it.id, category: it.category });
+                              setSelectedId(it.id);
+                            }}
+                            onOpenProfile={() => {
+                              trackEvent("feed_profile_open");
+                              setProfileUserId(it.user_id);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-          {isFetchingNextPage && <FeedCardSkeleton />}
-        </>
-      )}
+                {isFetchingNextPage && <FeedCardSkeleton />}
+              </>
+            )}
           </>
         )}
       </div>
@@ -328,8 +318,8 @@ export function FeedPage() {
         <CheckpointDetailSheet id={selectedId} onClose={() => setSelectedId(null)} />
       )}
       {placeId && <PlaceDetailSheet id={placeId} onClose={() => setPlaceId(null)} />}
-      {profileUsername && (
-        <UserProfileSheet username={profileUsername} onClose={() => setProfileUsername(null)} />
+      {profileUserId && (
+        <UserProfileSheet userRef={profileUserId} onClose={() => setProfileUserId(null)} />
       )}
 
     </>
@@ -337,6 +327,7 @@ export function FeedPage() {
 }
 
 function PendingCheckinStatus({ count }: { count: number }) {
+  const { t } = useTranslation();
   return (
     <div
       role="status"
@@ -345,7 +336,7 @@ function PendingCheckinStatus({ count }: { count: number }) {
     >
       <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-border border-t-primary" />
       <span className="truncate font-medium">
-        {count === 1 ? "Đang đăng check-in..." : `Đang đăng ${count} check-in...`}
+        {count === 1 ? t('dang_dang_checkin') : t('dang_dang_checkin', { count: count })}
       </span>
     </div>
   );
@@ -385,6 +376,7 @@ function FeedCard({
   onOpen: () => void;
   onOpenProfile: (username: string) => void;
 }) {
+  const { t } = useTranslation();
   const author = item.author.display_name || item.author.username;
   const distance = formatDistance(item.distance_m);
   const { user: me } = useAuth();
@@ -398,10 +390,11 @@ function FeedCard({
   async function shareCheckpoint() {
     setMenuOpen(false);
     trackEvent("feed_card_share");
-    await shareImageBlob(null, {
-      filename: `checkpoint-${item.id}.png`,
+    await shareLink({
       title: item.name,
-      text: `Mình vừa thấy check-in tại ${item.name} trên Checkpoint!`,
+      text: mine
+        ? t('minh_vua_checkin_tai', { name: item.name })
+        : t('actor_da_checkin_tai', { actor: author, name: item.name }),
       url: `${API_URL}/share/checkpoint/${item.id}`,
     });
   }
@@ -465,7 +458,7 @@ function FeedCard({
             <button
               onClick={() => setMenuOpen((o) => !o)}
               className="rounded-full p-2 text-muted-foreground hover:bg-surface-muted"
-              aria-label="Tùy chọn"
+              aria-label={t('tuy_chon')}
             >
               <Icon name="more-vertical" size={18} />
             </button>
@@ -475,7 +468,7 @@ function FeedCard({
                   onClick={shareCheckpoint}
                   className="flex w-full items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-surface-muted"
                 >
-                  <Icon name="share" size={16} /> Chia sẻ
+                  <Icon name="share" size={16} /> {t('chia_se')}
                 </button>
                 {mine ? (
                   <button
@@ -485,7 +478,7 @@ function FeedCard({
                     }}
                     className="flex w-full items-center gap-2 px-4 py-3 text-sm text-accent-600 hover:bg-accent-50"
                   >
-                    <Icon name="trash" size={16} /> Xoá check-in
+                    <Icon name="trash" size={16} /> {t('xoa_checkin')}
                   </button>
                 ) : (
                   <button
@@ -495,11 +488,11 @@ function FeedCard({
                   >
                     {isFollowing ? (
                       <>
-                        <Icon name="user-minus" size={16} /> Bỏ theo dõi
+                        <Icon name="user-minus" size={16} /> {t('bo_theo_doi')}
                       </>
                     ) : (
                       <>
-                        <Icon name="user-plus" size={16} /> Theo dõi
+                        <Icon name="user-plus" size={16} /> {t('theo_doi')}
                       </>
                     )}
                   </button>
@@ -538,7 +531,7 @@ function FeedCard({
           )}
           {distance && (
             <span className="flex items-center gap-1">
-              <Icon name="map-pin" size={14} /> cách {distance}
+              <Icon name="map-pin" size={14} /> {t('cach_distance', { distance })}
             </span>
           )}
           <span className="ml-auto text-xs">{new Date(item.created_at).toLocaleDateString("vi-VN")}</span>

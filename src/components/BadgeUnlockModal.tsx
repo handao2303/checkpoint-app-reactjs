@@ -1,5 +1,7 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { Badge } from "../lib/api";
+import { badgeDescription, badgeName } from "../lib/badgeText";
 import { Icon } from "./ui/Icon";
 import { BadgeMedal } from "./BadgeMedal";
 import { trackEvent } from "../lib/observability";
@@ -40,6 +42,7 @@ export function BadgeUnlockModal({
   badges: Badge[];
   onDone: () => void;
 }) {
+  const { t } = useTranslation();
   const [idx, setIdx] = useState(0);
   const [exiting, setExiting] = useState(false);
 
@@ -70,13 +73,13 @@ export function BadgeUnlockModal({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 z-[7000] bg-black/50 backdrop-blur-sm"
         onClick={dismiss}
       />
 
       {/* Bottom sheet */}
       <div
-        className={`fixed inset-x-0 bottom-0 z-[71] mx-auto max-w-md ${
+        className={`fixed inset-x-0 bottom-0 z-[7001] mx-auto max-w-md ${
           exiting ? "animate-slide-down-out" : "animate-slide-up-in"
         }`}
       >
@@ -89,7 +92,7 @@ export function BadgeUnlockModal({
           {/* Header */}
           <p className="mb-6 text-center text-xs font-bold uppercase tracking-widest text-gold">
             <Icon name="party" size={14} className="mr-1 inline" />
-            Huy hiệu mới{badges.length > 1 ? ` · ${idx + 1}/${badges.length}` : ""}
+            {t('huy_hieu_moi', { progress: badges.length > 1 ? ` · ${idx + 1}/${badges.length}` : '' })}
           </p>
 
           {/* Badge with glow + scale-pop */}
@@ -103,11 +106,11 @@ export function BadgeUnlockModal({
 
           {/* Badge info */}
           <div className="mb-6 text-center">
-            <p className="font-display text-2xl font-bold text-foreground">{badge.name}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{badge.description}</p>
+            <p className="font-display text-2xl font-bold text-foreground">{badgeName(t, badge)}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{badgeDescription(t, badge)}</p>
             {badge.level != null && (
               <span className="mt-2 inline-block rounded-full bg-surface-muted px-3 py-0.5 text-xs font-semibold text-muted-foreground">
-                Cấp {badge.level}
+                {t('cap_level', { level: badge.level })}
               </span>
             )}
           </div>
@@ -132,7 +135,7 @@ export function BadgeUnlockModal({
             onClick={advance}
             className="w-full rounded-2xl bg-primary py-3.5 font-display text-base font-bold text-primary-foreground shadow-cta transition active:scale-[0.98]"
           >
-            {idx < badges.length - 1 ? "Tiếp theo →" : "Tuyệt vời!"}
+            {idx < badges.length - 1 ? t('tiep_theo') : t('tuyet_voi')}
           </button>
         </div>
       </div>

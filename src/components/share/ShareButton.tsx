@@ -1,47 +1,42 @@
-import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Icon } from "../ui/Icon";
 import { Button } from "../ui/Button";
-import { shareImageBlob } from "../../lib/share";
+import { useAuth } from "../../auth/AuthContext";
+import { shareLink } from "../../lib/share";
 import { trackError, trackEvent } from "../../lib/observability";
 
-/** Share button that renders a card image (via a Canvas2D `render` fn) and shares
- *  it + a deep link. Canvas (not html-to-image) so photos render on iOS too. */
+/** Shares a deep link (with OG meta) via the native share sheet. Only rendered
+ *  for signed-in users; no image card is generated. */
 export function ShareButton({
-  filename,
   title,
   text,
   url,
-  label = "Chia sẻ",
-  render,
+  label,
 }: {
-  filename: string;
   title: string;
   text: string;
   /** Deep link back to the item (shared as the Web Share `url`). */
   url?: string;
   label?: string;
-  render: () => Promise<Blob | null>;
 }) {
-  const [busy, setBusy] = useState(false);
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  if (!user) return null; // don't show the share button to anonymous users
+
+  const resolvedLabel = label ?? t('chia_se');
 
   const onShare = async () => {
-    setBusy(true);
-    trackEvent("share_render_start");
+    trackEvent("share_click");
     try {
-      const blob = await render();
-      trackEvent("share_render_success", { has_blob: !!blob });
-      await shareImageBlob(blob, { filename, title, text, url });
+      await shareLink({ title, text, url });
     } catch (error) {
-      trackError(error, { feature: "share", action: "share_render" });
-      trackEvent("share_render_failed");
-    } finally {
-      setBusy(false);
+      trackError(error, { feature: "share", action: "share_link" });
     }
   };
 
   return (
-    <Button variant="green" icon={<Icon name="share" size={20} />} disabled={busy} onClick={onShare} className="w-full">
-      {busy ? "Đang tạo ảnh..." : label}
+    <Button variant="green" icon={<Icon name="share" size={20} />} onClick={onShare} className="w-full">
+      {resolvedLabel}
     </Button>
   );
 }

@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthContext";
 import { BadgeMedal } from "../components/BadgeMedal";
@@ -6,16 +8,21 @@ import { Card } from "../components/ui/Card";
 import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
 import { getBadges, getPassport } from "../lib/api";
+import { badgeDescription, badgeName } from "../lib/badgeText";
 import { trackEvent } from "../lib/observability";
 
 // Maps badge keys to measurable progress the frontend can derive from user/passport data.
-const PROGRESS_HINTS: Record<
+function buildProgressHints(
+  t: TFunction,
+): Record<
   string,
   { label: string; max: number; getValue: (cp: number, prov: number) => number }
-> = {
-  explorer_10: { label: "địa điểm", max: 10, getValue: (cp) => cp },
-  provinces_5: { label: "tỉnh/thành", max: 5, getValue: (_, prov) => prov },
-};
+> {
+  return {
+    explorer_10: { label: t('dia_diem'), max: 10, getValue: (cp) => cp },
+    provinces_5: { label: t('tinhthanh'), max: 5, getValue: (_, prov) => prov },
+  };
+}
 
 type Filter = "all" | "unlocked" | "locked";
 
@@ -25,8 +32,10 @@ function formatDate(iso: string): string {
 }
 
 export function BadgeCollectionPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [filter, setFilter] = useState<Filter>("all");
+  const progressHints = useMemo(() => buildProgressHints(t), [t]);
 
   const { data: badges = [], isLoading: badgesLoading } = useQuery({
     queryKey: ["badges"],
@@ -47,17 +56,17 @@ export function BadgeCollectionPage() {
     filter === "unlocked" ? unlocked : filter === "locked" ? locked : badges;
 
   const FILTERS: { key: Filter; label: string }[] = [
-    { key: "all", label: `Tất cả (${badges.length})` },
-    { key: "unlocked", label: `Đã mở khóa (${unlocked.length})` },
-    { key: "locked", label: `Chưa mở khóa (${locked.length})` },
+    { key: "all", label: t('tat_ca_count', { length: badges.length }) },
+    { key: "unlocked", label: t('da_mo_khoa_count', { length: unlocked.length }) },
+    { key: "locked", label: t('chua_mo_khoa_count', { length: locked.length }) },
   ];
 
   return (
     <div className="flex flex-col gap-5 pb-4">
       <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Bộ sưu tập huy hiệu</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('bo_suu_tap_huy_hieu')}</h1>
         <p className="text-sm text-muted-foreground">
-          {unlocked.length}/{badges.length} huy hiệu đã mở khóa
+          {t('huy_hieu_da_mo_count', { unlocked: unlocked.length, total: badges.length })}
         </p>
       </div>
 
@@ -71,7 +80,7 @@ export function BadgeCollectionPage() {
               trackEvent("badge_filter_change", { filter: key });
               setFilter(key);
             }}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition ${
+            className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition scrollbar-none ${
               filter === key
                 ? "bg-primary text-primary-foreground"
                 : "bg-surface-muted text-muted-foreground hover:text-foreground"
@@ -102,8 +111,8 @@ export function BadgeCollectionPage() {
       ) : displayed.length === 0 ? (
         <p className="rounded-xl bg-surface-muted p-8 text-center text-sm text-muted-foreground">
           {filter === "unlocked"
-            ? "Chưa có huy hiệu nào. Hãy check-in để mở khóa!"
-            : "Tất cả huy hiệu đã được mở khóa!"}
+            ? t('chua_co_huy_hieu_nao')
+            : t('tat_ca_huy_hieu_da')}
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-3">
@@ -115,12 +124,12 @@ export function BadgeCollectionPage() {
               }`}
             >
               <BadgeMedal badge={b} awarded={b.awarded} size="md" showLevel={b.level} />
-              <p className="text-sm font-semibold leading-tight">{b.name}</p>
-              <p className="text-xs text-muted-foreground">{b.description}</p>
+              <p className="text-sm font-semibold leading-tight">{badgeName(t, b)}</p>
+              <p className="text-xs text-muted-foreground">{badgeDescription(t, b)}</p>
               {b.awarded ? (
                 <div className="flex flex-col items-center gap-0.5">
                   <span className="flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                    <Icon name="check" size={12} /> Đã mở khóa
+                    <Icon name="check" size={12} /> {t('da_mo_khoa')}
                   </span>
                   {b.awarded_at && (
                     <span className="text-[10px] text-muted-foreground">
@@ -130,7 +139,7 @@ export function BadgeCollectionPage() {
                 </div>
               ) : (
                 <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs text-muted-foreground">
-                  Chưa mở khóa
+                  {t('chua_mo_khoa')}
                 </span>
               )}
             </Card>
@@ -139,14 +148,14 @@ export function BadgeCollectionPage() {
       )}
 
       {/* Progress section — only locked badges with measurable progress */}
-      {filter !== "unlocked" && locked.filter((b) => PROGRESS_HINTS[b.key]).length > 0 && (
+      {filter !== "unlocked" && locked.filter((b) => progressHints[b.key]).length > 0 && (
         <div>
-          <h2 className="mb-3 font-display text-lg font-bold">Tiến trình thành tựu</h2>
+          <h2 className="mb-3 font-display text-lg font-bold">{t('tien_trinh_thanh_tuu')}</h2>
           <div className="flex flex-col gap-3">
             {locked
-              .filter((b) => PROGRESS_HINTS[b.key])
+              .filter((b) => progressHints[b.key])
               .map((b) => {
-                const hint = PROGRESS_HINTS[b.key];
+                const hint = progressHints[b.key];
                 const current = Math.min(
                   hint.getValue(user.checkpoint_count, provinceCount),
                   hint.max,
@@ -157,7 +166,7 @@ export function BadgeCollectionPage() {
                     <BadgeMedal badge={b} awarded={false} size="sm" />
                     <div className="min-w-0 flex-1">
                       <div className="mb-1 flex items-center justify-between">
-                        <p className="text-sm font-semibold">{b.name}</p>
+                        <p className="text-sm font-semibold">{badgeName(t, b)}</p>
                         <p className="text-xs text-muted-foreground">
                           {current}/{hint.max} {hint.label}
                         </p>

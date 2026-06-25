@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { disconnectPhotos, getPhotosStatus, initPhotosConnect } from "../lib/api";
 import { trackEvent } from "../lib/observability";
 
 export function GooglePhotosConnectCard() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const { data: status, isLoading } = useQuery({
@@ -46,14 +48,14 @@ export function GooglePhotosConnectCard() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-foreground">Google Photos</p>
-          <p className="text-xs text-muted-foreground">Đã kết nối</p>
+          <p className="text-xs text-muted-foreground">{t('da_ket_noi')}</p>
         </div>
         <button
           onClick={() => disconnectMutation.mutate()}
           disabled={disconnectMutation.isPending}
           className="shrink-0 text-xs text-destructive hover:underline disabled:opacity-50"
         >
-          {disconnectMutation.isPending ? "Đang ngắt..." : "Ngắt kết nối"}
+          {disconnectMutation.isPending ? t('dang_ngat') : t('ngat_ket_noi')}
         </button>
       </div>
     );
@@ -61,25 +63,26 @@ export function GooglePhotosConnectCard() {
 
   return (
     <div className="flex items-center gap-3 py-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-muted">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1a73e8]/10">
         <PhotosIcon className="opacity-50" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-foreground">Google Photos</p>
-        <p className="text-xs text-muted-foreground">Chưa kết nối</p>
+        <p className="text-xs text-muted-foreground">{t('chua_ket_noi')}</p>
       </div>
       <button
         onClick={() => connectMutation.mutate()}
         disabled={connectMutation.isPending}
         className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-105 active:scale-95 disabled:opacity-50"
       >
-        {connectMutation.isPending ? "Đang mở..." : "Kết nối"}
+        {connectMutation.isPending ? t('dang_mo') : t('ket_noi')}
       </button>
     </div>
   );
 }
 
 function PhotosIcon({ className = "" }: { className?: string }) {
+  return <img src="https://image.similarpng.com/file/similarpng/very-thumbnail/2020/12/Google-photos-logo-design-illustration-premium-vector-PNG.png" className={`h-5 w-5 ${className}`} alt="Google Photos" />;
   return (
     <svg
       viewBox="0 0 192 192"

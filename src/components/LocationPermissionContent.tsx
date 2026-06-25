@@ -1,54 +1,56 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Icon } from "./ui/Icon";
 import { Button } from "./ui/Button";
-import { ERR_INSECURE, getCurrentCoords, isGeolocationSecure } from "../lib/geo";
+import { ERR_INSECURE, getCurrentCoords, hasLocatedBefore, isGeolocationSecure } from "../lib/geo";
 import { getPlatform, isStandalone } from "../lib/platform";
 import { trackError, trackEvent } from "../lib/observability";
 
 /** Platform- and install-mode-specific steps to re-enable a blocked location
  *  permission (there is no web API to open these settings programmatically). */
-function reenableSteps(): string[] {
+function reenableSteps(t: TFunction): string[] {
   const platform = getPlatform();
   const pwa = isStandalone();
 
   if (platform === "android") {
     return pwa
       ? [
-          "Nhấn giữ biểu tượng app Checkpoint ở màn hình chính",
-          "Chọn “Thông tin ứng dụng” (ⓘ)",
-          "Quyền → Vị trí → Cho phép",
-          "Mở lại app rồi thử check-in",
+          t('nhan_giu_bieu_tuong_app'),
+          t('chon_thong_tin_ung_dung'),
+          t('quyen_vi_tri_cho_phep'),
+          t('mo_lai_app_roi_thu'),
         ]
       : [
-          "Nhấn biểu tượng 🔒 / ⓘ bên trái thanh địa chỉ",
-          "Quyền (Permissions) → Vị trí (Location) → Cho phép",
-          "Tải lại trang",
+          t('nhan_bieu_tuong_ben_trai'),
+          t('quyen_permissions_vi_tri_location'),
+          t('tai_lai_trang'),
         ];
   }
   if (platform === "ios") {
     return pwa
       ? [
-          "Mở Cài đặt iPhone",
-          "Vuốt xuống tìm “Checkpoint” (hoặc Safari)",
-          "Vị trí → chọn “Khi dùng ứng dụng”",
-          "Mở lại app",
+          t('mo_cai_dat_iphone'),
+          t('vuot_xuong_tim_checkpoint_hoac'),
+          t('vi_tri_chon_khi_dung'),
+          t('mo_lai_app'),
         ]
       : [
-          "Bấm “あ/AA” cạnh thanh địa chỉ → Cài đặt trang web",
-          "Vị trí → Cho phép (hoặc Cài đặt → Safari → Vị trí)",
-          "Tải lại trang",
+          t('bam_aa_canh_thanh_dia'),
+          t('vi_tri_cho_phep_hoac'),
+          t('tai_lai_trang'),
         ];
   }
   return pwa
     ? [
-        "Bấm biểu tượng ⚙ / 🔒 trên thanh tiêu đề cửa sổ app",
-        "Site settings → Vị trí (Location) → Cho phép",
-        "Tải lại",
+        t('bam_bieu_tuong_tren_thanh'),
+        t('site_settings_vi_tri_location'),
+        t('tai_lai'),
       ]
     : [
-        "Bấm biểu tượng 🔒 bên trái địa chỉ web",
-        "Vị trí (Location) → Cho phép (Allow)",
-        "Tải lại trang",
+        t('bam_bieu_tuong_ben_trai'),
+        t('vi_tri_location_cho_phep'),
+        t('tai_lai_trang'),
       ];
 }
 
@@ -61,9 +63,13 @@ export function LocationPermissionContent({
   onGranted: (coords: { lat: number; lng: number }) => void;
   onCancel?: () => void;
 }) {
+  const { t } = useTranslation();
   const [state, setState] = useState<PermissionState | "unknown">("unknown");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  // Start in "busy" state immediately when we know permission was previously
+  // granted — avoids a flash of the "Cho phép định vị" button before the
+  // auto-retry effect fires.
+  const [busy, setBusy] = useState(hasLocatedBefore);
 
   const fetchPosition = useCallback(() => {
     setBusy(true);
@@ -81,7 +87,7 @@ export function LocationPermissionContent({
         setBusy(false);
         // Non-secure origin: iOS won't even show the prompt — explain why.
         if (err instanceof Error && err.message === ERR_INSECURE) {
-          setError("Định vị cần kết nối an toàn (HTTPS). Hãy mở app qua đường dẫn https://…");
+          setError(t('dinh_vi_can_ket_noi'));
           trackEvent("location_insecure_context");
           return;
         }
@@ -89,12 +95,20 @@ export function LocationPermissionContent({
           setState("denied");
           trackEvent("location_denied", { source: "permission_content" });
         } else {
-          setError("Không lấy được vị trí. Vui lòng thử lại.");
+          setError(t('khong_lay_duoc_vi_tri'));
           trackError(err, { feature: "location", action: "permission_content" }, "warn");
         }
       },
     );
   }, [onGranted]);
+
+  // If this device has located before, permission is still granted — Safari's
+  // Permissions API can't be trusted (always returns "prompt"), so we use the
+  // localStorage flag as the reliable signal and auto-retry without blocking
+  // the user on a tap.
+  useEffect(() => {
+    if (hasLocatedBefore()) fetchPosition();
+  }, [fetchPosition]);
 
   // Track the live permission state so we can auto-continue the moment the user
   // flips it back to "granted" in settings — without them re-tapping.
@@ -128,30 +142,30 @@ export function LocationPermissionContent({
         <Icon name="map-pin" size={32} />
       </span>
       <h2 className="font-display text-lg font-bold">
-        {denied ? "Vị trí đang bị chặn" : "Cho phép định vị"}
+        {denied ? t('vi_tri_dang_bi_chan') : t('cho_phep_dinh_vi')}
       </h2>
 
       {denied ? (
         <>
-          <p className="text-sm text-muted-foreground">Bạn đã chặn quyền vị trí. Bật lại theo các bước:</p>
+          <p className="text-sm text-muted-foreground">{t('ban_da_chan_quyen_vi')}</p>
           <ol className="w-full list-decimal space-y-1 rounded-xl bg-surface-muted p-3 pl-7 text-left text-sm">
-            {reenableSteps().map((s, i) => (
+            {reenableSteps(t).map((s, i) => (
               <li key={i}>{s}</li>
             ))}
           </ol>
           <Button className="w-full" disabled={busy} onClick={fetchPosition}>
-            {busy ? "Đang kiểm tra..." : "Tôi đã bật, thử lại"}
+            {busy ? t('dang_kiem_tra') : t('toi_da_bat_thu_lai')}
           </Button>
         </>
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
-            Checkpoint cần vị trí của bạn để cắm cờ đúng nơi bạn đang đứng. Vị trí chỉ dùng cho lần
-            check-in này.
+            {t('checkpoint_can_vi_tri_cua')}
+            {t('checkin_nay')}
           </p>
           {insecure && (
             <p className="text-sm text-accent-600">
-              Trình duyệt chỉ cho phép định vị qua HTTPS. Hãy mở app bằng đường dẫn https://…
+              {t('trinh_duyet_chi_cho_phep')}
             </p>
           )}
           {error && <p className="text-sm text-accent-600">{error}</p>}
@@ -161,14 +175,14 @@ export function LocationPermissionContent({
             icon={<Icon name="map-pin" size={20} />}
             onClick={fetchPosition}
           >
-            {busy ? "Đang lấy vị trí..." : "Cho phép định vị"}
+            {busy ? t('dang_lay_vi_tri') : t('cho_phep_dinh_vi')}
           </Button>
         </>
       )}
 
       {onCancel && (
         <button onClick={onCancel} className="text-sm text-muted-foreground">
-          Để sau
+          {t('de_sau')}
         </button>
       )}
     </div>

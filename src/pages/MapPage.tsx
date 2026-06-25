@@ -1,16 +1,19 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Icon } from "../components/ui/Icon";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import Map, { GeolocateControl, Marker, NavigationControl } from "react-map-gl/maplibre";
 import Supercluster from "supercluster";
 import { useAuth } from "../auth/AuthContext";
+import { useAuthGate } from "../context/AuthGate";
 import { CheckpointDetailSheet } from "../components/CheckpointDetailSheet";
 import { MapSkeleton } from "../components/MapSkeleton";
 import { Button } from "../components/ui/Button";
 import { useCheckin } from "../hooks/useCheckin";
-import { getCheckpointsInBounds, getFollowing, type Bounds, type Checkpoint } from "../lib/api";
+import { getCheckpointsInBounds, type Bounds, type Checkpoint } from "../lib/api";
 import type { Coords } from "../lib/geo";
 import { CATEGORIES, DEFAULT_VIEW, MAP_STYLE, categoryIcon } from "../lib/maps";
 import { useUserLocation } from "../location/LocationProvider";
@@ -24,60 +27,32 @@ type MapFilters = {
   categoryMenuOpen: boolean;
 };
 
-const BOUNDS_BUFFER_RATIO = 0.5;
+const MAP_BOUNDS_DEBOUNCE_MS = 300;
+const WORLD_VIEW_ZOOM = 2;
 
-const LABELS: Record<MapFilter, string> = {
-  all: "Tất cả",
-  following: "Đang follow",
-  mine: "Của tôi",
-};
+const MAP_RADIUS = 40; // pixels, for supercluster
+const MAP_MAX_ZOOM = 16; // max zoom for supercluster
 
-function containsBounds(outer: Bounds, inner: Bounds): boolean {
-  return (
-    outer.minLng <= inner.minLng &&
-    outer.minLat <= inner.minLat &&
-    outer.maxLng >= inner.maxLng &&
-    outer.maxLat >= inner.maxLat
-  );
-}
-
-function expandBounds(bounds: Bounds): Bounds {
-  const lngBuffer = (bounds.maxLng - bounds.minLng) * BOUNDS_BUFFER_RATIO;
-  const latBuffer = (bounds.maxLat - bounds.minLat) * BOUNDS_BUFFER_RATIO;
+function buildLabels(t: TFunction): Record<MapFilter, string> {
   return {
-    minLng: Math.max(-180, bounds.minLng - lngBuffer),
-    minLat: Math.max(-90, bounds.minLat - latBuffer),
-    maxLng: Math.min(180, bounds.maxLng + lngBuffer),
-    maxLat: Math.min(90, bounds.maxLat + latBuffer),
+    all: t('tat_ca'),
+    following: t('dang_follow'),
+    mine: t('cua_toi'),
   };
 }
 
-const getCheckpoints = (
-  data: Checkpoint[],
-  filter: MapFilter,
-  categoryFilter: CategoryFilter,
-  userId?: string,
-  followingIds: string[] = [],
-) => {
-  let checkpoints = data;
-  if (filter === "mine") {
-    checkpoints = checkpoints.filter((cp) => cp.user_id === userId);
-  } else if (filter === "following") {
-    checkpoints = checkpoints.filter((cp) => followingIds.includes(cp.user_id));
-  }
-  if (categoryFilter !== "all") {
-    checkpoints = checkpoints.filter((cp) => cp.category === categoryFilter);
-  }
-  return checkpoints;
-};
-
 export function MapPage() {
+  const { t } = useTranslation();
   const [viewportBounds, setViewportBounds] = useState<Bounds | null>(null);
   const [queryBounds, setQueryBounds] = useState<Bounds | null>(null);
   const [zoom, setZoom] = useState(DEFAULT_VIEW.zoom);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [clusterLeaves, setClusterLeaves] = useState<Checkpoint[] | null>(null);
+  const [renderedCheckpoints, setRenderedCheckpoints] = useState<Checkpoint[]>([]);
   const [mapReady, setMapReady] = useState(false);
+  // Bumping this key remounts the <Map>, used to recover when it never finishes
+  // loading (flaky tiles / GL context). See the watchdog effect below.
+  const [mapAttempt, setMapAttempt] = useState(0);
   const [filters, setFilters] = useState<MapFilters>({
     map: "all",
     category: "all",
@@ -87,12 +62,22 @@ export function MapPage() {
   const { start, sheets } = useCheckin();
   const { coords } = useUserLocation();
   const { user } = useAuth();
+  const { requireAuth } = useAuthGate();
+  const labels = useMemo(() => buildLabels(t), [t]);
+  const shouldFetchGlobally =
+    zoom <= WORLD_VIEW_ZOOM ||
+    (queryBounds
+      ? queryBounds.minLng < -180 ||
+        queryBounds.maxLng > 180 ||
+        queryBounds.maxLng - queryBounds.minLng >= 360
+      : false);
 
   const mapRef = useRef<MapLibreMap | null>(null);
   const coordsRef = useRef<Coords | null>(null);
   coordsRef.current = coords;
   const centeredRef = useRef(false);
   const filterControlRef = useRef<HTMLDivElement | null>(null);
+  const queryBoundsTimerRef = useRef<number | null>(null);
 
   const centerOnUser = useCallback((map: MapLibreMap, c: Coords) => {
     if (centeredRef.current) return;
@@ -104,31 +89,66 @@ export function MapPage() {
     if (coords && mapRef.current) centerOnUser(mapRef.current, coords);
   }, [coords, centerOnUser]);
 
-  const { data = [] } = useQuery({
-    queryKey: ["checkpoints", "bbox", queryBounds],
+  useEffect(() => () => {
+    if (queryBoundsTimerRef.current != null) window.clearTimeout(queryBoundsTimerRef.current);
+  }, []);
+
+  // Watchdog: if the map hasn't painted within the timeout, remount it once to
+  // retry; if a second attempt also stalls, reload the page as a last resort.
+  useEffect(() => {
+    if (mapReady) return;
+    const MAP_LOAD_TIMEOUT = 12_000;
+    const timer = setTimeout(() => {
+      if (mapAttempt === 0) {
+        trackEvent("map_load_timeout_retry", { attempt: 1 });
+        centeredRef.current = false;
+        setMapAttempt(1);
+      } else {
+        trackEvent("map_load_timeout_reload", { attempt: mapAttempt + 1 });
+        window.location.reload();
+      }
+    }, MAP_LOAD_TIMEOUT);
+    return () => clearTimeout(timer);
+  }, [mapReady, mapAttempt]);
+
+  // Filtering (category + mine/following) is done server-side now, so the filter
+  // is part of the query key — switching filters refetches the matching set.
+  const {
+    data: fetchedCheckpoints,
+    isFetching: checkpointsFetching,
+    isSuccess: checkpointsLoaded,
+  } = useQuery({
+    queryKey: [
+      "checkpoints",
+      shouldFetchGlobally ? "global" : "bbox",
+      shouldFetchGlobally ? null : queryBounds,
+      mapFilter,
+      categoryFilter,
+    ],
     queryFn: async () => {
       try {
-        const checkpoints = await getCheckpointsInBounds(queryBounds!);
-        trackEvent("map_bbox_fetch_success", { count: checkpoints.length });
-        return checkpoints;
+        const result = await getCheckpointsInBounds(shouldFetchGlobally ? null : queryBounds!, {
+          category: categoryFilter,
+          filter: mapFilter,
+        });
+        trackEvent("map_bbox_fetch_success", { count: result.length });
+        return result;
       } catch (error) {
         trackError(error, { feature: "map", action: "map_bbox_fetch" });
         trackEvent("map_bbox_fetch_failed");
         throw error;
       }
     },
-    enabled: !!queryBounds,
-    placeholderData: keepPreviousData,
-    staleTime: 60_000,
+    enabled: mapReady && (shouldFetchGlobally || !!queryBounds),
+    gcTime: 0,
   });
 
-  const { data: followingIds = [] } = useQuery({
-    queryKey: ["following"],
-    queryFn: getFollowing,
-    staleTime: Infinity,
-  });
+  useEffect(() => {
+    if (checkpointsLoaded && fetchedCheckpoints) {
+      setRenderedCheckpoints(fetchedCheckpoints);
+    }
+  }, [checkpointsLoaded, fetchedCheckpoints]);
 
-  const checkpoints = getCheckpoints(data, mapFilter, categoryFilter, user?.id, followingIds);
   const activeCategory = CATEGORIES.find((category) => category.key === categoryFilter);
   const categoryOptionCount = CATEGORIES.length + 1;
 
@@ -179,9 +199,9 @@ export function MapPage() {
 
   // Build supercluster index and compute clusters for current viewport.
   const { clusters, sc } = useMemo(() => {
-    const sc = new Supercluster<Checkpoint>({ radius: 60, maxZoom: 16 });
+    const sc = new Supercluster<Checkpoint>({ radius: MAP_RADIUS, maxZoom: MAP_MAX_ZOOM });
     sc.load(
-      checkpoints.map((cp) => ({
+      renderedCheckpoints.map((cp) => ({
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [cp.lng, cp.lat] },
         properties: cp,
@@ -200,7 +220,7 @@ export function MapPage() {
       ),
       sc,
     };
-  }, [checkpoints, viewportBounds, zoom]);
+  }, [renderedCheckpoints, viewportBounds, zoom]);
 
   const syncViewport = useCallback((map: MapLibreMap) => {
     const b = map.getBounds();
@@ -211,10 +231,11 @@ export function MapPage() {
       maxLat: b.getNorth(),
     };
     setViewportBounds(nextViewport);
-    setQueryBounds((current) =>
-      current && containsBounds(current, nextViewport) ? current : expandBounds(nextViewport),
-    );
     setZoom(map.getZoom());
+    if (queryBoundsTimerRef.current != null) window.clearTimeout(queryBoundsTimerRef.current);
+    queryBoundsTimerRef.current = window.setTimeout(() => {
+      setQueryBounds(nextViewport);
+    }, MAP_BOUNDS_DEBOUNCE_MS);
   }, []);
 
   const handleLoad = useCallback(
@@ -242,6 +263,7 @@ export function MapPage() {
   return (
     <div className="absolute inset-0">
       <Map
+        key={mapAttempt}
         initialViewState={DEFAULT_VIEW}
         mapStyle={MAP_STYLE}
         attributionControl={{ compact: true }}
@@ -333,13 +355,15 @@ export function MapPage() {
         })}
       </Map>
 
+      {mapReady && checkpointsFetching && <MapFetchProgress />}
+
       <div ref={filterControlRef} className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
         <button
           type="button"
-          aria-label={activeCategory ? `Lọc ${activeCategory.label}` : "Lọc theo danh mục"}
+          aria-label={activeCategory ? t('loc_label', { label: t(activeCategory.labelKey) }) : t('loc_theo_danh_muc')}
           aria-expanded={categoryMenuOpen}
           aria-haspopup="menu"
-          title={activeCategory ? activeCategory.label : "Tất cả danh mục"}
+          title={activeCategory ? t(activeCategory.labelKey) : t('tat_ca_danh_muc')}
           onClick={() =>
             setFilters((current) => ({
               ...current,
@@ -370,8 +394,8 @@ export function MapPage() {
             type="button"
             role="menuitem"
             tabIndex={categoryMenuOpen ? 0 : -1}
-            aria-label="Tất cả danh mục"
-            title="Tất cả danh mục"
+            aria-label={t('tat_ca_danh_muc')}
+            title={t('tat_ca_danh_muc')}
             onClick={() => selectCategory("all")}
             style={{ transitionDelay: categoryOptionDelay(0) }}
             className={`flex h-10 w-10 items-center justify-center transition-all duration-150 ease-out hover:bg-surface-muted ${
@@ -380,7 +404,7 @@ export function MapPage() {
               categoryFilter === "all" ? "bg-primary text-primary-foreground" : "text-foreground"
             }`}
           >
-            <Icon name="map-pin" size={18} />
+            <Icon name="x" size={18} />
           </button>
           {CATEGORIES.map((category, index) => (
             <button
@@ -388,8 +412,8 @@ export function MapPage() {
               type="button"
               role="menuitem"
               tabIndex={categoryMenuOpen ? 0 : -1}
-              aria-label={category.label}
-              title={category.label}
+              aria-label={t(category.labelKey)}
+              title={t(category.labelKey)}
               onClick={() => selectCategory(category.key)}
               style={{ transitionDelay: categoryOptionDelay(index + 1) }}
               className={`flex h-10 w-10 items-center justify-center transition-all duration-150 ease-out hover:bg-surface-muted ${
@@ -408,14 +432,25 @@ export function MapPage() {
       <div className="absolute inset-x-4 bottom-20 mx-auto flex max-w-md justify-center gap-2">
         {(
           [
-            ["all", LABELS.all],
-            ["following", LABELS.following],
-            ["mine", LABELS.mine],
+            ["all", labels.all],
+            ["following", labels.following],
+            ["mine", labels.mine],
           ] as const
         ).map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setFilters((current) => ({ ...current, map: key }))}
+            onClick={() => {
+              // mine/following are server-filtered by the caller's id — require
+              // sign-in before switching (anonymous would just get an empty map).
+              if ((key === "following" || key === "mine") && !user) {
+                requireAuth(() => setFilters((current) => ({ ...current, map: key })), {
+                  source: "map_filter",
+                  reason: "login_required",
+                });
+                return;
+              }
+              setFilters((current) => ({ ...current, map: key }));
+            }}
             onMouseDown={() => trackEvent("map_filter_change", { filter: key })}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold shadow-md transition ${
               mapFilter === key
@@ -432,7 +467,7 @@ export function MapPage() {
         size="lg"
         className="absolute inset-x-4 bottom-4 mx-auto max-w-md"
         icon={<Icon name="map-pin" size={22} />}
-        onClick={start}
+        onClick={() => requireAuth(start, { source: "map_checkin", reason: "login_prompt_create" })}
       >
         CHECK-IN
       </Button>
@@ -460,6 +495,14 @@ export function MapPage() {
   );
 }
 
+function MapFetchProgress() {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-1 overflow-hidden bg-primary/10" aria-hidden="true">
+      <div className="map-fetch-progress__bar h-full rounded-r-full" />
+    </div>
+  );
+}
+
 function ClusterSheet({
   checkpoints,
   onClose,
@@ -469,6 +512,7 @@ function ClusterSheet({
   onClose: () => void;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40" />
@@ -481,7 +525,7 @@ function ClusterSheet({
           <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-border" />
           <div className="flex items-center justify-between">
             <h2 className="font-display text-base font-bold text-foreground">
-              {checkpoints.length} địa điểm
+              {t('so_dia_diem', { count: checkpoints.length })}
             </h2>
             <button onClick={onClose} className="rounded-full p-1 text-muted-foreground hover:bg-surface-muted">
               <Icon name="x" size={18} />

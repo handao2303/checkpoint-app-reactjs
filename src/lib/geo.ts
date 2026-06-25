@@ -104,3 +104,7 @@ export async function canLocateSilently(): Promise<boolean> {
     return false; // Permissions API unavailable (older Safari) — explain first.
   }
 }
+
+ export const openDirectionsInMaps = (lat: number, lng: number, name?: string) => {
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_name=${encodeURIComponent(name ?? "")}`, "_blank", "noopener,noreferrer");
+  };

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { type HTMLAttributes, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
@@ -36,6 +37,7 @@ export function MediaPreview({
   galleryItems,
   galleryIndex = 0,
 }: MediaPreviewProps) {
+  const { t } = useTranslation();
   const items = useMemo(() => {
     const source = galleryItems?.length ? galleryItems : [{ url, thumbnailUrl, mediaType, alt, caption }];
     return source.filter((item): item is ResolvedMediaGalleryItem => !!item.url);
@@ -65,7 +67,7 @@ export function MediaPreview({
               type="button"
               onClick={() => onRotate(rotate - 90)}
               className="flex h-10 w-10 items-center justify-center text-white/90 transition-colors hover:text-white"
-              aria-label="Xoay trái"
+              aria-label={t('xoay_trai')}
             >
               <Icon name="rotate-ccw" size={22} />
             </button>
@@ -73,7 +75,7 @@ export function MediaPreview({
               type="button"
               onClick={() => onRotate(rotate + 90)}
               className="flex h-10 w-10 items-center justify-center text-white/90 transition-colors hover:text-white"
-              aria-label="Xoay phải"
+              aria-label={t('xoay_phai')}
             >
               <Icon name="rotate-cw" size={22} />
             </button>
@@ -108,7 +110,7 @@ export function MediaPreview({
                 "relative block overflow-hidden bg-black text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 className,
               )}
-              aria-label={isVideo ? (alt ? `Phát video ${alt}` : "Phát video") : (alt ? `Xem ảnh ${alt}` : "Xem ảnh")}
+              aria-label={isVideo ? (alt ? t('phat_video_alt', { alt: alt }) : t('phat_video')) : (alt ? t('xem_anh_alt', { alt: alt }) : t('xem_anh'))}
             >
               {previewUrl ? (
                 <img

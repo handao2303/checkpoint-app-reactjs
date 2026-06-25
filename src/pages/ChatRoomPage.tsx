@@ -1,0 +1,222 @@
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
+import { useTranslation } from "react-i18next";
+import { ChatBubble } from "../components/chat/ChatBubble";
+import { ChatInput } from "../components/chat/ChatInput";
+import { ChatImagePreview } from "../components/chat/ChatImagePreview";
+import { EditGroupSheet } from "../components/chat/EditGroupSheet";
+import {
+  sendMessage,
+  subscribeMessages,
+  roomDisplayName,
+  markRoomRead,
+  subscribePresence,
+  type PresenceStatus,
+  type Message as ChatMessage,
+} from "../lib/chat";
+import { getUploadSlots, putFilesToSlots } from "../lib/api";
+import { prepareCheckpointImage } from "../lib/image";
+import { getDoc, doc } from "firebase/firestore";
+import { db } from "../lib/firebase";
+import { Icon } from "../components/ui/Icon";
+import { trackEvent } from "../lib/observability";
+import { checkpointImageUrl } from "../lib/checkpointImages";
+
+const MSG_LIMIT = 50;
+
+export function ChatRoomPage() {
+  const { roomId } = useParams<{ roomId: string }>();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sending, setSending] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [roomName, setRoomName] = useState("");
+  const [isGroup, setIsGroup] = useState(false);
+  const [roomMembers, setRoomMembers] = useState<string[]>([]);
+  const [presence, setPresence] = useState<Record<string, PresenceStatus>>({});
+  const [editingGroup, setEditingGroup] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollEl = useRef<HTMLDivElement>(null);
+  // Resolve room name + mark as read
+  useEffect(() => {
+    if (!roomId || !user) return;
+    markRoomRead(roomId, user.id);
+    getDoc(doc(db, "rooms", roomId)).then((snap) => {
+      if (snap.exists()) {
+        const room = snap.data();
+        setIsGroup(room.type === "group");
+        setRoomMembers((room.members as string[] | undefined) ?? []);
+        setRoomName(
+          room.type === "group"
+            ? room.name || "Nhóm"
+            : roomDisplayName(
+                { id: roomId, ...room, created_at: room.created_at?.toDate?.() ?? new Date() } as any,
+                user.id,
+              ),
+        );
+      }
+    }).catch(() => {
+      setRoomMembers([]);
+      setRoomName("");
+    });
+  }, [roomId, user]);
+
+  const presenceIds = useMemo(() => {
+    if (!user) return [];
+    return [...new Set(roomMembers.filter((id) => id !== user.id))].sort();
+  }, [roomMembers, user]);
+
+  useEffect(() => {
+    return subscribePresence(presenceIds, setPresence);
+  }, [presenceIds.join("|")]);
+
+  // Subscribe to messages
+  useEffect(() => {
+    if (!roomId) return;
+    trackEvent("chat_room_open", { room_id: roomId });
+    const unsub = subscribeMessages(roomId, MSG_LIMIT, setMessages);
+    return unsub;
+  }, [roomId]);
+
+  // Keep the latest message in view when opening a room and when new messages arrive.
+  useLayoutEffect(() => {
+    const el = scrollEl.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+  }, [messages.length]);
+
+  async function handleSend(text: string) {
+    if (!roomId || !user || !text.trim()) return;
+    setSending(true);
+    try {
+      await sendMessage(roomId, {
+        id: user.id,
+        display_name: user.display_name,
+        username: user.username,
+        avatar_url: user.avatar_url,
+      }, text);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handlePickImage(file: File) {
+    if (!roomId || !user) return;
+    setUploadingImage(true);
+    try {
+      // Resize + generate thumbnail client-side
+      const prepared = await prepareCheckpointImage(file);
+      const slots = await getUploadSlots(["image"]);
+      await putFilesToSlots(slots, [
+        { original: prepared.original, thumbnail: prepared.thumbnail, type: "image" },
+      ]);
+      const imageUrl = slots[0]?.object_key ? checkpointImageUrl(`${slots[0]?.object_key}`) : "";
+      const thumbUrl = slots[0]?.thumbnail_key ? checkpointImageUrl(`${slots[0]?.thumbnail_key}`) : "";
+
+      await sendMessage(roomId, {
+        id: user.id,
+        display_name: user.display_name,
+        username: user.username,
+        avatar_url: user.avatar_url,
+      }, undefined, { url: imageUrl, thumbUrl });
+    } catch (err) {
+      console.error("chat: image upload failed", err);
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  if (!roomId || !user) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-sm text-muted-foreground">{t('khong_tim_thay_phong')}</p>
+      </div>
+    );
+  }
+
+  const onlineMembers = roomMembers.filter((id) => id !== user.id && presence[id]?.online).length;
+  const dmOtherId = !isGroup ? roomMembers.find((id) => id !== user.id) : undefined;
+  const dmOnline = dmOtherId ? presence[dmOtherId]?.online === true : false;
+  const statusText = isGroup
+    ? t("online_count", { count: onlineMembers })
+    : dmOnline
+      ? t("dang_online")
+      : t("dang_offline");
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface py-2">
+        <button
+          onClick={() => navigate("/chat")}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+          aria-label={t('quay_lai')}
+        >
+          <Icon name="chevron-left" size={22} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate font-display text-base font-bold">
+            {roomName || t('dang_tai')}
+          </h1>
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className={onlineMembers > 0 || dmOnline ? "h-2 w-2 rounded-full bg-emerald-500" : "h-2 w-2 rounded-full bg-muted-foreground/40"} />
+            {statusText}
+          </p>
+        </div>
+        {isGroup && (
+          <button
+            onClick={() => setEditingGroup(true)}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+            aria-label={t('sua_nhom_chat')}
+          >
+            <Icon name="settings" size={18} />
+          </button>
+        )}
+      </div>
+
+      {/* Messages */}
+      <div ref={scrollEl} className="min-h-0 flex-1 overflow-y-auto py-1">
+        <div className="flex flex-col gap-2">
+          {messages.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {t('chua_co_tin_nhan')}
+            </p>
+          ) : (
+            messages.map((msg) => (
+              <ChatBubble
+                key={msg.id}
+                message={msg}
+                isMine={msg.sender_id === user.id}
+                showAvatar={roomId.startsWith("group_")}
+                senderOnline={presence[msg.sender_id]?.online === true}
+                onlineLabel={t("dang_online")}
+                offlineLabel={t("dang_offline")}
+                onImageClick={(url) => setPreviewUrl(url)}
+              />
+            ))
+          )}
+          <div ref={bottomRef} />
+        </div>
+      </div>
+
+      {/* Input */}
+      <ChatInput onSend={handleSend} onPickImage={handlePickImage} disabled={sending} uploadingImage={uploadingImage} />
+
+      {/* Image preview */}
+      {previewUrl && (
+        <ChatImagePreview url={previewUrl} onClose={() => setPreviewUrl(null)} />
+      )}
+
+      {/* Edit group */}
+      {editingGroup && roomId && (
+        <EditGroupSheet roomId={roomId} onClose={() => setEditingGroup(false)} />
+      )}
+    </div>
+  );
+}
