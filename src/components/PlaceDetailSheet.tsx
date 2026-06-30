@@ -1,24 +1,25 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useUserProfile } from "../context/UserProfileProvider";
-import { getPlace, API_URL } from "../lib/api";
+import { getPlace } from "../lib/api";
+import { openDirectionsInMaps } from "../lib/geo";
 import { categoryIcon } from "../lib/maps";
 import { trackEvent } from "../lib/observability";
+import { getShareUrl } from "../lib/share";
 import { useUserLocation } from "../location/LocationProvider";
 import { CheckpointDetailSheet } from "./CheckpointDetailSheet";
 import { CreateCheckpointForm } from "./CreateCheckpointForm";
 import { MediaPreview, type MediaGalleryItem } from "./MediaPreview";
+import { Button } from "./ui/Button";
 import { Card, ImagePlaceholder } from "./ui/Card";
 import { XPBadge } from "./ui/Chip";
-import { Button } from "./ui/Button";
 import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
 import { DetailSheetSkeleton } from "./ui/Skeleton";
 import { UserAvatar } from "./ui/UserAvatar";
-import { openDirectionsInMaps } from "../lib/geo";
 
 function formatDistance(m: number | null | undefined): string | null {
   if (m == null || !Number.isFinite(m) || m < 0) return null;
@@ -115,7 +116,7 @@ export function PlaceDetailSheet({ id, onClose }: { id: string; onClose: () => v
 
   const sharePlace = async () => {
     if (!placeInfo) return;
-    const url = `${API_URL}/share/place/${placeInfo.id}`;
+    const url = getShareUrl(placeInfo.id, "place");
     try {
       if (navigator.share) {
         await navigator.share({

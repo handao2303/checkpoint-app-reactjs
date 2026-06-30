@@ -1,16 +1,16 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { BadgeMedal } from "../components/BadgeMedal";
 import { EditProfileSheet } from "../components/EditProfileSheet";
-import { SettingsSheet } from "../components/SettingsSheet";
 import { JourneysSection } from "../components/JourneysSection";
 import { MediaPreview } from "../components/MediaPreview";
 import { MyCheckpointsSheet } from "../components/MyCheckpointsSheet";
 import { PassportSection } from "../components/PassportSection";
 import { ProfileHeroCard } from "../components/ProfileHeroCard";
+import { SettingsSheet } from "../components/SettingsSheet";
 import { ShareButton } from "../components/share/ShareButton";
 import { Button } from "../components/ui/Button";
 import { Card, ImagePlaceholder } from "../components/ui/Card";
@@ -21,7 +21,6 @@ import { UserAvatar } from "../components/ui/UserAvatar";
 import { UpgradeBanner } from "../components/UpgradeBanner";
 import { useUserProfile } from "../context/UserProfileProvider";
 import {
-  API_URL,
   getBadges,
   getLeaderboard,
   getMyCheckpoints,
@@ -31,6 +30,7 @@ import {
 } from "../lib/api";
 import { categoryIcon } from "../lib/maps";
 import { trackEvent } from "../lib/observability";
+import { getShareUrl } from "../lib/share";
 
 
 function MomentCaption({ cp }: { cp?: Checkpoint }) {
@@ -371,7 +371,7 @@ export function ProfilePage() {
       <ShareButton
         title={t('ho_chieu_checkpoint_cua_userdisplay', { name: user.display_name || user.username })}
         text={t('minh_da_cam_usercheckpoint_count', { checkpoint_count: user.checkpoint_count })}
-        url={`${API_URL}/share/user/${user.id}`}
+        url={getShareUrl(user.id, "user")}
         label={t('chia_se_ho_chieu_dien')}
       />
       <Button size="lg" variant="outline" icon={<Icon name="log-out" size={20} />} onClick={signOut}>

@@ -1,19 +1,20 @@
-import i18n from "../lib/i18n";
-import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useRef, useState } from "react";
-import Map, { Source, Layer, Marker } from "react-map-gl/maplibre";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { getJourney, type JourneyStop, API_URL } from "../lib/api";
-import { MAP_STYLE, DEFAULT_VIEW, categoryIcon } from "../lib/maps";
-import { Icon } from "./ui/Icon";
+import { useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import Map, { Layer, Marker, Source } from "react-map-gl/maplibre";
+import { useAuth } from "../auth/AuthContext";
+import { getJourney, type JourneyStop } from "../lib/api";
+import i18n from "../lib/i18n";
+import { categoryIcon, DEFAULT_VIEW, MAP_STYLE } from "../lib/maps";
+import { trackEvent } from "../lib/observability";
+import { getShareUrl } from "../lib/share";
 import { MediaPreview } from "./MediaPreview";
+import { ShareButton } from "./share/ShareButton";
+import { Icon } from "./ui/Icon";
 import { Sheet } from "./ui/Sheet";
 import { Skeleton } from "./ui/Skeleton";
-import { ShareButton } from "./share/ShareButton";
-import { trackEvent } from "../lib/observability";
-import { useAuth } from "../auth/AuthContext";
 
 export function JourneyDetailSheet({
   id,
@@ -160,7 +161,7 @@ export function JourneyDetailSheet({
               title={data.journey.title}
               text={`${t('hanh_trinh')} "${data.journey.title}" ${isMine ? t('cua_minh_tren_checkpoint') : t('tren_checkpoint')}`}
               label={t('chia_se_hanh_trinh')}
-              url={`${API_URL}/share/journey/${data.journey.id}`}
+              url={getShareUrl(data.journey.id, "journey")}
             />
           </div>
         </div>

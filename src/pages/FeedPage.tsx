@@ -17,7 +17,6 @@ import { useOptionalCheckinQueue } from "../context/CheckinQueue";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import {
-  API_URL,
   followUser,
   getFeed,
   getFeedFollowing,
@@ -27,10 +26,10 @@ import {
   type FeedItem,
   type LatLng
 } from "../lib/api";
-import { DEFAULT_VIEW, categoryIcon } from "../lib/maps";
+import { categoryIcon, DEFAULT_VIEW } from "../lib/maps";
 import { addFollowNotification } from "../lib/notifications";
 import { trackError, trackEvent } from "../lib/observability";
-import { shareLink } from "../lib/share";
+import { getShareUrl, shareLink } from "../lib/share";
 import { useUserLocation } from "../location/LocationProvider";
 
 const FALLBACK: LatLng = { lat: DEFAULT_VIEW.latitude, lng: DEFAULT_VIEW.longitude };
@@ -395,7 +394,7 @@ function FeedCard({
       text: mine
         ? t('minh_vua_checkin_tai', { name: item.name })
         : t('actor_da_checkin_tai', { actor: author, name: item.name }),
-      url: `${API_URL}/share/checkpoint/${item.id}`,
+      url: getShareUrl(item.id, "checkpoint"),
     });
   }
 

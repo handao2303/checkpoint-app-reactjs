@@ -37,3 +37,24 @@ export async function shareLink(opts: ShareOpts): Promise<void> {
     }
   }
 }
+
+export const SHARE_URL = import.meta.env.VITE_SHARE_URL ?? "http://localhost:8080";
+
+export function getShareUrl(id: string, type: "checkpoint" | "journey" | "place" | "user"): string {
+  let path: string;
+  switch (type) {
+    case "checkpoint":
+      path = `share/checkpoint/${id}`;
+      break;
+    case "journey":
+      path = `share/journey/${id}`;
+      break;
+    case "place":
+      path = `share/place/${id}`;
+      break;
+    case "user":
+      path = `share/user/${id}`;
+      break;
+  }
+  return path ? `${SHARE_URL}/${path}` : "";
+}

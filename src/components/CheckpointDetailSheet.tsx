@@ -1,22 +1,23 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Icon } from "./ui/Icon";
-import { getCheckpointDetail, viewCheckpoint, API_URL } from "../lib/api";
-import { categoryIcon } from "../lib/maps";
 import { useAuth } from "../auth/AuthContext";
 import { useDeleteCheckpoint } from "../hooks/useDeleteCheckpoint";
+import { getCheckpointDetail, viewCheckpoint } from "../lib/api";
+import { openDirectionsInMaps } from "../lib/geo";
+import { categoryIcon } from "../lib/maps";
+import { trackEvent } from "../lib/observability";
+import { getShareUrl } from "../lib/share";
 import { CommentSection } from "./CommentSection";
+import { MediaPreview } from "./MediaPreview";
 import { ReactionBar } from "./ReactionBar";
 import { UserProfileSheet } from "./UserProfileSheet";
-import { Sheet } from "./ui/Sheet";
+import { ShareButton } from "./share/ShareButton";
 import { XPBadge } from "./ui/Chip";
+import { Icon } from "./ui/Icon";
+import { Sheet } from "./ui/Sheet";
 import { DetailSheetSkeleton } from "./ui/Skeleton";
 import { UserAvatar } from "./ui/UserAvatar";
-import { ShareButton } from "./share/ShareButton";
-import { MediaPreview } from "./MediaPreview";
-import { trackEvent } from "../lib/observability";
-import { openDirectionsInMaps } from "../lib/geo";
 
 export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: () => void; }) {
   const { t, i18n } = useTranslation();
@@ -154,7 +155,7 @@ export function CheckpointDetailSheet({ id, onClose }: { id: string; onClose: ()
                     name: data.checkpoint.name,
                   })
               }
-              url={`${API_URL}/share/checkpoint/${data.checkpoint.id}`}
+              url={getShareUrl(data.checkpoint.id, "checkpoint")}
             />
 
             <ReactionBar

@@ -80,6 +80,7 @@ jobs:
         run: npm.cmd run deploy
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_SHARE_URL: ${{ vars.VITE_SHARE_URL }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
