@@ -1,15 +1,14 @@
-import { Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import { BadgeUnlockModal } from "./components/BadgeUnlockModal";
+import { MapRemovedNotice } from "./components/MapRemovedNotice";
 import { AuthGateProvider } from "./context/AuthGate";
 import { AppLayout } from "./components/AppLayout";
 import { InstallHint } from "./components/InstallHint";
-import { MapSkeleton } from "./components/MapSkeleton";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { claimUnsentBadges, type Badge } from "./lib/api";
-import { lazyWithRetry } from "./lib/lazyWithRetry";
 import { quickCheckinSettings } from "./lib/settings";
 import { AIPlanPage } from "./pages/AIPlanPage";
 import { BadgeCollectionPage } from "./pages/BadgeCollectionPage";
@@ -24,9 +23,6 @@ import { LoginPage } from "./pages/LoginPage";
 import { PrivacyPolicyPage, TermsPage } from "./pages/LegalPages";
 import { ProfilePage } from "./pages/ProfilePage";
 
-// MapPage pulls in MapLibre (~280KB) — load it only when the map route is opened.
-// lazyWithRetry reloads once on a stale-chunk failure instead of white-screening.
-const MapPage = lazyWithRetry(() => import("./pages/MapPage").then((m) => ({ default: m.MapPage })), "map");
 
 function VersionTag() {
   return (
@@ -81,6 +77,7 @@ export default function App() {
   // anonymous and signed-in trees.
   const overlays = (
     <>
+      <MapRemovedNotice />
       <PWAUpdatePrompt />
       <InstallHint />
       {unsentBadges.length > 0 && (
@@ -99,7 +96,7 @@ export default function App() {
         {overlays}
         <Routes>
           <Route element={<AppLayout />}>
-            <Route index element={<Suspense fallback={<MapSkeleton />}><MapPage /></Suspense>} />
+            <Route index element={<Navigate to="/discover" replace />} />
             <Route path="discover" element={<DiscoverPage />} />
             <Route path="feed" element={<FeedPage />} />
             <Route path="chat" element={<ChatListPage />} />
@@ -124,7 +121,7 @@ export default function App() {
       {overlays}
       <Routes>
         <Route element={<AppLayout />}>
-          <Route index element={<Suspense fallback={<MapSkeleton />}><MapPage /></Suspense>} />
+          <Route index element={<Navigate to="/discover" replace />} />
           <Route path="discover" element={<DiscoverPage />} />
           <Route path="feed" element={<FeedPage />} />
           <Route path="chat" element={<ChatListPage />} />

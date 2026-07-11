@@ -232,8 +232,8 @@
   "return_who_da_bay_to": "đã bày tỏ cảm xúc về",
   "return_who_da_theo_doi": "đã theo dõi bạn",
   "return_who_da_bo_theo": "đã bỏ theo dõi bạn",
-  "return_who_vua_dang_checkin": "vừa đăng check-in mới:",  
-  "return_who_da_gui_tin_nhan_vao": " đã gửi tin nhắn vào ",  
+  "return_who_vua_dang_checkin": "vừa đăng check-in mới:",
+  "return_who_da_gui_tin_nhan_vao": " đã gửi tin nhắn vào ",
   "cam_co_o_khu_vuc": "Cắm cờ ở khu vực mới để mở khóa con dấu tiếp theo",
   "dia_diem_moi": "Địa điểm mới",
   "ho_chieu": "Hộ chiếu",
@@ -549,5 +549,10 @@
   "Người sưu tập thành phố": "Người sưu tập thành phố",
   "Người kể chuyện bằng hình ảnh": "Người kể chuyện bằng hình ảnh",
   "Người tìm kho báu ẩn": "Người tìm kho báu ẩn",
-  "Chuyên gia hộ chiếu": "Chuyên gia hộ chiếu"
+  "Chuyên gia hộ chiếu": "Chuyên gia hộ chiếu",
+  "map_removed_notice": {
+    "title": "Thông báo về tính năng Bản đồ",
+    "body": "Tính năng Bản đồ đã bị ẩn vì nguồn bản đồ hiển thị \"đường lưỡi bò\" — yêu sách phi pháp của Trung Quốc vi phạm chủ quyền Việt Nam tại Hoàng Sa và Trường Sa.",
+    "dismiss": "Đã hiểu"
+  }
 }

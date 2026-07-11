@@ -549,5 +549,10 @@
   "Người sưu tập thành phố": "City Collector",
   "Người kể chuyện bằng hình ảnh": "Photo Storyteller",
   "Người tìm kho báu ẩn": "Hidden Gem Finder",
-  "Chuyên gia hộ chiếu": "Passport Pro"
+  "Chuyên gia hộ chiếu": "Passport Pro",
+  "map_removed_notice": {
+    "title": "Notice about Map feature",
+    "body": "The Map feature has been hidden because the map tile provider displayed the \"nine-dash line\" — China's illegal claim that violates Vietnam's sovereignty over the Paracel and Spratly Islands.",
+    "dismiss": "Got it"
+  }
 }
