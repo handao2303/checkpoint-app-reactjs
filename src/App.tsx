@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import { BadgeUnlockModal } from "./components/BadgeUnlockModal";
+import { MapRemovedNotice } from "./components/MapRemovedNotice";
 import { AuthGateProvider } from "./context/AuthGate";
 import { AppLayout } from "./components/AppLayout";
 import { InstallHint } from "./components/InstallHint";
@@ -76,6 +77,7 @@ export default function App() {
   // anonymous and signed-in trees.
   const overlays = (
     <>
+      <MapRemovedNotice />
       <PWAUpdatePrompt />
       <InstallHint />
       {unsentBadges.length > 0 && (
