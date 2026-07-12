@@ -6,7 +6,7 @@ import { trackEvent } from "../../lib/observability";
 
 export type Tab = {
   to: string;
-  translationKey: "discover" | "create" | "leaderboard" | "profile";
+  translationKey: "map" | "discover" | "create" | "leaderboard" | "profile";
   icon: IconName;
   tone: "primary" | "green";
   /** When true, anonymous taps open the login wall instead of navigating. */
@@ -16,6 +16,7 @@ export type Tab = {
 };
 
 export const tabs: Tab[] = [
+  { to: "/", translationKey: "map", icon: "map", tone: "primary" },
   { to: "/discover", translationKey: "discover", icon: "compass", tone: "primary" },
   { to: "/create", translationKey: "create", icon: "plus-circle", tone: "primary", requiresAuth: true, authReason: "login_prompt_create" },
   { to: "/leaderboard", translationKey: "leaderboard", icon: "trophy", tone: "primary" },

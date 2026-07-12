@@ -1,9 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import { BadgeUnlockModal } from "./components/BadgeUnlockModal";
-import { MapRemovedNotice } from "./components/MapRemovedNotice";
+import { MapSkeleton } from "./components/MapSkeleton";
+import { lazyWithRetry } from "./lib/lazyWithRetry";
+
+// MapPage pulls in MapLibre (~280KB) — load it only when the map route is opened.
+// lazyWithRetry reloads once on a stale-chunk failure instead of white-screening.
+const MapPage = lazyWithRetry(() => import("./pages/MapPage").then((m) => ({ default: m.MapPage })), "map");
 import { AuthGateProvider } from "./context/AuthGate";
 import { AppLayout } from "./components/AppLayout";
 import { InstallHint } from "./components/InstallHint";
@@ -77,7 +82,6 @@ export default function App() {
   // anonymous and signed-in trees.
   const overlays = (
     <>
-      <MapRemovedNotice />
       <PWAUpdatePrompt />
       <InstallHint />
       {unsentBadges.length > 0 && (
@@ -96,7 +100,7 @@ export default function App() {
         {overlays}
         <Routes>
           <Route element={<AppLayout />}>
-            <Route index element={<Navigate to="/discover" replace />} />
+            <Route index element={<Suspense fallback={<MapSkeleton />}><MapPage /></Suspense>} />
             <Route path="discover" element={<DiscoverPage />} />
             <Route path="feed" element={<FeedPage />} />
             <Route path="chat" element={<ChatListPage />} />
@@ -121,7 +125,7 @@ export default function App() {
       {overlays}
       <Routes>
         <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/discover" replace />} />
+          <Route index element={<Suspense fallback={<MapSkeleton />}><MapPage /></Suspense>} />
           <Route path="discover" element={<DiscoverPage />} />
           <Route path="feed" element={<FeedPage />} />
           <Route path="chat" element={<ChatListPage />} />
