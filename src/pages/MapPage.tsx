@@ -19,6 +19,12 @@ import { CATEGORIES, DEFAULT_VIEW, MAP_STYLE, categoryIcon } from "../lib/maps";
 import { useUserLocation } from "../location/LocationProvider";
 import { trackError, trackEvent } from "../lib/observability";
 
+// Vietnam's sovereign island groups shown as permanent territory markers.
+const VIETNAM_ISLANDS = [
+  { id: "hoang-sa", lat: 16.5,  lng: 112.0,  nameKey: "hoang_sa" as const },
+  { id: "truong-sa", lat: 8.65, lng: 111.92, nameKey: "truong_sa" as const },
+];
+
 type MapFilter = "all" | "following" | "mine";
 type CategoryFilter = "all" | (typeof CATEGORIES)[number]["key"];
 type MapFilters = {
@@ -276,6 +282,21 @@ export function MapPage() {
       >
         <GeolocateControl position="top-right" trackUserLocation />
         <NavigationControl position="top-right" showCompass={false} />
+
+        {VIETNAM_ISLANDS.map((island) => (
+          <Marker key={island.id} longitude={island.lng} latitude={island.lat} anchor="bottom">
+            <div className="flex flex-col items-center gap-0.5 select-none">
+              <div className="flex items-center gap-1 rounded-full border border-red-300 bg-red-600 px-2 py-0.5 shadow-md">
+                <span className="text-[10px]">🇻🇳</span>
+                <span className="text-[10px] font-bold leading-none text-white">
+                  {t(island.nameKey)}
+                </span>
+              </div>
+              <div className="h-2 w-px bg-red-600" />
+              <div className="h-1 w-1 rounded-full bg-red-600" />
+            </div>
+          </Marker>
+        ))}
 
         {clusters.map((feature) => {
           const [lng, lat] = feature.geometry.coordinates;

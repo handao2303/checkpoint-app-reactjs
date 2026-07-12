@@ -550,9 +550,9 @@
   "Người kể chuyện bằng hình ảnh": "Người kể chuyện bằng hình ảnh",
   "Người tìm kho báu ẩn": "Người tìm kho báu ẩn",
   "Chuyên gia hộ chiếu": "Chuyên gia hộ chiếu",
-  "map_removed_notice": {
-    "title": "Thông báo về tính năng Bản đồ",
-    "body": "Tính năng Bản đồ đã bị ẩn vì nguồn bản đồ hiển thị \"đường lưỡi bò\" — yêu sách phi pháp của Trung Quốc vi phạm chủ quyền Việt Nam tại Hoàng Sa và Trường Sa.",
-    "dismiss": "Đã hiểu"
-  }
+  "hoang_sa": "Hoàng Sa",
+  "truong_sa": "Trường Sa",
+  "viet_nam": "Việt Nam",
+  "dao_hoang_sa": "Quần đảo Hoàng Sa (Việt Nam)",
+  "dao_truong_sa": "Quần đảo Trường Sa (Việt Nam)"
 }
