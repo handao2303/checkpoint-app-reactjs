@@ -14,13 +14,13 @@ concurrency:
 
 defaults:
   run:
-    shell: cmd
+    shell: bash
 
 jobs:
   # ── Notify start ──────────────────────────────────────────────
   notify-start:
     name: Notify start
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/telegram-notify
@@ -33,7 +33,7 @@ jobs:
   typecheck:
     name: Typecheck
     needs: notify-start
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
@@ -42,10 +42,10 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm.cmd install
+      - run: npm install
 
       - name: Typecheck
-        run: npm.cmd run typecheck
+        run: npm run typecheck
 
       - name: Notify typecheck result
         if: always()
@@ -60,7 +60,7 @@ jobs:
     name: Deploy to Cloudflare Workers
     needs: [notify-start, typecheck]
     if: ${{ always() && needs.typecheck.result == 'success' }}
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     environment: production
 
     steps:
@@ -74,10 +74,10 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm.cmd install
+        run: npm install
 
       - name: Deploy
-        run: npm.cmd run deploy
+        run: npm run deploy
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
           VITE_SHARE_URL: ${{ vars.VITE_SHARE_URL }}
